@@ -1,0 +1,154 @@
+<!-- Signaux & Alertes Page Fragment -->
+<div class="animate-fade-in py-6">
+    <div class="mb-8">
+        <h2 class="headline-md">Signaux & Alertes</h2>
+        <p class="body-sm">Analyses techniques et monitoring en temps réel</p>
+    </div>
+
+    <div class="bento-grid">
+        <!-- Live Alert Center -->
+        <div class="col-span-12 md:col-span-8">
+            <div class="card-glass p-6 glass mb-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h4 class="label-caps">Alertes Actives</h4>
+                    <span id="alertCount" class="bg-error text-white text-[10px] px-2 py-0.5 rounded-full font-bold">0</span>
+                </div>
+                <div id="activeAlertsList" class="space-y-3">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- Technical Signals Table -->
+            <div class="card-glass p-6 glass">
+                <h4 class="label-caps mb-6">Indicateurs Techniques par Position</h4>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead>
+                            <tr class="border-b border-outline-variant/30 text-[10px] font-bold uppercase opacity-60">
+                                <th class="pb-3">Actif</th>
+                                <th class="pb-3">RSI(14)</th>
+                                <th class="pb-3">MACD</th>
+                                <th class="pb-3">Tendance (MM)</th>
+                                <th class="pb-3">Bandes Bollinger</th>
+                                <th class="pb-3">Signal</th>
+                            </tr>
+                        </thead>
+                        <tbody id="signalsTable" class="divide-y divide-outline-variant/10">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Macro / Geopolitical Aside -->
+        <div class="col-span-12 md:col-span-4 space-y-6">
+            <div class="card-glass p-6 glass bg-primary text-white">
+                <h4 class="text-xs font-bold uppercase opacity-60 mb-4">Focus Macroéconomique</h4>
+                <div id="macroContainer" class="space-y-6">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <div class="card-glass p-6 glass">
+                <h4 class="label-caps mb-4">Export de Rapport</h4>
+                <p class="text-xs mb-4">Générez un rapport PDF complet de votre santé financière et signaux actifs.</p>
+                <button onclick="window.print()" class="w-full flex items-center justify-center gap-2 border border-primary dark:border-white py-2 rounded-lg font-bold text-xs uppercase hover:bg-black/5 transition-colors">
+                    <span class="material-symbols-outlined text-sm">picture_as_pdf</span>
+                    Exporter Rapport
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { Store } from './js/store.js';
+    import { DataService, MACRO_DATA } from './js/data.js';
+
+    async function initSignaux() {
+        const portfolios = Store.getPortfolios();
+        const activeId = Store.getActiveAccountId();
+        let displayPortfolios = activeId === 'global' ? portfolios : portfolios.filter(p => p.id === activeId);
+
+        // 1. Macro Section
+        const macroContainer = document.getElementById('macroContainer');
+        macroContainer.innerHTML = MACRO_DATA.map(item => `
+            <div class="border-b border-white/10 pb-4 last:border-0">
+                <div class="flex justify-between items-start mb-1">
+                    <h5 class="font-bold text-sm">${item.title}</h5>
+                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded ${item.impact === 'Positif' ? 'bg-secondary text-white' : (item.impact === 'Négatif' ? 'bg-error text-white' : 'bg-white/20')}">
+                        ${item.impact}
+                    </span>
+                </div>
+                <p class="text-xs opacity-80 leading-relaxed">${item.summary}</p>
+                <div class="flex gap-2 mt-2">
+                    ${item.tags.map(tag => `<span class="text-[9px] border border-white/20 px-1 rounded">${tag}</span>`).join('')}
+                </div>
+            </div>
+        `).join('');
+
+        // 2. Signals Table
+        const table = document.getElementById('signalsTable');
+        const positions = [];
+        displayPortfolios.forEach(p => p.positions.forEach(pos => positions.push(pos)));
+
+        table.innerHTML = positions.map(pos => {
+            // Simulated signals logic for demo
+            const rsi = Math.floor(Math.random() * 60) + 20;
+            const rsiColor = rsi > 70 ? 'text-error' : (rsi < 30 ? 'text-secondary' : '');
+            const signal = rsi > 70 ? 'VENTE' : (rsi < 30 ? 'ACHAT FORT' : 'CONSERVER');
+            const signalClass = rsi > 70 ? 'bg-error/20 text-error' : (rsi < 30 ? 'bg-secondary/20 text-secondary' : 'bg-primary/10 opacity-60');
+
+            return `
+                <tr class="hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+                    <td class="py-4">
+                        <div class="font-bold">${pos.ticker}</div>
+                        <div class="text-[10px] opacity-60">${pos.name}</div>
+                    </td>
+                    <td class="py-4 font-bold ${rsiColor}">${rsi}</td>
+                    <td class="py-4">
+                        <span class="material-symbols-outlined text-secondary text-sm">trending_up</span>
+                        <span class="text-[10px] font-medium">Bullish Cross</span>
+                    </td>
+                    <td class="py-4">
+                        <div class="flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-secondary"></span>
+                            <span class="text-[10px]">Hausse MLT</span>
+                        </div>
+                    </td>
+                    <td class="py-4 text-[10px]">Sortie Haute</td>
+                    <td class="py-4">
+                        <span class="px-2 py-1 rounded text-[9px] font-bold uppercase ${signalClass}">${signal}</span>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        // 3. Alerts
+        const alertsList = document.getElementById('activeAlertsList');
+        const activeAlerts = Store.getAlerts().filter(a => !a.read).slice(0, 3);
+
+        document.getElementById('alertCount').textContent = activeAlerts.length;
+
+        if (activeAlerts.length === 0) {
+            alertsList.innerHTML = `<div class="p-4 text-center opacity-40 text-xs italic">Aucune alerte critique active</div>`;
+        } else {
+            alertsList.innerHTML = activeAlerts.map(a => `
+                <div class="flex items-start gap-3 p-4 rounded-xl border border-error/20 bg-error/5">
+                    <span class="material-symbols-outlined text-error mt-0.5">warning</span>
+                    <div>
+                        <div class="font-bold text-sm text-error">${a.title}</div>
+                        <p class="text-xs opacity-80 mt-0.5">${a.message}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+    }
+
+    window.addEventListener('pageLoaded', (e) => {
+        if (e.detail.page === 'signaux') {
+            initSignaux();
+        }
+    });
+</script>

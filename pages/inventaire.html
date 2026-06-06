@@ -1,0 +1,290 @@
+<!-- Inventaire & Versements Page Fragment -->
+<div class="animate-fade-in py-6">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+        <div>
+            <h2 class="headline-md">Inventaire</h2>
+            <p class="body-sm">Détail des positions et historique des versements</p>
+        </div>
+        <div class="flex gap-2">
+            <button id="exportCsv" class="flex items-center gap-2 border border-outline-variant px-4 py-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-all">
+                <span class="material-symbols-outlined text-sm">download</span>
+                <span class="text-sm font-bold uppercase tracking-wider">CSV</span>
+            </button>
+            <button id="addPositionBtn" class="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-all shadow-md">
+                <span class="material-symbols-outlined text-sm">add</span>
+                <span class="text-sm font-bold uppercase tracking-wider">Ajouter</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Filters & Search -->
+    <div class="flex flex-col md:flex-row gap-4 mb-8">
+        <div class="relative flex-1">
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 opacity-50">search</span>
+            <input type="text" id="searchInput" placeholder="Rechercher par ticker, nom, ISIN..." class="w-full bg-white dark:bg-surface-dark border border-outline-variant rounded-xl pl-10 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-primary outline-none">
+        </div>
+        <div class="flex gap-2">
+            <select id="typeFilter" class="bg-white dark:bg-surface-dark border border-outline-variant rounded-xl px-4 py-2 text-sm font-bold outline-none">
+                <option value="all">Tous types</option>
+                <option value="PEA">PEA</option>
+                <option value="CTO">CTO</option>
+            </select>
+            <select id="sortFilter" class="bg-white dark:bg-surface-dark border border-outline-variant rounded-xl px-4 py-2 text-sm font-bold outline-none">
+                <option value="value">Trier par Valeur</option>
+                <option value="perf">Trier par Gains (%)</option>
+                <option value="name">Trier par Nom</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Positions List -->
+    <div id="positionsContainer" class="space-y-4 mb-12">
+        <!-- Populated by JS -->
+    </div>
+
+    <!-- Versements Section -->
+    <div class="mt-16">
+        <h3 class="headline-md mb-6">Versements & Plafonds</h3>
+        <div class="bento-grid">
+            <div class="col-span-12 md:col-span-8 card-glass p-6 glass">
+                <h4 class="label-caps mb-6">Évolution des Versements</h4>
+                <div class="h-64">
+                    <canvas id="versementsChart"></canvas>
+                </div>
+            </div>
+            <div class="col-span-12 md:col-span-4 card-glass p-6 glass">
+                <h4 class="label-caps mb-4">Historique Récent</h4>
+                <div id="versementsList" class="space-y-4">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Position Modal (Simple) -->
+<div id="modalBackdrop" class="fixed inset-0 bg-black/50 z-[100] hidden flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-surface-dark w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+        <div class="p-6 border-b border-outline-variant">
+            <h3 class="text-lg font-bold">Ajouter une position</h3>
+        </div>
+        <form id="addPositionForm" class="p-6 space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="label-caps mb-1 block">Ticker</label>
+                    <input type="text" name="ticker" required class="w-full border border-outline-variant rounded-lg p-2 text-sm bg-transparent">
+                </div>
+                <div>
+                    <label class="label-caps mb-1 block">ISIN</label>
+                    <input type="text" name="isin" class="w-full border border-outline-variant rounded-lg p-2 text-sm bg-transparent">
+                </div>
+            </div>
+            <div>
+                <label class="label-caps mb-1 block">Nom de l'actif</label>
+                <input type="text" name="name" required class="w-full border border-outline-variant rounded-lg p-2 text-sm bg-transparent">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="label-caps mb-1 block">Quantité</label>
+                    <input type="number" step="any" name="qty" required class="w-full border border-outline-variant rounded-lg p-2 text-sm bg-transparent">
+                </div>
+                <div>
+                    <label class="label-caps mb-1 block">PRU (€)</label>
+                    <input type="number" step="any" name="pru" required class="w-full border border-outline-variant rounded-lg p-2 text-sm bg-transparent">
+                </div>
+            </div>
+            <div>
+                <label class="label-caps mb-1 block">Compte</label>
+                <select id="accountSelect" name="portfolioId" class="w-full border border-outline-variant rounded-lg p-2 text-sm bg-transparent">
+                    <!-- Populated by JS -->
+                </select>
+            </div>
+            <div class="flex justify-end gap-3 mt-6">
+                <button type="button" id="closeModal" class="px-4 py-2 text-sm font-bold uppercase">Annuler</button>
+                <button type="submit" class="bg-primary text-white px-6 py-2 rounded-lg text-sm font-bold uppercase">Sauvegarder</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script type="module">
+    import { Store } from './js/store.js';
+    import { ChartUtils } from './js/charts.js';
+
+    let versementsChart = null;
+
+    function initInventaire() {
+        renderPositions();
+        renderVersements();
+        initModal();
+
+        document.getElementById('searchInput').addEventListener('input', renderPositions);
+        document.getElementById('typeFilter').addEventListener('change', renderPositions);
+        document.getElementById('sortFilter').addEventListener('change', renderPositions);
+    }
+
+    function renderPositions() {
+        const portfolios = Store.getPortfolios();
+        const activeId = Store.getActiveAccountId();
+        const searchQuery = document.getElementById('searchInput').value.toLowerCase();
+        const typeFilter = document.getElementById('typeFilter').value;
+        const sortFilter = document.getElementById('sortFilter').value;
+
+        let allPos = [];
+        portfolios.forEach(p => {
+            if (activeId === 'global' || p.id === activeId) {
+                p.positions.forEach(pos => {
+                    allPos.push({ ...pos, portfolioName: p.name, portfolioType: p.type });
+                });
+            }
+        });
+
+        // Filter
+        allPos = allPos.filter(pos => {
+            const matchesSearch = pos.name.toLowerCase().includes(searchQuery) ||
+                                 pos.ticker.toLowerCase().includes(searchQuery) ||
+                                 pos.isin.toLowerCase().includes(searchQuery);
+            const matchesType = typeFilter === 'all' || pos.portfolioType === typeFilter;
+            return matchesSearch && matchesType;
+        });
+
+        // Sort
+        allPos.sort((a, b) => {
+            if (sortFilter === 'value') return (b.qty * b.currentPrice) - (a.qty * a.currentPrice);
+            if (sortFilter === 'perf') return ((b.currentPrice - b.pru) / b.pru) - ((a.currentPrice - a.pru) / a.pru);
+            if (sortFilter === 'name') return a.name.localeCompare(b.name);
+            return 0;
+        });
+
+        const container = document.getElementById('positionsContainer');
+        if (allPos.length === 0) {
+            container.innerHTML = `<div class="p-20 text-center opacity-50">Aucune position trouvée.</div>`;
+            return;
+        }
+
+        container.innerHTML = allPos.map(pos => {
+            const totalVal = pos.qty * pos.currentPrice;
+            const gain = totalVal - (pos.qty * pos.pru);
+            const perf = (gain / (pos.qty * pos.pru)) * 100;
+            const distStop = ((pos.currentPrice - pos.stopLevel) / pos.currentPrice) * 100;
+
+            return `
+                <div class="card-glass glass p-4 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div class="flex items-center gap-4 flex-1">
+                        <div class="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center font-bold text-sm">
+                            ${pos.ticker.split('.')[0]}
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h4 class="font-bold">${pos.name}</h4>
+                                <span class="text-[10px] px-1.5 py-0.5 rounded bg-outline-variant/20 font-bold opacity-70">${pos.portfolioType}</span>
+                            </div>
+                            <div class="text-xs opacity-60">${pos.ticker} | ${pos.isin}</div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-6 flex-[2]">
+                        <div class="md:text-right">
+                            <span class="label-caps block">Valeur Actuelle</span>
+                            <span class="font-bold data-tabular">${totalVal.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</span>
+                        </div>
+                        <div class="md:text-right">
+                            <span class="label-caps block">Perf. Totale</span>
+                            <span class="font-bold data-tabular ${perf >= 0 ? 'text-secondary' : 'text-error'}">
+                                ${perf >= 0 ? '+' : ''}${perf.toFixed(2)}%
+                            </span>
+                        </div>
+                        <div class="md:text-right">
+                            <span class="label-caps block">Stop Suiveur</span>
+                            <span class="font-bold data-tabular ${distStop < 3 ? 'text-error' : ''}">${pos.stopLevel}€</span>
+                            <span class="text-[10px] opacity-60 ml-1">(-${distStop.toFixed(1)}%)</span>
+                        </div>
+                        <div class="flex items-center justify-end">
+                             <button class="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-full"><span class="material-symbols-outlined">edit</span></button>
+                             <button class="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-full text-error opacity-60"><span class="material-symbols-outlined">delete</span></button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function renderVersements() {
+        const portfolios = Store.getPortfolios();
+        const ctx = document.getElementById('versementsChart').getContext('2d');
+
+        // Mock data for chart
+        const months = ['Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Fév'];
+        const data = [75000, 78000, 80000, 85000, 92000, 95000];
+
+        if (versementsChart) versementsChart.destroy();
+        versementsChart = ChartUtils.initLine(ctx, data, months, 'Versements Cumulés');
+
+        // History List
+        const list = document.getElementById('versementsList');
+        const history = [
+            { date: '15/02/2024', amount: 3000, account: 'Jean — PEA' },
+            { date: '02/02/2024', amount: 500, account: 'Jean — CTO' },
+            { date: '12/01/2024', amount: 7000, account: 'Jean — PEA' }
+        ];
+
+        list.innerHTML = history.map(v => `
+            <div class="flex justify-between items-center text-sm border-b border-outline-variant/10 pb-2">
+                <div>
+                    <div class="font-bold">${v.amount.toLocaleString('fr-FR')} €</div>
+                    <div class="text-[10px] opacity-60">${v.account}</div>
+                </div>
+                <div class="text-xs opacity-60">${v.date}</div>
+            </div>
+        `).join('');
+    }
+
+    function initModal() {
+        const modal = document.getElementById('modalBackdrop');
+        const btn = document.getElementById('addPositionBtn');
+        const close = document.getElementById('closeModal');
+        const form = document.getElementById('addPositionForm');
+        const portfolioSelect = document.getElementById('accountSelect');
+
+        btn.onclick = () => {
+            const portfolios = Store.getPortfolios();
+            portfolioSelect.innerHTML = portfolios.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+            modal.classList.remove('hidden');
+        };
+
+        close.onclick = () => modal.classList.add('hidden');
+
+        form.onsubmit = (e) => {
+            e.preventDefault();
+            const formData = new FormData(form);
+            const portfolioId = formData.get('portfolioId');
+
+            const newPos = {
+                ticker: formData.get('ticker'),
+                isin: formData.get('isin'),
+                name: formData.get('name'),
+                qty: parseFloat(formData.get('qty')),
+                pru: parseFloat(formData.get('pru')),
+                currentPrice: parseFloat(formData.get('pru')), // Default to PRU
+                stopLevel: parseFloat(formData.get('pru')) * 0.9, // Default 10% below
+                type: 'Actions'
+            };
+
+            const portfolios = Store.getPortfolios();
+            const pIndex = portfolios.findIndex(p => p.id === portfolioId);
+            if (pIndex !== -1) {
+                portfolios[pIndex].positions.push(newPos);
+                Store.savePortfolios(portfolios);
+                modal.classList.add('hidden');
+                renderPositions();
+                form.reset();
+            }
+        };
+    }
+
+    window.addEventListener('pageLoaded', (e) => {
+        if (e.detail.page === 'inventaire') {
+            initInventaire();
+        }
+    });
+</script>

@@ -1,0 +1,211 @@
+<!-- Analyse Page Fragment -->
+<div class="animate-fade-in py-6">
+    <div class="mb-8">
+        <h2 class="headline-md">Analyse & Profil</h2>
+        <p class="body-sm">Alignement de votre stratégie avec vos objectifs</p>
+    </div>
+
+    <div class="bento-grid">
+        <!-- Profile Selector & Score -->
+        <div class="col-span-12 md:col-span-4 card-glass p-6 glass flex flex-col gap-6">
+            <div>
+                <label class="label-caps mb-2 block">Profil Investisseur</label>
+                <select id="profileSelect" class="w-full bg-white dark:bg-surface-dark border border-outline-variant rounded-lg p-2 font-bold text-sm focus:ring-2 focus:ring-primary outline-none">
+                    <option value="prudent">Prudent</option>
+                    <option value="equilibre" selected>Équilibré</option>
+                    <option value="dynamique">Dynamique</option>
+                    <option value="offensif">Offensif</option>
+                    <option value="dca">DCA Automatique</option>
+                </select>
+            </div>
+
+            <div class="text-center py-4 border-y border-outline-variant/30">
+                <div id="scoreBadge" class="inline-block px-4 py-1 rounded-full text-[10px] font-bold uppercase mb-2 bg-secondary text-white">OPTIMAL</div>
+                <div id="coherenceScore" class="headline-lg text-primary dark:text-white">95</div>
+                <div class="label-caps">Score de Cohérence</div>
+            </div>
+
+            <div id="profileDetails" class="text-sm space-y-2">
+                <div class="flex justify-between">
+                    <span class="opacity-60">Objectif :</span>
+                    <span id="targetReturn" class="font-bold">5-8%/an</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="opacity-60">Horizon :</span>
+                    <span id="horizon" class="font-bold">3-7 ans</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Allocation Chart -->
+        <div class="col-span-12 md:col-span-8 card-glass p-6 glass">
+            <h4 class="label-caps mb-6">Allocation Actuelle vs Cible (%)</h4>
+            <div class="h-64">
+                <canvas id="compareChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Strategy & Recommendations -->
+        <div class="col-span-12 md:col-span-8 card-glass p-6 glass">
+            <h4 class="label-caps mb-6">Stratégie de Rééquilibrage</h4>
+            <div id="rebalanceActions" class="space-y-4">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+
+        <!-- Wealth Projection -->
+        <div class="col-span-12 md:col-span-4 card-glass p-6 glass">
+            <h4 class="label-caps mb-6">Projection de Patrimoine (10 ans)</h4>
+            <div class="h-48 mb-4">
+                <canvas id="projectionChart"></canvas>
+            </div>
+            <p class="text-[10px] opacity-60 italic text-center">Simulation basée sur un versement mensuel de 500€ et le rendement cible du profil.</p>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { Store } from './js/store.js';
+    import { INVESTOR_PROFILES } from './js/data.js';
+    import { ChartUtils } from './js/charts.js';
+
+    let compareChart = null;
+    let projectionChart = null;
+
+    function initAnalyse() {
+        const select = document.getElementById('profileSelect');
+        const settings = Store.getSettings();
+
+        select.value = settings.investorProfile || 'equilibre';
+
+        select.addEventListener('change', (e) => {
+            Store.saveSettings({ investorProfile: e.target.value });
+            updateAnalysis();
+        });
+
+        updateAnalysis();
+    }
+
+    function updateAnalysis() {
+        const portfolios = Store.getPortfolios();
+        const profileKey = document.getElementById('profileSelect').value;
+        const profile = INVESTOR_PROFILES[profileKey];
+
+        // 1. Current Allocation
+        let total = 0;
+        const actual = { actions: 0, obligations: 0, cash: 0, crypto: 0 };
+
+        portfolios.forEach(p => {
+            p.positions.forEach(pos => {
+                const val = pos.qty * pos.currentPrice;
+                total += val;
+                const type = (pos.type || 'Actions').toLowerCase();
+                if (actual[type] !== undefined) actual[type] += val;
+            });
+            // Approximate cash from versements vs current value if needed
+            // For demo, we just use position types
+        });
+
+        const actualPercents = {
+            actions: (actual.actions / (total || 1)) * 100,
+            obligations: (actual.obligations / (total || 1)) * 100,
+            cash: (actual.cash / (total || 1)) * 100,
+            crypto: (actual.crypto / (total || 1)) * 100
+        };
+
+        // 2. Score Calculation
+        let deltaSum = 0;
+        Object.keys(profile.allocation).forEach(k => {
+            deltaSum += Math.abs(profile.allocation[k] - actualPercents[k]);
+        });
+        const score = Math.max(0, 100 - Math.round(deltaSum));
+
+        const scoreEl = document.getElementById('coherenceScore');
+        const badgeEl = document.getElementById('scoreBadge');
+        scoreEl.textContent = score;
+
+        if (score > 85) {
+            badgeEl.textContent = 'OPTIMAL';
+            badgeEl.className = 'inline-block px-4 py-1 rounded-full text-[10px] font-bold uppercase mb-2 bg-secondary text-white';
+        } else if (score > 70) {
+            badgeEl.textContent = 'BON';
+            badgeEl.className = 'inline-block px-4 py-1 rounded-full text-[10px] font-bold uppercase mb-2 bg-blue-500 text-white';
+        } else {
+            badgeEl.textContent = 'À REVOIR';
+            badgeEl.className = 'inline-block px-4 py-1 rounded-full text-[10px] font-bold uppercase mb-2 bg-error text-white';
+        }
+
+        document.getElementById('targetReturn').textContent = profile.targetReturn + '/an';
+        document.getElementById('horizon').textContent = profile.horizon;
+
+        // 3. Compare Chart
+        const ctx = document.getElementById('compareChart').getContext('2d');
+        const labels = ['Actions', 'Obligations', 'Cash', 'Crypto'];
+        const actualData = [actualPercents.actions, actualPercents.obligations, actualPercents.cash, actualPercents.crypto];
+        const targetData = [profile.allocation.actions, profile.allocation.obligations, profile.allocation.cash, profile.allocation.crypto];
+
+        if (compareChart) compareChart.destroy();
+        compareChart = ChartUtils.initBarCompare(ctx, actualData, targetData, labels);
+
+        // 4. Rebalance Actions
+        const actionsList = document.getElementById('rebalanceActions');
+        const recommendations = [];
+
+        Object.keys(profile.allocation).forEach(k => {
+            const diff = profile.allocation[k] - actualPercents[k];
+            const amount = (diff * total) / 100;
+            if (Math.abs(amount) > 100) {
+                recommendations.push({
+                    type: amount > 0 ? 'BUY' : 'SELL',
+                    category: k,
+                    amount: Math.abs(amount)
+                });
+            }
+        });
+
+        if (recommendations.length === 0) {
+            actionsList.innerHTML = `<div class="p-10 text-center opacity-50">Aucun rééquilibrage nécessaire.</div>`;
+        } else {
+            actionsList.innerHTML = recommendations.map(rec => `
+                <div class="flex items-center justify-between p-4 rounded-xl border border-outline-variant/30 bg-white/5">
+                    <div class="flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center ${rec.type === 'BUY' ? 'bg-secondary/20 text-secondary' : 'bg-error/20 text-error'}">
+                            <span class="material-symbols-outlined">${rec.type === 'BUY' ? 'add_circle' : 'remove_circle'}</span>
+                        </div>
+                        <div>
+                            <div class="font-bold text-sm">${rec.type === 'BUY' ? 'Renforcer' : 'Alléger'} : ${rec.category.toUpperCase()}</div>
+                            <div class="text-[10px] opacity-60">Impact fiscal optimisé via PEA recommandé.</div>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="font-bold data-tabular text-sm">~ ${rec.amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</div>
+                        <button class="text-[10px] font-bold uppercase text-primary dark:text-white underline mt-1">Détails</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 5. Projection Chart
+        const pCtx = document.getElementById('projectionChart').getContext('2d');
+        const projectionLabels = Array.from({length: 11}, (_, i) => `An ${i}`);
+        const rateStr = profile.targetReturn.split('-')[0].replace('%', '') || 7;
+        const rate = parseFloat(rateStr) / 100;
+        const monthly = 500;
+
+        let current = total;
+        const projectionData = [current];
+        for (let i = 1; i <= 10; i++) {
+            current = current * (1 + rate) + (monthly * 12);
+            projectionData.push(Math.round(current));
+        }
+
+        if (projectionChart) projectionChart.destroy();
+        projectionChart = ChartUtils.initLine(pCtx, projectionData, projectionLabels, 'Patrimoine');
+    }
+
+    window.addEventListener('pageLoaded', (e) => {
+        if (e.detail.page === 'analyse') {
+            initAnalyse();
+        }
+    });
+</script>
