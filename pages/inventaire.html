@@ -7,7 +7,7 @@
     </div>
     <div class="action-row">
       <button id="exportJson" class="ghost-btn" type="button"><span class="material-symbols-outlined">download</span>JSON</button>
-      <label class="ghost-btn import-label" for="importJson"><span class="material-symbols-outlined">upload</span>Importer<input id="importJson" class="file-input-cover" type="file" accept="application/json,.json"></label>
+      <label class="ghost-btn import-label" for="importJson"><span class="material-symbols-outlined">upload</span>Importer en remplaçant<input id="importJson" class="file-input-cover" type="file" accept="application/json,.json"></label>
       <button id="addPosition" class="primary-btn" type="button"><span class="material-symbols-outlined">add</span>Position</button>
     </div>
   </div>
@@ -48,6 +48,7 @@
         </div>
         <button class="primary-btn" type="submit"><span class="material-symbols-outlined">save</span>Sauver portefeuille</button>
       </form>
+      <div id="importStatus" class="mini-card hidden"></div>
       <div id="portfolioList" class="list-stack mt-4"></div>
     </aside>
 
@@ -151,11 +152,8 @@
       const file = event.target.files[0];
       if (!file) return;
       const payload = JSON.parse(await file.text());
-      const incomingDate = Date.parse(payload.exportedAt || payload.data?.exportedAt || 0);
-      const localDate = Date.parse(state.data.exportedAt || 0);
-      const older = incomingDate && localDate && incomingDate < localDate;
-      const mode = older ? (confirm('Ce JSON semble plus ancien que les donnees locales. OK = merge intelligent, Annuler = ecrasement complet.') ? 'merge' : 'replace') : (confirm('Remplacer completement les donnees locales par ce JSON ? Annuler = merge intelligent.') ? 'replace' : 'merge');
-      importBackup(payload, mode);
+      importBackup(payload, 'replace');
+      renderImportStatus(payload);
       renderAll();
       event.target.value = '';
     };
@@ -165,6 +163,7 @@
     renderOwners();
     renderPortfolios();
     renderPositions();
+    renderImportStatus();
   }
 
   function renderOwners() {
@@ -246,6 +245,21 @@
   function renderProfileOptions(select) {
     const profiles = getSettings().investorProfiles || {};
     select.innerHTML = Object.entries(profiles).map(([id, profile]) => `<option value="${id}">${profile.label}</option>`).join('');
+  }
+
+  function renderImportStatus(payload = null) {
+    const box = document.getElementById('importStatus');
+    const data = payload?.data || state.data;
+    const owners = data?.owners?.length || 0;
+    const portfolios = data?.portfolios?.length || 0;
+    const positions = (data?.portfolios || []).reduce((sum, portfolio) => sum + (portfolio.positions?.length || 0), 0);
+    if (!owners && !portfolios) {
+      box.classList.add('hidden');
+      box.innerHTML = '';
+      return;
+    }
+    box.classList.remove('hidden');
+    box.innerHTML = `<div><strong>Jeu charge</strong><span>${owners} proprietaires · ${portfolios} portefeuilles · ${positions} lignes detenues</span></div>`;
   }
 
   function openPosition(portfolioId, positionId) {
