@@ -9,9 +9,18 @@ export const KEYS = {
   orderBasket: 'alphaTerm_orderBasket'
 };
 
+export const DEFAULT_INVESTOR_PROFILES = {
+  prudent: { label: 'Prudent', objective: '3-5%/an', horizon: '< 3 ans', rate: 0.04, atrMultiplier: 2, target: { Actions: 30, Obligations: 50, Liquidités: 20, Crypto: 0 }, etf: 'ETF obligataire court terme + fonds monétaire' },
+  equilibre: { label: 'Equilibre', objective: '5-8%/an', horizon: '3-7 ans', rate: 0.065, atrMultiplier: 3, target: { Actions: 50, Obligations: 35, Liquidités: 15, Crypto: 0 }, etf: 'MSCI World + obligations EUR' },
+  dynamique: { label: 'Dynamique', objective: '8-12%/an', horizon: '5-10 ans', rate: 0.10, atrMultiplier: 3, target: { Actions: 70, Obligations: 15, Liquidités: 15, Crypto: 0 }, etf: 'MSCI World / Nasdaq via PEA' },
+  offensif: { label: 'Offensif', objective: '12-20%/an', horizon: '> 7 ans', rate: 0.15, atrMultiplier: 4, target: { Actions: 90, Obligations: 0, Liquidités: 10, Crypto: 0 }, etf: 'Nasdaq-100 + MSCI World' },
+  dca: { label: 'DCA Automatique', objective: 'cumulatif configurable', horizon: 'regulier', rate: 0.08, atrMultiplier: 3, target: { Actions: 75, Obligations: 10, Liquidités: 15, Crypto: 0 }, etf: 'Plan DCA MSCI World' }
+};
+
 const defaultSettings = {
   darkMode: false,
   investorProfile: 'equilibre',
+  investorProfiles: DEFAULT_INVESTOR_PROFILES,
   notificationsEnabled: false,
   importMode: 'replace',
   currency: 'EUR',
@@ -20,6 +29,11 @@ const defaultSettings = {
   twelveDataApiKey: '',
   corsProxy: 'https://proxy.sicho95.workers.dev?url=',
   yahooFallback: true,
+  macroProvider: 'static',
+  marketauxApiKey: '',
+  finnhubApiKey: '',
+  macroQuery: 'central banks OR inflation OR energy OR geopolitics OR markets',
+  macroLanguage: 'fr,en',
   stopAtrMultipliers: {
     prudent: 2,
     equilibre: 3,
@@ -64,6 +78,7 @@ function normalizePortfolio(portfolio) {
     ownerId,
     name: portfolio.name || `${ownerName} ${portfolio.type || 'CTO'}`,
     type: portfolio.type || 'CTO',
+    profileId: portfolio.profileId || portfolio.investorProfile || 'equilibre',
     color: portfolio.color || '#2563eb',
     versements: Number(portfolio.versements || 0),
     deposits: Array.isArray(portfolio.deposits) ? portfolio.deposits : [],
@@ -84,6 +99,28 @@ function normalizePortfolio(portfolio) {
       history: position.history || null
     })) : []
   };
+}
+
+function normalizeProfiles(profiles = {}) {
+  const merged = { ...DEFAULT_INVESTOR_PROFILES, ...profiles };
+  return Object.fromEntries(Object.entries(merged).map(([id, profile]) => [id, {
+    ...DEFAULT_INVESTOR_PROFILES[id],
+    ...profile,
+    target: { ...(DEFAULT_INVESTOR_PROFILES[id]?.target || {}), ...(profile.target || {}) },
+    rate: Number(profile.rate ?? DEFAULT_INVESTOR_PROFILES[id]?.rate ?? 0.08),
+    atrMultiplier: Number(profile.atrMultiplier ?? profile.atr ?? DEFAULT_INVESTOR_PROFILES[id]?.atrMultiplier ?? 3)
+  }]));
+}
+
+function normalizeSettings(settings = {}) {
+  const merged = { ...defaultSettings, ...settings };
+  merged.investorProfiles = normalizeProfiles(merged.investorProfiles);
+  merged.stopAtrMultipliers = {
+    ...defaultSettings.stopAtrMultipliers,
+    ...merged.stopAtrMultipliers,
+    ...Object.fromEntries(Object.entries(merged.investorProfiles).map(([id, profile]) => [id, profile.atrMultiplier]))
+  };
+  return merged;
 }
 
 function normalizeData(input) {
@@ -116,7 +153,7 @@ export function initStore(defaultData) {
   const legacy = readJSON(KEYS.legacyPortfolios, null);
   state.data = normalizeData(stored || legacy || defaultData);
   state.alerts = readJSON(KEYS.alerts, []);
-  state.settings = { ...defaultSettings, ...readJSON(KEYS.settings, {}) };
+  state.settings = normalizeSettings(readJSON(KEYS.settings, {}));
   state.selectedScope = localStorage.getItem(KEYS.selectedScope) || 'all';
   persistData();
   writeJSON(KEYS.alerts, state.alerts);
@@ -158,7 +195,7 @@ export function getPortfolios() {
 }
 
 export function saveSettings(settings) {
-  state.settings = { ...state.settings, ...settings };
+  state.settings = normalizeSettings({ ...state.settings, ...settings });
   writeJSON(KEYS.settings, state.settings);
   emit();
 }
@@ -202,6 +239,7 @@ export function flattenPositions(portfolios = getVisiblePortfolios()) {
       accountId: portfolio.id,
       accountName: portfolio.name,
       accountType: portfolio.type,
+      profileId: portfolio.profileId || 'equilibre',
       portfolioColor: portfolio.color,
       ownerId: portfolio.ownerId,
       ownerName: owner?.name || portfolio.ownerId,

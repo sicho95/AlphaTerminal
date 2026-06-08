@@ -37,27 +37,30 @@
 
 <script type="module">
   import { getVisiblePortfolios, totals, getSettings, money, pct } from './js/store.js';
-  import { INVESTOR_PROFILES, suggestedStop } from './js/data.js';
+  import { suggestedStop } from './js/data.js';
 
   function initAnalyse() {
-    const total = totals(getVisiblePortfolios());
+    const portfolios = getVisiblePortfolios();
+    const total = totals(portfolios);
     document.getElementById('emptyAnalyse').classList.toggle('hidden', total.positions.length > 0);
     document.getElementById('analyseContent').classList.toggle('hidden', total.positions.length === 0);
     if (!total.positions.length) return;
 
     const settings = getSettings();
-    const profile = INVESTOR_PROFILES[settings.investorProfile] || INVESTOR_PROFILES.equilibre;
+    const profiles = settings.investorProfiles;
+    const weighted = weightedProfileTarget(portfolios, total.value, profiles, settings.investorProfile);
+    const profile = weighted.primaryProfile;
     const allocation = currentAllocation(total.positions, total.value);
-    const deltas = Object.keys(profile.target).map(key => Math.abs((allocation[key] || 0) - profile.target[key]));
+    const deltas = Object.keys(weighted.target).map(key => Math.abs((allocation[key] || 0) - weighted.target[key]));
     const score = Math.max(0, Math.round(100 - deltas.reduce((sum, value) => sum + value, 0)));
     const label = score > 85 ? 'Optimal' : score > 70 ? 'Bon' : score > 50 ? 'A revoir' : 'Critique';
 
     document.getElementById('scoreValue').textContent = score;
     document.getElementById('scoreBadge').textContent = label;
-    document.getElementById('scoreBadge').className = `trend-pill ${score > 70 ? 'positive' : 'negative'}`;
-    document.getElementById('profileSummary').textContent = `${profile.label} · objectif ${profile.objective} · horizon ${profile.horizon} · stop par defaut ${settings.stopAtrMultipliers?.[settings.investorProfile] || 3}x ATR14.`;
-    renderBars(allocation, profile.target);
-    renderRebalance(allocation, profile.target, total.value, profile.etf);
+    document.getElementById('scoreBadge').className = `signal-badge ${score > 70 ? 'watch' : score > 50 ? 'neutral' : 'sell'}`;
+    document.getElementById('profileSummary').textContent = `${weighted.label} · objectif ${profile.objective} · horizon ${profile.horizon} · stop par defaut ${profile.atrMultiplier || 3}x ATR14.`;
+    renderBars(allocation, weighted.target);
+    renderRebalance(allocation, weighted.target, total.value, profile.etf);
     renderStops(total.positions);
   }
 
@@ -72,11 +75,18 @@
 
   function renderBars(actual, target) {
     document.getElementById('allocationBars').innerHTML = Object.keys(target).map(key => `
-      <div>
-        <div class="flex justify-between text-sm font-bold"><span>${key}</span><span>${pct(actual[key] || 0)} / ${pct(target[key])}</span></div>
-        <div class="progress-track"><div class="progress-fill" style="width:${Math.min(actual[key] || 0, 100)}%"></div></div>
+      <div class="allocation-row">
+        <div class="allocation-label">${key}</div>
+        <div class="allocation-bars">
+          <div class="allocation-bar actual" style="width:${Math.min(actual[key] || 0, 100)}%"></div>
+          <div class="allocation-bar target" style="width:${Math.min(target[key] || 0, 100)}%"></div>
+        </div>
+        <div class="allocation-values">${pct(actual[key] || 0)} / ${pct(target[key])}</div>
       </div>
     `).join('');
+    document.getElementById('allocationBars').insertAdjacentHTML('afterbegin', `
+      <div class="allocation-legend"><span><i class="actual"></i>Actuel</span><span><i class="target"></i>Cible</span></div>
+    `);
   }
 
   function renderRebalance(actual, target, value, etf) {
@@ -90,10 +100,30 @@
 
   function renderStops(positions) {
     const rows = positions.map(position => {
-      const stop = suggestedStop(position);
+      const stop = suggestedStop(position, position.profileId);
       return `<div class="mini-card"><div><strong>${position.name}</strong><span>${position.ticker} · ${position.accountName}</span></div><div class="text-right"><strong>${stop.atr ? money(stop.stop) : 'Historique requis'}</strong><span>${stop.multiplier}x ATR14</span></div></div>`;
     });
     document.getElementById('stopList').innerHTML = rows.join('');
+  }
+
+  function weightedProfileTarget(portfolios, totalValue, profiles, fallbackProfile) {
+    const result = { Actions: 0, Obligations: 0, Liquidités: 0, Crypto: 0 };
+    const profileIds = new Set();
+    portfolios.forEach(portfolio => {
+      const value = portfolio.positions.reduce((sum, position) => sum + position.qty * position.currentPrice, 0);
+      const weight = totalValue ? value / totalValue : 1 / Math.max(portfolios.length, 1);
+      const profileId = portfolio.profileId || fallbackProfile || 'equilibre';
+      profileIds.add(profileId);
+      const profile = profiles[profileId] || profiles.equilibre;
+      Object.keys(result).forEach(key => { result[key] += (profile.target?.[key] || 0) * weight; });
+    });
+    const firstProfileId = profileIds.values().next().value || fallbackProfile || 'equilibre';
+    const primaryProfile = profiles[firstProfileId] || profiles.equilibre;
+    return {
+      target: result,
+      primaryProfile,
+      label: profileIds.size > 1 ? `Cible ponderee (${profileIds.size} profils)` : primaryProfile.label
+    };
   }
 
   initAnalyse();

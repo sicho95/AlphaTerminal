@@ -93,6 +93,10 @@ main#app-content { width: min(1280px, 100%); margin: 0 auto; padding: 24px 16px 
 .trend-pill.negative, .status-pill.danger { background: rgba(186,26,26,.12); color: #ba1a1a; }
 .status-pill.neutral { background: rgba(4,22,39,.08); color: #041627; }
 .dark .status-pill.neutral { color: #e2e8f0; background: rgba(255,255,255,.1); }
+.signal-badge { display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; padding: 8px 10px; min-height: 36px; font-size: .76rem; font-weight: 950; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+.signal-badge.neutral { color: #4b5563; background: rgba(107,114,128,.14); }
+.signal-badge.watch { color: #2f6f37; background: rgba(59,105,52,.14); }
+.signal-badge.sell { color: #a61919; background: rgba(186,26,26,.14); }
 .progress-track { height: 10px; margin-top: 18px; overflow: hidden; border-radius: 999px; background: rgba(196,198,205,.48); }
 .progress-fill { height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, #3b6934, #0f766e); transition: width .4s ease; }
 .section-title { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; font-size: .82rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; color: #667085; }
@@ -107,6 +111,7 @@ main#app-content { width: min(1280px, 100%); margin: 0 auto; padding: 24px 16px 
 .legend-row em { color: #667085; font-size: .78rem; font-style: normal; font-weight: 800; }
 .mini-card { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px; }
 .mini-card.alert { justify-content: flex-start; border-color: rgba(186,26,26,.28); background: rgba(186,26,26,.07); }
+.macro-card { color: inherit; }
 .empty-state { display: grid; justify-items: center; gap: 12px; padding: 48px 20px; border: 1px dashed #c4c6cd; border-radius: 8px; text-align: center; color: #667085; }
 .empty-state.compact { padding: 24px 14px; }
 .form-grid { display: grid; gap: 12px; }
@@ -114,6 +119,22 @@ main#app-content { width: min(1280px, 100%); margin: 0 auto; padding: 24px 16px 
 .field label { display: block; margin-bottom: 6px; color: #667085; font-size: .72rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
 .field input, .field select, .field textarea { width: 100%; border: 1px solid #c4c6cd; border-radius: 8px; background: rgba(255,255,255,.78); padding: 10px 12px; font-weight: 650; }
 .dark .field input, .dark .field select, .dark .field textarea { border-color: #334155; background: rgba(15,23,42,.8); color: white; }
+.profiles-editor { display: grid; gap: 14px; }
+.profile-edit-card { border: 1px solid rgba(196,198,205,.72); border-radius: 8px; padding: 14px; background: rgba(255,255,255,.52); }
+.dark .profile-edit-card { border-color: #334155; background: rgba(15,23,42,.52); }
+.allocation-legend { display: flex; justify-content: center; gap: 18px; margin-bottom: 12px; color: #667085; font-size: .85rem; font-weight: 750; }
+.allocation-legend span { display: inline-flex; align-items: center; gap: 7px; }
+.allocation-legend i { display: inline-block; width: 34px; height: 13px; border: 1px solid rgba(4,22,39,.22); }
+.allocation-legend i.actual { background: #041627; }
+.allocation-legend i.target { background: #3b6934; }
+.allocation-row { display: grid; grid-template-columns: 92px minmax(0,1fr); grid-template-areas: "label values" "label bars"; gap: 5px 10px; align-items: center; }
+.allocation-label { grid-area: label; color: #667085; font-weight: 750; text-align: right; }
+.allocation-values { grid-area: values; color: #667085; font-size: .8rem; font-weight: 750; text-align: right; }
+.allocation-bars { grid-area: bars; position: relative; height: 44px; border-left: 1px solid rgba(4,22,39,.14); border-bottom: 1px solid rgba(4,22,39,.12); background: repeating-linear-gradient(to right, rgba(4,22,39,.10) 0 1px, transparent 1px 20%); }
+.allocation-bar { position: absolute; left: 0; height: 13px; min-width: 1px; }
+.allocation-bar.actual { top: 8px; background: #041627; }
+.allocation-bar.target { bottom: 8px; background: #3b6934; }
+.dark .allocation-bars { border-color: rgba(255,255,255,.18); background: repeating-linear-gradient(to right, rgba(255,255,255,.12) 0 1px, transparent 1px 20%); }
 .import-label { position: relative; overflow: hidden; cursor: pointer; }
 .file-input-cover { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.001; cursor: pointer; font-size: 100px; }
 .table-list { display: grid; gap: 10px; }

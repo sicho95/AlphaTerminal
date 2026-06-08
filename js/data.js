@@ -1,4 +1,4 @@
-import { getPortfolios, saveData, getData, totals, getSettings } from './store.js';
+import { getPortfolios, saveData, getData, totals, getSettings, DEFAULT_INVESTOR_PROFILES } from './store.js';
 
 export const DEFAULT_DATA = {
   schemaVersion: 2,
@@ -6,13 +6,7 @@ export const DEFAULT_DATA = {
   portfolios: []
 };
 
-export const INVESTOR_PROFILES = {
-  prudent: { label: 'Prudent', objective: '3-5%/an', horizon: '< 3 ans', rate: 0.04, target: { Actions: 30, Obligations: 50, Liquidités: 20, Crypto: 0 }, etf: 'ETF obligataire court terme + fonds monétaire' },
-  equilibre: { label: 'Equilibre', objective: '5-8%/an', horizon: '3-7 ans', rate: 0.065, target: { Actions: 50, Obligations: 35, Liquidités: 15, Crypto: 0 }, etf: 'MSCI World + obligations EUR' },
-  dynamique: { label: 'Dynamique', objective: '8-12%/an', horizon: '5-10 ans', rate: 0.10, target: { Actions: 70, Obligations: 15, Liquidités: 15, Crypto: 0 }, etf: 'MSCI World / Nasdaq via PEA' },
-  offensif: { label: 'Offensif', objective: '12-20%/an', horizon: '> 7 ans', rate: 0.15, target: { Actions: 90, Obligations: 0, Liquidités: 10, Crypto: 0 }, etf: 'Nasdaq-100 + MSCI World' },
-  dca: { label: 'DCA Automatique', objective: 'cumulatif configurable', horizon: 'regulier', rate: 0.08, target: { Actions: 75, Obligations: 10, Liquidités: 15, Crypto: 0 }, etf: 'Plan DCA MSCI World' }
-};
+export const INVESTOR_PROFILES = DEFAULT_INVESTOR_PROFILES;
 
 export const MACRO_EVENTS = [
   { title: 'Taux Fed/BCE', sentiment: 'Neutre', summary: 'Les banques centrales restent restrictives, mais la volatilite des taux baisse.', tags: ['Finance', 'Obligations', 'World'], impact: { World: 1, Tech: -1 } },
@@ -90,9 +84,82 @@ export function calculateATR(highs = [], lows = [], closes = [], period = 14) {
 export function suggestedStop(position, profileKey = getSettings().investorProfile) {
   const settings = getSettings();
   const atr = calculateATR(position.history?.highs, position.history?.lows, position.history?.closes);
-  const multiplier = Number(position.atrMultiplier || settings.stopAtrMultipliers?.[profileKey] || 3);
+  const profile = settings.investorProfiles?.[profileKey];
+  const multiplier = Number(position.atrMultiplier || profile?.atrMultiplier || settings.stopAtrMultipliers?.[profileKey] || 3);
   if (!atr || !position.currentPrice) return { atr: null, multiplier, stop: position.stopLevel || 0 };
   return { atr, multiplier, stop: Math.max(0, position.currentPrice - atr * multiplier) };
+}
+
+export async function fetchMacroNews() {
+  const settings = getSettings();
+  const provider = settings.macroProvider || 'static';
+  const query = settings.macroQuery || 'markets OR inflation OR geopolitics';
+  if (provider === 'gdelt') return fetchGdeltNews(query);
+  if (provider === 'marketaux' && settings.marketauxApiKey) return fetchMarketauxNews(query, settings.marketauxApiKey);
+  if (provider === 'finnhub' && settings.finnhubApiKey) return fetchFinnhubNews(settings.finnhubApiKey);
+  return MACRO_EVENTS.map(item => ({ ...item, source: 'Configuration statique offline' }));
+}
+
+async function fetchGdeltNews(query) {
+  const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(query)}&mode=ArtList&format=json&maxrecords=8&sort=hybridrel`;
+  const response = await fetch(proxied(url));
+  if (!response.ok) throw new Error('GDELT indisponible');
+  const json = await response.json();
+  return (json.articles || []).slice(0, 8).map(article => ({
+    title: article.title || 'Actualite macro',
+    summary: article.seendate ? `${article.domain || 'News'} · ${article.seendate}` : (article.domain || 'News mondiale'),
+    sentiment: toneToSentiment(article.tone),
+    tags: ['Macro', article.language || 'News'],
+    source: article.domain || 'GDELT',
+    url: article.url,
+    impact: {}
+  }));
+}
+
+async function fetchMarketauxNews(query, apiKey) {
+  const url = `https://api.marketaux.com/v1/news/all?api_token=${encodeURIComponent(apiKey)}&search=${encodeURIComponent(query)}&language=en,fr&limit=8`;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error('Marketaux indisponible');
+  const json = await response.json();
+  return (json.data || []).map(article => ({
+    title: article.title || 'News marche',
+    summary: article.description || article.snippet || '',
+    sentiment: scoreToSentiment(article.sentiment_score),
+    tags: (article.entities || []).slice(0, 3).map(entity => entity.symbol || entity.name).filter(Boolean),
+    source: article.source || 'Marketaux',
+    url: article.url,
+    impact: {}
+  }));
+}
+
+async function fetchFinnhubNews(apiKey) {
+  const url = `https://finnhub.io/api/v1/news?category=general&token=${encodeURIComponent(apiKey)}`;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error('Finnhub indisponible');
+  const json = await response.json();
+  return (json || []).slice(0, 8).map(article => ({
+    title: article.headline || 'News marche',
+    summary: article.summary || '',
+    sentiment: 'Neutre',
+    tags: ['Finance'],
+    source: article.source || 'Finnhub',
+    url: article.url,
+    impact: {}
+  }));
+}
+
+function toneToSentiment(tone) {
+  const value = Number(tone || 0);
+  if (value > 1.5) return 'Positif';
+  if (value < -1.5) return 'Negatif';
+  return 'Neutre';
+}
+
+function scoreToSentiment(score) {
+  const value = Number(score || 0);
+  if (value > 0.15) return 'Positif';
+  if (value < -0.15) return 'Negatif';
+  return 'Neutre';
 }
 
 export async function refreshQuotes(onProgress = () => {}) {
@@ -105,7 +172,7 @@ export async function refreshQuotes(onProgress = () => {}) {
         if (!position.yahooTicker && !position.ticker) throw new Error('Ticker absent');
         const chart = await fetchMarketChart(position);
         const nextPosition = { ...position, currentPrice: Number(chart.price.toFixed(2)), history: chart, lastUpdate: new Date().toISOString() };
-        const stop = suggestedStop(nextPosition);
+        const stop = suggestedStop(nextPosition, portfolio.profileId);
         positions.push({ ...nextPosition, suggestedStop: Number(stop.stop.toFixed(2)), atr14: stop.atr ? Number(stop.atr.toFixed(4)) : null });
         onProgress(position.ticker, true);
       } catch {
