@@ -1,0 +1,159 @@
+<section class="page-stack">
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">AlphaTerminal</p>
+      <h1 class="headline-lg">Tableau de bord</h1>
+      <p id="scopeLabel" class="text-muted dark:text-slate-300">Tous les portefeuilles</p>
+    </div>
+    <div class="action-row">
+      <span id="offlinePill" class="status-pill neutral">Cache local</span>
+      <button id="refreshPrices" class="primary-btn" type="button"><span class="material-symbols-outlined">sync</span>Actualiser</button>
+    </div>
+  </div>
+
+  <div id="emptyDashboard" class="empty-state hidden">
+    <span class="material-symbols-outlined">account_balance_wallet</span>
+    <h2>Aucune donnee</h2>
+    <p>Importe un JSON de sauvegarde ou cree ton premier proprietaire et portefeuille depuis Inventaire.</p>
+    <a class="primary-btn" href="#/inventaire"><span class="material-symbols-outlined">settings</span>Configurer</a>
+  </div>
+
+  <div id="dashboardContent" class="bento-grid">
+    <article class="hero-card md:col-span-8">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <p class="eyebrow">Valeur nette</p>
+          <div id="totalValue" class="metric-xl">0 EUR</div>
+        </div>
+        <span id="totalPerf" class="trend-pill">0%</span>
+      </div>
+      <div class="metric-strip">
+        <div><span>Investi</span><strong id="totalInvested">0 EUR</strong></div>
+        <div><span>Plus-value</span><strong id="totalGain">0 EUR</strong></div>
+        <div><span>PEA verse</span><strong id="peaUsage">0 / 150k</strong></div>
+        <div><span>Portefeuilles</span><strong id="portfolioCount">0</strong></div>
+      </div>
+      <div class="progress-track"><div id="peaBar" class="progress-fill"></div></div>
+    </article>
+
+    <article class="glass-panel md:col-span-4">
+      <div class="section-title"><span class="material-symbols-outlined">donut_small</span>Repartition</div>
+      <div id="allocationChart" class="donut"></div>
+    </article>
+
+    <article class="glass-panel md:col-span-7">
+      <div class="section-title"><span class="material-symbols-outlined">trending_up</span>Meilleures positions</div>
+      <div id="topPositions" class="list-stack"></div>
+    </article>
+
+    <article class="glass-panel md:col-span-5">
+      <div class="section-title"><span class="material-symbols-outlined">warning</span>Alertes contexte</div>
+      <div id="criticalAlerts" class="list-stack"></div>
+    </article>
+  </div>
+</section>
+
+<script type="module">
+  import { getVisiblePortfolios, totals, money, pct, getScopeLabel, setSelectedScope, getSettings } from './js/store.js';
+  import { refreshQuotes } from './js/data.js';
+  import { NotifService } from './js/notifications.js';
+
+  function initDashboard() {
+    const portfolios = getVisiblePortfolios();
+    const total = totals(portfolios);
+    document.getElementById('scopeLabel').textContent = getScopeLabel();
+    document.getElementById('offlinePill').textContent = navigator.onLine ? 'En ligne' : 'Hors ligne - cache';
+    document.getElementById('emptyDashboard').classList.toggle('hidden', portfolios.length > 0);
+    document.getElementById('dashboardContent').classList.toggle('hidden', portfolios.length === 0);
+    if (!portfolios.length) return;
+
+    document.getElementById('totalValue').textContent = money(total.value);
+    document.getElementById('totalInvested').textContent = money(total.invested);
+    document.getElementById('totalGain').textContent = money(total.gain);
+    document.getElementById('portfolioCount').textContent = total.portfolioCount;
+    document.getElementById('totalPerf').textContent = pct(total.perf);
+    document.getElementById('totalPerf').className = `trend-pill ${total.perf < 0 ? 'negative' : 'positive'}`;
+
+    const peaLimit = getSettings().peaLimit || 150000;
+    const peaPercent = Math.min(total.peaVersements / peaLimit * 100, 100);
+    document.getElementById('peaUsage').textContent = `${money(total.peaVersements)} / ${money(peaLimit)}`;
+    document.getElementById('peaBar').style.width = `${peaPercent}%`;
+
+    renderDonut(portfolios);
+    renderTop(total.positions);
+    renderAlerts(total.positions, peaPercent);
+
+    document.getElementById('refreshPrices').onclick = async event => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      button.classList.add('is-loading');
+      try {
+        await refreshQuotes();
+        NotifService.push('Cours mis a jour', 'Les positions ont ete actualisees quand une source etait disponible.');
+        initDashboard();
+      } catch {
+        NotifService.sendError('Actualisation partielle', 'La connexion ou la source de cours est indisponible. Les donnees cachees restent affichees.');
+      } finally {
+        button.disabled = false;
+        button.classList.remove('is-loading');
+      }
+    };
+  }
+
+  function renderDonut(portfolios) {
+    const totalValue = portfolios.reduce((sum, p) => sum + p.positions.reduce((s, pos) => s + pos.qty * pos.currentPrice, 0), 0) || 1;
+    let cursor = 0;
+    const segments = portfolios.map(portfolio => {
+      const value = portfolio.positions.reduce((sum, pos) => sum + pos.qty * pos.currentPrice, 0);
+      const start = cursor;
+      const size = value / totalValue * 360;
+      cursor += size;
+      return `${portfolio.color || '#2563eb'} ${start}deg ${cursor}deg`;
+    });
+    const chart = document.getElementById('allocationChart');
+    chart.style.background = `conic-gradient(${segments.join(', ')})`;
+    chart.innerHTML = `<div>${money(totalValue)}</div>`;
+    chart.title = 'Cliquer une ligne pour filtrer';
+    chart.onclick = () => setSelectedScope('all');
+
+    const list = portfolios.map(portfolio => {
+      const value = portfolio.positions.reduce((sum, pos) => sum + pos.qty * pos.currentPrice, 0);
+      return `<button class="legend-row" data-id="${portfolio.id}"><span style="background:${portfolio.color || '#2563eb'}"></span><strong>${portfolio.name}</strong><em>${money(value)}</em></button>`;
+    }).join('');
+    chart.insertAdjacentHTML('afterend', `<div class="legend-stack">${list}</div>`);
+    chart.parentElement.querySelectorAll('.legend-row').forEach(row => {
+      row.onclick = () => setSelectedScope(`portfolio:${row.dataset.id}`);
+    });
+  }
+
+  function renderTop(positions) {
+    const top = positions
+      .map(position => ({ ...position, perf: position.pru ? (position.currentPrice - position.pru) / position.pru * 100 : 0 }))
+      .sort((a, b) => b.perf - a.perf)
+      .slice(0, 5);
+    document.getElementById('topPositions').innerHTML = top.length ? top.map(position => `
+      <div class="mini-card">
+        <div><strong>${position.name}</strong><span>${position.ticker} · ${position.accountName}</span></div>
+        <div class="text-right"><strong>${money(position.qty * position.currentPrice)}</strong><span class="${position.perf < 0 ? 'text-error' : 'text-secondary'}">${pct(position.perf)}</span></div>
+      </div>
+    `).join('') : `<p class="text-muted">Aucune position dans ce perimetre.</p>`;
+  }
+
+  function renderAlerts(positions, peaPercent) {
+    const alerts = positions.filter(position => position.stopLevel && position.currentPrice > position.stopLevel)
+      .map(position => ({ ...position, distance: (position.currentPrice - position.stopLevel) / position.currentPrice * 100 }))
+      .filter(position => position.distance < 3)
+      .slice(0, 4);
+    if (peaPercent > 93) alerts.unshift({ name: 'Plafond PEA', ticker: 'PEA', distance: 0, message: 'Le plafond PEA est proche.' });
+    document.getElementById('criticalAlerts').innerHTML = alerts.length ? alerts.map(alert => `
+      <div class="mini-card alert">
+        <span class="material-symbols-outlined">priority_high</span>
+        <div><strong>${alert.name}</strong><span>${alert.message || `${alert.ticker} est a ${alert.distance.toFixed(1)}% du stop.`}</span></div>
+      </div>
+    `).join('') : `<p class="text-muted">Aucune alerte critique sur le perimetre courant.</p>`;
+  }
+
+  window.addEventListener('pageLoaded', event => {
+    if (event.detail.page === 'dashboard') initDashboard();
+  });
+</script>

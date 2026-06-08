@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="fr" class="scroll-smooth">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#041627">
+  <meta name="description" content="AlphaTerminal, terminal PWA mobile-first de suivi multi-portefeuilles PEA et CTO.">
+  <title>AlphaTerminal</title>
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" href="./icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: '#041627', surface: '#f7f9ff', secondary: '#3b6934', error: '#ba1a1a',
+            'on-primary': '#ffffff', 'outline-variant': '#c4c6cd', ink: '#101828', muted: '#667085'
+          },
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+          borderRadius: { DEFAULT: '2px', lg: '4px', xl: '8px', full: '12px' },
+          spacing: { base: '8px', gutter: '24px', 'margin-mobile': '16px', 'margin-desktop': '40px' },
+          boxShadow: { terminal: '0 20px 60px rgba(4,22,39,.12)' }
+        }
+      }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="./css/app.css">
+</head>
+<body class="min-h-screen bg-surface text-primary antialiased transition-colors dark:bg-[#07111f] dark:text-slate-100">
+  <a class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-on-primary" href="#app-content">Aller au contenu</a>
+  <header class="top-app-bar sticky top-0 z-40 border-b border-outline-variant/70 bg-surface/90 backdrop-blur-xl dark:border-slate-700 dark:bg-[#07111f]/90">
+    <div class="mx-auto flex max-w-7xl items-center gap-3 px-margin-mobile py-3 md:px-margin-desktop">
+      <a href="#/dashboard" class="flex min-w-0 items-center gap-3" aria-label="Accueil AlphaTerminal">
+        <span class="grid h-10 w-10 place-items-center rounded-full bg-primary text-on-primary shadow-terminal"><span class="material-symbols-outlined">monitoring</span></span>
+        <span class="hidden text-xl font-extrabold tracking-tight sm:block">AlphaTerminal</span>
+      </a>
+      <select id="account-select" class="ml-auto max-w-[170px] rounded-lg border border-outline-variant bg-white px-3 py-2 text-sm font-semibold dark:border-slate-700 dark:bg-slate-900" aria-label="Sélecteur de compte"></select>
+      <nav class="hidden items-center gap-1 md:flex" aria-label="Navigation principale">
+        <a class="nav-link" href="#/dashboard" data-route="dashboard"><span class="material-symbols-outlined">dashboard</span>Tableau</a>
+        <a class="nav-link" href="#/analyse" data-route="analyse"><span class="material-symbols-outlined">analytics</span>Analyse</a>
+        <a class="nav-link" href="#/signaux" data-route="signaux"><span class="material-symbols-outlined">notifications_active</span>Signaux</a>
+        <a class="nav-link" href="#/inventaire" data-route="inventaire"><span class="material-symbols-outlined">inventory_2</span>Inventaire</a>
+      </nav>
+      <button id="dark-toggle" class="icon-btn" type="button" aria-label="Basculer le mode sombre"><span class="material-symbols-outlined">dark_mode</span></button>
+      <button id="notification-toggle" class="icon-btn relative" type="button" aria-label="Ouvrir le centre de notifications">
+        <span class="material-symbols-outlined">notifications</span><span id="alert-badge" class="badge-dot hidden">0</span>
+      </button>
+    </div>
+  </header>
+  <main id="app-content" class="mx-auto max-w-7xl px-margin-mobile pb-28 pt-6 md:px-margin-desktop md:pb-10" tabindex="-1"></main>
+  <nav class="fixed inset-x-0 bottom-0 z-40 border-t border-outline-variant bg-white/95 px-2 pb-[env(safe-area-inset-bottom)] pt-2 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-950/95 md:hidden" aria-label="Navigation mobile">
+    <div class="grid grid-cols-4 gap-1">
+      <a class="bottom-link" href="#/dashboard" data-route="dashboard"><span class="material-symbols-outlined">dashboard</span><span>Tableau</span></a>
+      <a class="bottom-link" href="#/analyse" data-route="analyse"><span class="material-symbols-outlined">analytics</span><span>Analyse</span></a>
+      <a class="bottom-link" href="#/signaux" data-route="signaux"><span class="material-symbols-outlined">notifications_active</span><span>Signaux</span></a>
+      <a class="bottom-link" href="#/inventaire" data-route="inventaire"><span class="material-symbols-outlined">inventory_2</span><span>Inventaire</span></a>
+    </div>
+  </nav>
+  <aside id="notification-panel" class="fixed bottom-0 right-0 top-0 z-50 hidden w-full max-w-md translate-x-full border-l border-outline-variant bg-white p-5 shadow-terminal transition-transform dark:border-slate-700 dark:bg-slate-950" aria-label="Centre de notifications">
+    <div class="mb-4 flex items-center justify-between"><h2 class="headline-md">Notifications</h2><button id="notification-close" class="icon-btn" aria-label="Fermer les notifications"><span class="material-symbols-outlined">close</span></button></div>
+    <div id="notification-list" class="space-y-3"></div>
+  </aside>
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

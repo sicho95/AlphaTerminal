@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": "2026-06-08T00:00:00.000Z",
+  "settings": {
+    "investorProfile": "equilibre",
+    "dataProvider": "twelvedata",
+    "twelveDataApiKey": "",
+    "corsProxy": "https://proxy.sicho95.workers.dev?url=",
+    "yahooFallback": true,
+    "peaLimit": 150000,
+    "stopAtrMultipliers": {
+      "prudent": 2,
+      "equilibre": 3,
+      "dynamique": 3,
+      "offensif": 4,
+      "dca": 3
+    }
+  },
+  "alerts": [],
+  "data": {
+    "schemaVersion": 2,
+    "owners": [
+      { "id": "jean", "name": "Jean", "color": "#2563eb" },
+      { "id": "damien", "name": "Damien", "color": "#0f766e" }
+    ],
+    "portfolios": [
+      {
+        "id": "jean-pea",
+        "ownerId": "jean",
+        "name": "Jean PEA",
+        "type": "PEA",
+        "color": "#0f766e",
+        "versements": 85000,
+        "deposits": [
+          { "id": "dep-jp-1", "date": "2026-01-05", "amount": 5000 }
+        ],
+        "positions": [
+          { "id": "pos-cw8", "ticker": "CW8.PA", "yahooTicker": "CW8.PA", "isin": "FR0014003IY1", "name": "Amundi MSCI World", "assetClass": "Actions", "sector": "World", "qty": 320, "pru": 105.2, "currentPrice": 145.3, "stopLevel": 125 },
+          { "id": "pos-pust", "ticker": "PUST.PA", "yahooTicker": "PUST.PA", "isin": "LU1681049109", "name": "Amundi Nasdaq-100", "assetClass": "Actions", "sector": "Tech", "qty": 85, "pru": 210, "currentPrice": 258.4, "stopLevel": 230 }
+        ]
+      },
+      {
+        "id": "jean-cto",
+        "ownerId": "jean",
+        "name": "Jean CTO",
+        "type": "CTO",
+        "color": "#7c3aed",
+        "versements": 12000,
+        "deposits": [],
+        "positions": [
+          { "id": "pos-aapl", "ticker": "AAPL", "yahooTicker": "AAPL", "isin": "US0378331005", "name": "Apple Inc.", "assetClass": "Actions", "sector": "Tech", "qty": 35, "pru": 165, "currentPrice": 189.5, "stopLevel": 170 }
+        ]
+      },
+      {
+        "id": "damien-pea",
+        "ownerId": "damien",
+        "name": "Damien PEA",
+        "type": "PEA",
+        "color": "#16a34a",
+        "versements": 24000,
+        "deposits": [],
+        "positions": [
+          { "id": "pos-air", "ticker": "AIR.PA", "yahooTicker": "AIR.PA", "isin": "NL0000235190", "name": "Airbus SE", "assetClass": "Actions", "sector": "Industry", "qty": 30, "pru": 126, "currentPrice": 154.2, "stopLevel": 141 }
+        ]
+      },
+      {
+        "id": "damien-cto",
+        "ownerId": "damien",
+        "name": "Damien CTO",
+        "type": "CTO",
+        "color": "#f59e0b",
+        "versements": 9000,
+        "deposits": [],
+        "positions": [
+          { "id": "pos-msft", "ticker": "MSFT", "yahooTicker": "MSFT", "isin": "US5949181045", "name": "Microsoft", "assetClass": "Actions", "sector": "Tech", "qty": 10, "pru": 320, "currentPrice": 415, "stopLevel": 380 }
+        ]
+      }
+    ]
+  }
+}

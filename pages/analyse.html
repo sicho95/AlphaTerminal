@@ -1,0 +1,102 @@
+<section class="page-stack">
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">Allocation</p>
+      <h1 class="headline-lg">Analyse</h1>
+      <p class="text-muted">Cohérence profil, allocation cible et stops ATR.</p>
+    </div>
+  </div>
+
+  <div id="emptyAnalyse" class="empty-state hidden">
+    <span class="material-symbols-outlined">analytics</span>
+    <h2>Aucune position a analyser</h2>
+    <p>Importe tes donnees ou cree un portefeuille depuis Inventaire.</p>
+  </div>
+
+  <div id="analyseContent" class="bento-grid">
+    <article class="hero-card md:col-span-5">
+      <p class="eyebrow">Score de coherence</p>
+      <div id="scoreValue" class="metric-xl">0</div>
+      <span id="scoreBadge" class="trend-pill neutral">A calculer</span>
+      <p id="profileSummary" class="mt-4 text-muted"></p>
+    </article>
+    <article class="glass-panel md:col-span-7">
+      <div class="section-title"><span class="material-symbols-outlined">compare_arrows</span>Allocation actuelle vs cible</div>
+      <div id="allocationBars" class="list-stack"></div>
+    </article>
+    <article class="glass-panel md:col-span-6">
+      <div class="section-title"><span class="material-symbols-outlined">swap_horiz</span>Reequilibrage</div>
+      <div id="rebalanceList" class="list-stack"></div>
+    </article>
+    <article class="glass-panel md:col-span-6">
+      <div class="section-title"><span class="material-symbols-outlined">shield</span>Stops ATR profil</div>
+      <div id="stopList" class="list-stack"></div>
+    </article>
+  </div>
+</section>
+
+<script type="module">
+  import { getVisiblePortfolios, totals, getSettings, money, pct } from './js/store.js';
+  import { INVESTOR_PROFILES, suggestedStop } from './js/data.js';
+
+  function initAnalyse() {
+    const total = totals(getVisiblePortfolios());
+    document.getElementById('emptyAnalyse').classList.toggle('hidden', total.positions.length > 0);
+    document.getElementById('analyseContent').classList.toggle('hidden', total.positions.length === 0);
+    if (!total.positions.length) return;
+
+    const settings = getSettings();
+    const profile = INVESTOR_PROFILES[settings.investorProfile] || INVESTOR_PROFILES.equilibre;
+    const allocation = currentAllocation(total.positions, total.value);
+    const deltas = Object.keys(profile.target).map(key => Math.abs((allocation[key] || 0) - profile.target[key]));
+    const score = Math.max(0, Math.round(100 - deltas.reduce((sum, value) => sum + value, 0)));
+    const label = score > 85 ? 'Optimal' : score > 70 ? 'Bon' : score > 50 ? 'A revoir' : 'Critique';
+
+    document.getElementById('scoreValue').textContent = score;
+    document.getElementById('scoreBadge').textContent = label;
+    document.getElementById('scoreBadge').className = `trend-pill ${score > 70 ? 'positive' : 'negative'}`;
+    document.getElementById('profileSummary').textContent = `${profile.label} · objectif ${profile.objective} · horizon ${profile.horizon} · stop par defaut ${settings.stopAtrMultipliers?.[settings.investorProfile] || 3}x ATR14.`;
+    renderBars(allocation, profile.target);
+    renderRebalance(allocation, profile.target, total.value, profile.etf);
+    renderStops(total.positions);
+  }
+
+  function currentAllocation(positions, value) {
+    const result = { Actions: 0, Obligations: 0, Liquidités: 0, Crypto: 0 };
+    positions.forEach(position => {
+      const key = result[position.assetClass] === undefined ? 'Actions' : position.assetClass;
+      result[key] += value ? position.qty * position.currentPrice / value * 100 : 0;
+    });
+    return result;
+  }
+
+  function renderBars(actual, target) {
+    document.getElementById('allocationBars').innerHTML = Object.keys(target).map(key => `
+      <div>
+        <div class="flex justify-between text-sm font-bold"><span>${key}</span><span>${pct(actual[key] || 0)} / ${pct(target[key])}</span></div>
+        <div class="progress-track"><div class="progress-fill" style="width:${Math.min(actual[key] || 0, 100)}%"></div></div>
+      </div>
+    `).join('');
+  }
+
+  function renderRebalance(actual, target, value, etf) {
+    const rows = Object.keys(target).map(key => {
+      const delta = target[key] - (actual[key] || 0);
+      if (Math.abs(delta) < 3) return null;
+      return `<div class="mini-card"><div><strong>${delta > 0 ? 'Renforcer' : 'Reduire'} ${key}</strong><span>${delta > 0 ? etf : 'positions les plus en gain'} · impact ${money(Math.abs(delta) / 100 * value)}</span></div><span class="${delta > 0 ? 'text-secondary' : 'text-error'}">${pct(delta)}</span></div>`;
+    }).filter(Boolean);
+    document.getElementById('rebalanceList').innerHTML = rows.length ? rows.join('') : `<p class="text-muted">Allocation proche de la cible.</p>`;
+  }
+
+  function renderStops(positions) {
+    const rows = positions.map(position => {
+      const stop = suggestedStop(position);
+      return `<div class="mini-card"><div><strong>${position.name}</strong><span>${position.ticker} · ${position.accountName}</span></div><div class="text-right"><strong>${stop.atr ? money(stop.stop) : 'Historique requis'}</strong><span>${stop.multiplier}x ATR14</span></div></div>`;
+    });
+    document.getElementById('stopList').innerHTML = rows.join('');
+  }
+
+  window.addEventListener('pageLoaded', event => {
+    if (event.detail.page === 'analyse') initAnalyse();
+  });
+</script>

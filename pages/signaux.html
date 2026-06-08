@@ -1,0 +1,67 @@
+<section class="page-stack">
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">Risque & signaux</p>
+      <h1 class="headline-lg">Signaux</h1>
+      <p class="text-muted">RSI, tendances simples, stops et contexte macro sur le perimetre actif.</p>
+    </div>
+    <button id="printReport" class="ghost-btn" type="button"><span class="material-symbols-outlined">print</span>Rapport</button>
+  </div>
+
+  <div id="signalsList" class="bento-grid"></div>
+</section>
+
+<script type="module">
+  import { flattenPositions, getVisiblePortfolios, money } from './js/store.js';
+  import { MACRO_EVENTS, suggestedStop } from './js/data.js';
+
+  function initSignaux() {
+    document.getElementById('printReport').onclick = () => window.print();
+    const positions = flattenPositions(getVisiblePortfolios());
+    document.getElementById('signalsList').innerHTML = positions.length
+      ? positions.map(renderSignal).join('') + renderMacro()
+      : `<div class="empty-state md:col-span-12"><span class="material-symbols-outlined">bolt</span><h2>Aucun signal</h2><p>Importe ou cree des positions pour lancer l'analyse.</p></div>`;
+  }
+
+  function renderSignal(position) {
+    const closes = position.history?.closes || [];
+    const rsi = calculateRSI(closes);
+    const stop = suggestedStop(position);
+    const distance = position.stopLevel ? (position.currentPrice - position.stopLevel) / position.currentPrice * 100 : null;
+    const badge = rsi === null ? 'Historique requis' : rsi < 30 ? 'Achat fort' : rsi > 70 ? 'Vente / surchauffe' : 'Conserver';
+    return `<article class="glass-panel md:col-span-6">
+      <div class="section-title"><span class="material-symbols-outlined">show_chart</span>${position.ticker}</div>
+      <h2 class="headline-md">${position.name}</h2>
+      <div class="metric-strip">
+        <div><span>RSI14</span><strong>${rsi ?? '-'}</strong></div>
+        <div><span>Signal</span><strong>${badge}</strong></div>
+        <div><span>Stop actuel</span><strong>${money(position.stopLevel)}</strong></div>
+        <div><span>Stop ATR</span><strong>${stop.atr ? money(stop.stop) : '-'}</strong></div>
+      </div>
+      <p class="mt-4 text-muted">${distance === null ? 'Aucun stop configure.' : `Distance au stop: ${distance.toFixed(1)}%.`} ${stop.atr ? `ATR14: ${stop.atr.toFixed(2)} avec multiplicateur ${stop.multiplier}x.` : 'Actualise les cours pour calculer ATR14.'}</p>
+    </article>`;
+  }
+
+  function renderMacro() {
+    return `<article class="glass-panel md:col-span-12"><div class="section-title"><span class="material-symbols-outlined">public</span>Macro configurable</div><div class="bento-grid">${MACRO_EVENTS.map(event => `
+      <div class="mini-card md:col-span-3"><div><strong>${event.title}</strong><span>${event.summary}</span></div><span class="status-pill neutral">${event.sentiment}</span></div>
+    `).join('')}</div></article>`;
+  }
+
+  function calculateRSI(closes, period = 14) {
+    if (!closes || closes.length <= period) return null;
+    let gains = 0;
+    let losses = 0;
+    for (let i = closes.length - period; i < closes.length; i += 1) {
+      const diff = closes[i] - closes[i - 1];
+      if (diff >= 0) gains += diff;
+      else losses -= diff;
+    }
+    const rs = gains / (losses || 1);
+    return Math.round(100 - (100 / (1 + rs)));
+  }
+
+  window.addEventListener('pageLoaded', event => {
+    if (event.detail.page === 'signaux') initSignaux();
+  });
+</script>
