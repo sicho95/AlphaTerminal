@@ -10,11 +10,11 @@ export const KEYS = {
 };
 
 export const DEFAULT_INVESTOR_PROFILES = {
-  prudent: { label: 'Prudent', objective: '3-5%/an', horizon: '< 3 ans', rate: 0.04, atrMultiplier: 2, target: { Actions: 30, Obligations: 50, Liquidités: 20, Crypto: 0 }, etf: 'ETF obligataire court terme + fonds monétaire' },
-  equilibre: { label: 'Equilibre', objective: '5-8%/an', horizon: '3-7 ans', rate: 0.065, atrMultiplier: 3, target: { Actions: 50, Obligations: 35, Liquidités: 15, Crypto: 0 }, etf: 'MSCI World + obligations EUR' },
-  dynamique: { label: 'Dynamique', objective: '8-12%/an', horizon: '5-10 ans', rate: 0.10, atrMultiplier: 3, target: { Actions: 70, Obligations: 15, Liquidités: 15, Crypto: 0 }, etf: 'MSCI World / Nasdaq via PEA' },
-  offensif: { label: 'Offensif', objective: '12-20%/an', horizon: '> 7 ans', rate: 0.15, atrMultiplier: 4, target: { Actions: 90, Obligations: 0, Liquidités: 10, Crypto: 0 }, etf: 'Nasdaq-100 + MSCI World' },
-  dca: { label: 'DCA Automatique', objective: 'cumulatif configurable', horizon: 'regulier', rate: 0.08, atrMultiplier: 3, target: { Actions: 75, Obligations: 10, Liquidités: 15, Crypto: 0 }, etf: 'Plan DCA MSCI World' }
+  prudent: { label: 'Prudent', objective: '3-5%/an', horizon: '< 3 ans', rate: 0.04, atrMultiplier: 2, target: { Actions: 30, ETF: 20, Obligations: 50, Liquidités: 20, Crypto: 0 }, etf: 'ETF obligataire court terme + fonds monétaire' },
+  equilibre: { label: 'Equilibre', objective: '5-8%/an', horizon: '3-7 ans', rate: 0.065, atrMultiplier: 3, target: { Actions: 50, ETF: 40, Obligations: 35, Liquidités: 15, Crypto: 0 }, etf: 'MSCI World + obligations EUR' },
+  dynamique: { label: 'Dynamique', objective: '8-12%/an', horizon: '5-10 ans', rate: 0.10, atrMultiplier: 3, target: { Actions: 70, ETF: 55, Obligations: 15, Liquidités: 15, Crypto: 0 }, etf: 'MSCI World / Nasdaq via PEA' },
+  offensif: { label: 'Offensif', objective: '12-20%/an', horizon: '> 7 ans', rate: 0.15, atrMultiplier: 4, target: { Actions: 90, ETF: 65, Obligations: 0, Liquidités: 10, Crypto: 0 }, etf: 'Nasdaq-100 + MSCI World' },
+  dca: { label: 'DCA Automatique', objective: 'cumulatif configurable', horizon: 'regulier', rate: 0.08, atrMultiplier: 3, target: { Actions: 75, ETF: 65, Obligations: 10, Liquidités: 15, Crypto: 0 }, etf: 'Plan DCA MSCI World' }
 };
 
 const defaultSettings = {

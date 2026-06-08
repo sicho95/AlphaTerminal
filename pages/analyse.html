@@ -65,17 +65,24 @@
   }
 
   function currentAllocation(positions, value) {
-    const result = { Actions: 0, Obligations: 0, Liquidités: 0, Crypto: 0 };
+    const result = { Actions: 0, ETF: 0, Obligations: 0, Liquidités: 0, Crypto: 0 };
     positions.forEach(position => {
-      const key = result[position.assetClass] === undefined ? 'Actions' : position.assetClass;
-      result[key] += value ? position.qty * position.currentPrice / value * 100 : 0;
+      const weight = value ? position.qty * position.currentPrice / value * 100 : 0;
+      const key = normalizedAssetClass(position);
+      if (key === 'ETF') {
+        result.ETF += weight;
+        result.Actions += weight;
+      } else {
+        result[result[key] === undefined ? 'Actions' : key] += weight;
+      }
     });
     return result;
   }
 
   function renderBars(actual, target) {
-    document.getElementById('allocationBars').innerHTML = Object.keys(target).map(key => `
-      <div class="allocation-row">
+    const order = ['Actions', 'ETF', 'Obligations', 'Liquidités', 'Crypto'].filter(key => target[key] !== undefined || actual[key] !== undefined);
+    document.getElementById('allocationBars').innerHTML = order.map(key => `
+      <div class="allocation-row ${key === 'ETF' ? 'sub-row' : ''}">
         <div class="allocation-label">${key}</div>
         <div class="allocation-bars">
           <div class="allocation-bar actual" style="width:${Math.min(actual[key] || 0, 100)}%"></div>
@@ -107,7 +114,7 @@
   }
 
   function weightedProfileTarget(portfolios, totalValue, profiles, fallbackProfile) {
-    const result = { Actions: 0, Obligations: 0, Liquidités: 0, Crypto: 0 };
+    const result = { Actions: 0, ETF: 0, Obligations: 0, Liquidités: 0, Crypto: 0 };
     const profileIds = new Set();
     portfolios.forEach(portfolio => {
       const value = portfolio.positions.reduce((sum, position) => sum + position.qty * position.currentPrice, 0);
@@ -124,6 +131,16 @@
       primaryProfile,
       label: profileIds.size > 1 ? `Cible ponderee (${profileIds.size} profils)` : primaryProfile.label
     };
+  }
+
+  function normalizedAssetClass(position) {
+    const raw = String(position.assetClass || '').toLowerCase();
+    const text = `${position.ticker || ''} ${position.name || ''} ${position.isin || ''}`.toLowerCase();
+    if (raw === 'etf' || /\betf\b|msci|nasdaq|world|stoxx|s&p|ishares|amundi|lyxor|vanguard/.test(text)) return 'ETF';
+    if (raw.includes('obligation')) return 'Obligations';
+    if (raw.includes('liquid') || raw.includes('cash')) return 'Liquidités';
+    if (raw.includes('crypto')) return 'Crypto';
+    return 'Actions';
   }
 
   initAnalyse();
