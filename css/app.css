@@ -129,12 +129,6 @@ main#app-content { width: min(1280px, 100%); margin: 0 auto; padding: 24px 16px 
 .allocation-legend i.target { background: #3b6934; }
 .allocation-row { display: grid; grid-template-columns: 92px minmax(0,1fr); grid-template-areas: "label values" "label bars"; gap: 5px 10px; align-items: center; }
 .allocation-label { grid-area: label; color: #667085; font-weight: 750; text-align: right; }
-.allocation-row.sub-row { margin-top: -4px; }
-.allocation-row.sub-row .allocation-label { padding-left: 10px; font-size: .82rem; color: #8a93a3; }
-.allocation-row.sub-row .allocation-label::before { content: "↳ "; }
-.allocation-row.sub-row .allocation-bars { height: 32px; opacity: .88; }
-.allocation-row.sub-row .allocation-bar.actual { top: 5px; }
-.allocation-row.sub-row .allocation-bar.target { bottom: 5px; }
 .allocation-values { grid-area: values; color: #667085; font-size: .8rem; font-weight: 750; text-align: right; }
 .allocation-bars { grid-area: bars; position: relative; height: 44px; border-left: 1px solid rgba(4,22,39,.14); border-bottom: 1px solid rgba(4,22,39,.12); background: repeating-linear-gradient(to right, rgba(4,22,39,.10) 0 1px, transparent 1px 20%); }
 .allocation-bar { position: absolute; left: 0; height: 13px; min-width: 1px; }

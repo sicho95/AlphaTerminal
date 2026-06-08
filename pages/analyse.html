@@ -69,12 +69,7 @@
     positions.forEach(position => {
       const weight = value ? position.qty * position.currentPrice / value * 100 : 0;
       const key = normalizedAssetClass(position);
-      if (key === 'ETF') {
-        result.ETF += weight;
-        result.Actions += weight;
-      } else {
-        result[result[key] === undefined ? 'Actions' : key] += weight;
-      }
+      result[result[key] === undefined ? 'Actions' : key] += weight;
     });
     return result;
   }
@@ -82,7 +77,7 @@
   function renderBars(actual, target) {
     const order = ['Actions', 'ETF', 'Obligations', 'Liquidités', 'Crypto'].filter(key => target[key] !== undefined || actual[key] !== undefined);
     document.getElementById('allocationBars').innerHTML = order.map(key => `
-      <div class="allocation-row ${key === 'ETF' ? 'sub-row' : ''}">
+      <div class="allocation-row">
         <div class="allocation-label">${key}</div>
         <div class="allocation-bars">
           <div class="allocation-bar actual" style="width:${Math.min(actual[key] || 0, 100)}%"></div>
