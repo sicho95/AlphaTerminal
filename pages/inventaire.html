@@ -275,4 +275,5 @@
   window.addEventListener('pageLoaded', event => {
     if (event.detail.page === 'inventaire') initInventaire();
   });
+  if ((window.location.hash || '#/dashboard') === '#/inventaire') initInventaire();
 </script>

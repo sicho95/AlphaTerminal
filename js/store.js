@@ -317,7 +317,7 @@ export function exportBackup() {
 }
 
 export function importBackup(payload, mode = 'replace') {
-  const incoming = payload.data ? normalizeData(payload.data) : normalizeData(payload);
+  const incoming = payload.data ? normalizeData({ ...payload.data, exportedAt: payload.exportedAt || payload.data.exportedAt }) : normalizeData(payload);
   if (mode === 'merge') {
     const ownerIds = new Set(state.data.owners.map(owner => owner.id));
     const portfolioIds = new Set(state.data.portfolios.map(portfolio => portfolio.id));

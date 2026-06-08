@@ -64,4 +64,5 @@
   window.addEventListener('pageLoaded', event => {
     if (event.detail.page === 'signaux') initSignaux();
   });
+  if (window.location.hash === '#/signaux') initSignaux();
 </script>

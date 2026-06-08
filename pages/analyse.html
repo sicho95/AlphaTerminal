@@ -99,4 +99,5 @@
   window.addEventListener('pageLoaded', event => {
     if (event.detail.page === 'analyse') initAnalyse();
   });
+  if (window.location.hash === '#/analyse') initAnalyse();
 </script>

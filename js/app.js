@@ -69,12 +69,38 @@ const App = {
     try {
       const response = await fetch(`./pages/${route}.html`, { cache: navigator.onLine ? 'no-cache' : 'default' });
       if (!response.ok) throw new Error('Page not found');
-      content.innerHTML = await response.text();
+      await this.injectPage(content, await response.text());
       window.dispatchEvent(new CustomEvent('pageLoaded', { detail: { page: route } }));
       content.focus({ preventScroll: true });
     } catch (error) {
       content.innerHTML = `<section class="empty-state"><h2>Page indisponible</h2><p>La page demandee ne peut pas etre chargee. Verifiez le cache offline ou revenez au tableau de bord.</p></section>`;
     }
+  },
+
+  async injectPage(content, html) {
+    content.innerHTML = html;
+    const scripts = Array.from(content.querySelectorAll('script'));
+    await Promise.all(scripts.map(oldScript => new Promise(resolve => {
+      const script = document.createElement('script');
+      Array.from(oldScript.attributes).forEach(attr => script.setAttribute(attr.name, attr.value));
+      script.textContent = oldScript.textContent;
+      let settled = false;
+      const done = () => {
+        if (!settled) {
+          settled = true;
+          resolve();
+        }
+      };
+      oldScript.replaceWith(script);
+
+      if (script.type === 'module' || script.src) {
+        script.addEventListener('load', done, { once: true });
+        script.addEventListener('error', done, { once: true });
+        setTimeout(done, 50);
+      } else {
+        done();
+      }
+    })));
   },
 
   renderScopeSelect() {
