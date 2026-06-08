@@ -32,6 +32,10 @@
       <div class="section-title"><span class="material-symbols-outlined">shield</span>Stops ATR profil</div>
       <div id="stopList" class="list-stack"></div>
     </article>
+    <article class="glass-panel md:col-span-12 report-block">
+      <div class="section-title"><span class="material-symbols-outlined">format_list_bulleted</span>Lignes detenues</div>
+      <div id="holdingsList" class="holdings-table"></div>
+    </article>
   </div>
 </section>
 
@@ -50,32 +54,37 @@
     const profiles = settings.investorProfiles;
     const weighted = weightedProfileTarget(portfolios, total.value, profiles, settings.investorProfile);
     const profile = weighted.primaryProfile;
-    const allocation = currentAllocation(total.positions, total.value);
-    const deltas = Object.keys(weighted.target).map(key => Math.abs((allocation[key] || 0) - weighted.target[key]));
-    const score = Math.max(0, Math.round(100 - deltas.reduce((sum, value) => sum + value, 0)));
+    const allocation = currentAllocation(total.positions, total.value, total.cash);
+    const deltas = Object.keys(weighted.target).map(key => Math.abs((allocation.risk[key] || 0) - weighted.target[key]));
+    const score = Math.max(0, Math.round(100 - deltas.reduce((sum, value) => sum + value, 0) / 2));
     const label = score > 85 ? 'Optimal' : score > 70 ? 'Bon' : score > 50 ? 'A revoir' : 'Critique';
 
     document.getElementById('scoreValue').textContent = score;
     document.getElementById('scoreBadge').textContent = label;
     document.getElementById('scoreBadge').className = `signal-badge ${score > 70 ? 'watch' : score > 50 ? 'neutral' : 'sell'}`;
-    document.getElementById('profileSummary').textContent = `${weighted.label} · objectif ${profile.objective} · horizon ${profile.horizon} · stop par defaut ${profile.atrMultiplier || 3}x ATR14.`;
-    renderBars(allocation, weighted.target);
-    renderRebalance(allocation, weighted.target, total.value, profile.etf);
+    document.getElementById('profileSummary').textContent = `${weighted.label} · objectif ${profile.objective} · horizon ${profile.horizon} · stop par defaut ${profile.atrMultiplier || 3}x ATR14 · part ETF cible ${Math.round(weighted.etfShare)}%.`;
+    renderBars(allocation.risk, weighted.target, allocation.etfShare, weighted.etfShare);
+    renderRebalance(allocation.risk, weighted.target, total.value, profile.etf);
     renderStops(total.positions);
+    renderHoldings(total.positions);
   }
 
-  function currentAllocation(positions, value) {
-    const result = { Actions: 0, ETF: 0, Obligations: 0, Liquidités: 0, Crypto: 0 };
+  function currentAllocation(positions, value, cash = 0) {
+    const result = { Actions: 0, Obligations: 0, Liquidités: 0, Crypto: 0 };
+    result.Liquidités = value ? cash / value * 100 : 0;
+    let etfValue = 0;
     positions.forEach(position => {
       const weight = value ? position.qty * position.currentPrice / value * 100 : 0;
       const key = normalizedAssetClass(position);
+      const positionValue = position.qty * position.currentPrice;
+      if (isEtf(position)) etfValue += positionValue;
       result[result[key] === undefined ? 'Actions' : key] += weight;
     });
-    return result;
+    return { risk: result, etfShare: value ? etfValue / value * 100 : 0 };
   }
 
-  function renderBars(actual, target) {
-    const order = ['Actions', 'ETF', 'Obligations', 'Liquidités', 'Crypto'].filter(key => target[key] !== undefined || actual[key] !== undefined);
+  function renderBars(actual, target, etfActual, etfTarget) {
+    const order = ['Actions', 'Obligations', 'Liquidités', 'Crypto'].filter(key => target[key] !== undefined || actual[key] !== undefined);
     document.getElementById('allocationBars').innerHTML = order.map(key => `
       <div class="allocation-row">
         <div class="allocation-label">${key}</div>
@@ -85,7 +94,16 @@
         </div>
         <div class="allocation-values">${pct(actual[key] || 0)} / ${pct(target[key])}</div>
       </div>
-    `).join('');
+    `).join('') + `
+      <div class="allocation-row">
+        <div class="allocation-label">Part ETF</div>
+        <div class="allocation-bars">
+          <div class="allocation-bar actual" style="width:${Math.min(etfActual || 0, 100)}%"></div>
+          <div class="allocation-bar target" style="width:${Math.min(etfTarget || 0, 100)}%"></div>
+        </div>
+        <div class="allocation-values">${pct(etfActual || 0)} / ${pct(etfTarget || 0)}</div>
+      </div>
+    `;
     document.getElementById('allocationBars').insertAdjacentHTML('afterbegin', `
       <div class="allocation-legend"><span><i class="actual"></i>Actuel</span><span><i class="target"></i>Cible</span></div>
     `);
@@ -108,8 +126,31 @@
     document.getElementById('stopList').innerHTML = rows.join('');
   }
 
+  function renderHoldings(positions) {
+    const rows = positions.filter(position => Number(position.qty) > 0).sort((a, b) => a.accountName.localeCompare(b.accountName) || (b.qty * b.currentPrice) - (a.qty * a.currentPrice));
+    document.getElementById('holdingsList').innerHTML = rows.length ? `
+      <div class="holding-row holding-head"><span>Portefeuille / ligne</span><span>Qté</span><span>PRU</span><span>Cours</span><span>Valeur</span><span>+/-</span><span>Perf</span></div>
+      ${rows.map(position => {
+        const invested = position.qty * position.pru;
+        const value = position.qty * position.currentPrice;
+        const gain = value - invested;
+        const perf = invested ? gain / invested * 100 : 0;
+        return `<div class="holding-row">
+          <div><strong>${position.name}</strong><em>${position.ticker} · ${position.accountName}</em></div>
+          <span>${Number(position.qty).toLocaleString('fr-FR')}</span>
+          <span>${money(position.pru)}</span>
+          <span>${money(position.currentPrice)}</span>
+          <span>${money(value)}</span>
+          <span class="${gain < 0 ? 'text-error' : 'text-secondary'}">${money(gain)}</span>
+          <span class="${perf < 0 ? 'text-error' : 'text-secondary'}">${pct(perf)}</span>
+        </div>`;
+      }).join('')}
+    ` : `<p class="text-muted">Aucune ligne detenue sur ce perimetre.</p>`;
+  }
+
   function weightedProfileTarget(portfolios, totalValue, profiles, fallbackProfile) {
-    const result = { Actions: 0, ETF: 0, Obligations: 0, Liquidités: 0, Crypto: 0 };
+    const result = { Actions: 0, Obligations: 0, Liquidités: 0, Crypto: 0 };
+    let etfShare = 0;
     const profileIds = new Set();
     portfolios.forEach(portfolio => {
       const value = portfolio.positions.reduce((sum, position) => sum + position.qty * position.currentPrice, 0);
@@ -118,11 +159,13 @@
       profileIds.add(profileId);
       const profile = profiles[profileId] || profiles.equilibre;
       Object.keys(result).forEach(key => { result[key] += (profile.target?.[key] || 0) * weight; });
+      etfShare += Number(profile.etfShare || profile.target?.ETF || 0) * weight;
     });
     const firstProfileId = profileIds.values().next().value || fallbackProfile || 'equilibre';
     const primaryProfile = profiles[firstProfileId] || profiles.equilibre;
     return {
       target: result,
+      etfShare,
       primaryProfile,
       label: profileIds.size > 1 ? `Cible ponderee (${profileIds.size} profils)` : primaryProfile.label
     };
@@ -130,12 +173,16 @@
 
   function normalizedAssetClass(position) {
     const raw = String(position.assetClass || '').toLowerCase();
-    const text = `${position.ticker || ''} ${position.name || ''} ${position.isin || ''}`.toLowerCase();
-    if (raw === 'etf' || /\betf\b|msci|nasdaq|world|stoxx|s&p|ishares|amundi|lyxor|vanguard/.test(text)) return 'ETF';
     if (raw.includes('obligation')) return 'Obligations';
     if (raw.includes('liquid') || raw.includes('cash')) return 'Liquidités';
     if (raw.includes('crypto')) return 'Crypto';
     return 'Actions';
+  }
+
+  function isEtf(position) {
+    const raw = String(position.assetClass || '').toLowerCase();
+    const text = `${position.ticker || ''} ${position.name || ''} ${position.isin || ''}`.toLowerCase();
+    return raw === 'etf' || /\betf\b|msci|nasdaq|world|stoxx|s&p|ishares|amundi|lyxor|vanguard/.test(text);
   }
 
   initAnalyse();

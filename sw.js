@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'alphaterminal-v7';
+const CACHE_VERSION = 'alphaterminal-v9';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DATA_CACHE = `${CACHE_VERSION}-data`;
 
@@ -17,10 +17,12 @@ const STATIC_ASSETS = [
   './pages/analyse.html',
   './pages/signaux.html',
   './pages/inventaire.html',
+  './pages/parametres.html',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-maskable.png',
-  './examples/alphaterminal-sample-import.json'
+  './examples/alphaterminal-sample-import.json',
+  './examples/alphaterminal-official-import-2026-06-08.json'
 ];
 
 const OPTIONAL_ASSETS = [

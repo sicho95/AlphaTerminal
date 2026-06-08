@@ -1,0 +1,126 @@
+<section class="page-stack">
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">Application</p>
+      <h1 class="headline-lg">Paramètres</h1>
+      <p class="text-muted">Données techniques, profils d'investissement et version installée.</p>
+    </div>
+    <span id="appVersion" class="status-pill neutral">Version</span>
+  </div>
+
+  <div class="bento-grid">
+    <article class="glass-panel md:col-span-12">
+      <div class="section-title"><span class="material-symbols-outlined">tune</span>Données techniques</div>
+      <form id="settingsForm" class="form-grid three">
+        <div class="field"><label>Fournisseur cours</label><select name="dataProvider"><option value="twelvedata">Twelve Data</option><option value="yahoo">Yahoo fallback</option></select></div>
+        <div class="field"><label>Cle Twelve Data locale</label><input name="twelveDataApiKey" type="password" autocomplete="off" placeholder="Non commitee dans le repo"></div>
+        <div class="field"><label>Proxy CORS</label><input name="corsProxy" placeholder="https://proxy.example/?url= ou .../{url}"></div>
+        <div class="field"><label>Plafond PEA</label><input name="peaLimit" type="number" step="1"></div>
+        <div class="field"><label>Profil par défaut</label><select name="investorProfile"><option value="prudent">Prudent</option><option value="equilibre">Equilibre</option><option value="dynamique">Dynamique</option><option value="offensif">Offensif</option><option value="dca">DCA</option></select></div>
+        <div class="field"><label>Fallback Yahoo</label><select name="yahooFallback"><option value="true">Oui</option><option value="false">Non</option></select></div>
+        <div class="field"><label>Source macro/news</label><select name="macroProvider"><option value="static">Offline statique</option><option value="gdelt">GDELT mondial</option><option value="marketaux">Marketaux finance</option><option value="finnhub">Finnhub finance</option></select></div>
+        <div class="field"><label>Requête macro</label><input name="macroQuery" placeholder="inflation OR energy OR geopolitics"></div>
+        <div class="field"><label>Clé Marketaux</label><input name="marketauxApiKey" type="password" autocomplete="off"></div>
+        <div class="field"><label>Clé Finnhub</label><input name="finnhubApiKey" type="password" autocomplete="off"></div>
+        <button class="primary-btn" type="submit"><span class="material-symbols-outlined">save</span>Sauver config</button>
+      </form>
+    </article>
+
+    <article class="glass-panel md:col-span-12">
+      <div class="section-title"><span class="material-symbols-outlined">settings_suggest</span>Profils investisseur</div>
+      <div id="profilesEditor" class="profiles-editor"></div>
+      <button id="saveProfiles" class="primary-btn mt-4" type="button"><span class="material-symbols-outlined">save</span>Sauver profils</button>
+    </article>
+  </div>
+</section>
+
+<script type="module">
+  import { APP_VERSION, getSettings, saveSettings } from './js/store.js';
+
+  function initParametres() {
+    document.getElementById('appVersion').textContent = `Version ${APP_VERSION}`;
+    document.getElementById('settingsForm').onsubmit = event => {
+      event.preventDefault();
+      const data = Object.fromEntries(new FormData(event.target));
+      saveSettings({
+        dataProvider: data.dataProvider,
+        twelveDataApiKey: data.twelveDataApiKey,
+        corsProxy: data.corsProxy,
+        peaLimit: Number(data.peaLimit || 150000),
+        investorProfile: data.investorProfile,
+        yahooFallback: data.yahooFallback === 'true',
+        macroProvider: data.macroProvider,
+        macroQuery: data.macroQuery,
+        marketauxApiKey: data.marketauxApiKey,
+        finnhubApiKey: data.finnhubApiKey
+      });
+      renderSettings();
+    };
+    document.getElementById('saveProfiles').onclick = saveProfilesFromEditor;
+    renderSettings();
+  }
+
+  function renderSettings() {
+    const settings = getSettings();
+    const form = document.getElementById('settingsForm');
+    form.dataProvider.value = settings.dataProvider;
+    form.twelveDataApiKey.value = settings.twelveDataApiKey || '';
+    form.corsProxy.value = settings.corsProxy || '';
+    form.peaLimit.value = settings.peaLimit || 150000;
+    form.investorProfile.value = settings.investorProfile || 'equilibre';
+    form.yahooFallback.value = String(settings.yahooFallback !== false);
+    form.macroProvider.value = settings.macroProvider || 'static';
+    form.macroQuery.value = settings.macroQuery || '';
+    form.marketauxApiKey.value = settings.marketauxApiKey || '';
+    form.finnhubApiKey.value = settings.finnhubApiKey || '';
+    renderProfilesEditor();
+  }
+
+  function renderProfilesEditor() {
+    const profiles = getSettings().investorProfiles || {};
+    document.getElementById('profilesEditor').innerHTML = Object.entries(profiles).map(([id, profile]) => `
+      <div class="profile-edit-card" data-profile="${id}">
+        <div class="form-grid three">
+          <div class="field"><label>Nom</label><input name="label" value="${profile.label || id}"></div>
+          <div class="field"><label>Objectif</label><input name="objective" value="${profile.objective || ''}"></div>
+          <div class="field"><label>Horizon</label><input name="horizon" value="${profile.horizon || ''}"></div>
+          <div class="field"><label>Rendement</label><input name="rate" type="number" step="0.005" value="${profile.rate ?? 0.08}"></div>
+          <div class="field"><label>ATR stop</label><input name="atrMultiplier" type="number" step="0.5" value="${profile.atrMultiplier ?? 3}"></div>
+          <div class="field"><label>ETF idee</label><input name="etf" value="${profile.etf || ''}"></div>
+          <div class="field"><label>Actions %</label><input name="Actions" type="number" step="1" value="${profile.target?.Actions ?? 0}"></div>
+          <div class="field"><label>Part ETF %</label><input name="etfShare" type="number" step="1" value="${profile.etfShare ?? profile.target?.ETF ?? 0}"></div>
+          <div class="field"><label>Obligations %</label><input name="Obligations" type="number" step="1" value="${profile.target?.Obligations ?? 0}"></div>
+          <div class="field"><label>Liquidites %</label><input name="Liquidités" type="number" step="1" value="${profile.target?.Liquidités ?? 0}"></div>
+          <div class="field"><label>Crypto %</label><input name="Crypto" type="number" step="1" value="${profile.target?.Crypto ?? 0}"></div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function saveProfilesFromEditor() {
+    const investorProfiles = {};
+    document.querySelectorAll('[data-profile]').forEach(card => {
+      const id = card.dataset.profile;
+      const read = name => card.querySelector(`[name="${name}"]`)?.value;
+      investorProfiles[id] = {
+        label: read('label'),
+        objective: read('objective'),
+        horizon: read('horizon'),
+        rate: Number(read('rate') || 0),
+        atrMultiplier: Number(read('atrMultiplier') || 3),
+        etf: read('etf'),
+        etfShare: Number(read('etfShare') || 0),
+        target: {
+          Actions: Number(read('Actions') || 0),
+          Obligations: Number(read('Obligations') || 0),
+          Liquidités: Number(read('Liquidités') || 0),
+          Crypto: Number(read('Crypto') || 0)
+        }
+      };
+    });
+    saveSettings({ investorProfiles });
+    renderSettings();
+  }
+
+  initParametres();
+</script>

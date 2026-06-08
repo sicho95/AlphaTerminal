@@ -1,0 +1,610 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": "2026-06-08T19:29:48.970Z",
+  "selectedScope": "all",
+  "data": {
+    "schemaVersion": 2,
+    "exportedAt": "2026-06-08T19:29:48.970Z",
+    "owners": [
+      {
+        "id": "jean",
+        "name": "Jean",
+        "color": "#2563eb"
+      },
+      {
+        "id": "claire",
+        "name": "Claire",
+        "color": "#16a34a"
+      },
+      {
+        "id": "damien",
+        "name": "Damien",
+        "color": "#d97706"
+      }
+    ],
+    "portfolios": [
+      {
+        "id": "jean-pea-20001303091",
+        "ownerId": "jean",
+        "name": "Jean PEA 20001303091",
+        "type": "PEA",
+        "profileId": "equilibre",
+        "color": "#2563eb",
+        "versements": 131359.4,
+        "currentCash": 6665.46,
+        "initialSituation": {
+          "date": "29/12/2025",
+          "total": 131359.4,
+          "titres": 47904.9,
+          "especes": 83454.5,
+          "apportAnnuel": 0
+        },
+        "targetSituation": {
+          "date": "31/08/2026",
+          "value": 145892,
+          "returnPct": 11.06
+        },
+        "positions": [
+          {
+            "id": "jean-pea-20001303091-fr0000045072-credit-agricole",
+            "ticker": "FR0000045072",
+            "yahooTicker": "FR0000045072",
+            "isin": "FR0000045072",
+            "name": "CREDIT AGRICOLE",
+            "assetClass": "Actions",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 75,
+            "pru": 5.5539,
+            "currentPrice": 16.53,
+            "stopLevel": 0
+          },
+          {
+            "id": "jean-pea-20001303091-fr0010533075-getlink-se",
+            "ticker": "FR0010533075",
+            "yahooTicker": "FR0010533075",
+            "isin": "FR0010533075",
+            "name": "GETLINK SE",
+            "assetClass": "Actions",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 70,
+            "pru": 6.4,
+            "currentPrice": 18.23,
+            "stopLevel": 0
+          },
+          {
+            "id": "jean-pea-20001303091-lu1832174962-ie-europe-sm-ac-4d",
+            "ticker": "LU1832174962",
+            "yahooTicker": "LU1832174962",
+            "isin": "LU1832174962",
+            "name": "IE EUROPE SM.AC 4D",
+            "assetClass": "Actions",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 40,
+            "pru": 221.29,
+            "currentPrice": 244.12,
+            "stopLevel": 0
+          },
+          {
+            "id": "jean-pea-20001303091-fr0000125007-saint-gobain",
+            "ticker": "FR0000125007",
+            "yahooTicker": "FR0000125007",
+            "isin": "FR0000125007",
+            "name": "SAINT-GOBAIN",
+            "assetClass": "Actions",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 36,
+            "pru": 43.249,
+            "currentPrice": 77.26,
+            "stopLevel": 0
+          },
+          {
+            "id": "jean-pea-20001303091-fr0000120578-sanofi",
+            "ticker": "FR0000120578",
+            "yahooTicker": "FR0000120578",
+            "isin": "FR0000120578",
+            "name": "SANOFI",
+            "assetClass": "Actions",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 62,
+            "pru": 69.683,
+            "currentPrice": 77.95,
+            "stopLevel": 0
+          },
+          {
+            "id": "jean-pea-20001303091-fr0000939829-lbp-i-a-eur-m-d-5d",
+            "ticker": "FR0000939829",
+            "yahooTicker": "FR0000939829",
+            "isin": "FR0000939829",
+            "name": "LBP.I.A.EUR M.D 5D",
+            "assetClass": "Liquidités",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 17.41,
+            "pru": 69.656,
+            "currentPrice": 157.35,
+            "stopLevel": 0
+          },
+          {
+            "id": "jean-pea-20001303091-fr0000285884-lbp-i-ac-f-eur-r5d",
+            "ticker": "FR0000285884",
+            "yahooTicker": "FR0000285884",
+            "isin": "FR0000285884",
+            "name": "LBP.I.AC.F.EUR.R5D",
+            "assetClass": "Actions",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 12.69,
+            "pru": 102.731,
+            "currentPrice": 192.81,
+            "stopLevel": 0
+          },
+          {
+            "id": "jean-pea-20001303091-fr0010671420-lbpam-3-mois-r5dec",
+            "ticker": "FR0010671420",
+            "yahooTicker": "FR0010671420",
+            "isin": "FR0010671420",
+            "name": "LBPAM 3 MOIS R5DEC",
+            "assetClass": "Liquidités",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 11,
+            "pru": 354.25,
+            "currentPrice": 380.56,
+            "stopLevel": 0
+          },
+          {
+            "id": "jean-pea-20001303091-fr001400u5q4-am-pea-m-m-w-uc-ac-euronext-paris",
+            "ticker": "WPEA",
+            "yahooTicker": "WPEA",
+            "isin": "FR001400U5Q4",
+            "name": "AM.PEA M.M.W.UC.AC EURONEXT PARIS",
+            "assetClass": "ETF",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 1635,
+            "pru": 5.51,
+            "currentPrice": 5.987,
+            "stopLevel": 0
+          },
+          {
+            "id": "jean-pea-20001303091-fr0011550193-bnpetf-stoxx-600-euronext-paris",
+            "ticker": "ETZ",
+            "yahooTicker": "ETZ",
+            "isin": "FR0011550193",
+            "name": "BNPETF STOXX 600 EURONEXT PARIS",
+            "assetClass": "ETF",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 1250,
+            "pru": 20.047,
+            "currentPrice": 20.45,
+            "stopLevel": 0
+          },
+          {
+            "id": "jean-pea-20001303091-fr0013412020-amundi-pea-emergent-etf-eur-dis",
+            "ticker": "PAEEM",
+            "yahooTicker": "PAEEM",
+            "isin": "FR0013412020",
+            "name": "Amundi PEA Emergent ETF - EUR DIS",
+            "assetClass": "ETF",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 200,
+            "pru": 30.706,
+            "currentPrice": 35.074,
+            "stopLevel": 0
+          },
+          {
+            "id": "jean-pea-20001303091-fr0011550185-bnp-etf-sp-500",
+            "ticker": "ESE",
+            "yahooTicker": "ESE",
+            "isin": "FR0011550185",
+            "name": "BNP ETF SP 500",
+            "assetClass": "ETF",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 900,
+            "pru": 30.074,
+            "currentPrice": 32.843,
+            "stopLevel": 0
+          },
+          {
+            "id": "jean-pea-20001303091-fr0011871110-am-peanasd-100-acc-euronext-paris",
+            "ticker": "PUST",
+            "yahooTicker": "PUST",
+            "isin": "FR0011871110",
+            "name": "AM.PEANASD.100 ACC EURONEXT PARIS",
+            "assetClass": "ETF",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 315,
+            "pru": 91.821,
+            "currentPrice": 103.08,
+            "stopLevel": 0
+          }
+        ]
+      },
+      {
+        "id": "jean-cto-20001303001",
+        "ownerId": "jean",
+        "name": "Jean CTO 20001303001",
+        "type": "CTO",
+        "profileId": "equilibre",
+        "color": "#2563eb",
+        "versements": 0,
+        "currentCash": 1288.04,
+        "initialSituation": {
+          "date": "07/01/2026",
+          "total": 39272.93,
+          "titres": 30693.65,
+          "especes": 8579.28,
+          "apportAnnuel": 0
+        },
+        "targetSituation": {
+          "date": "31/08/2026",
+          "value": 45996,
+          "returnPct": 17.12
+        },
+        "positions": [
+          {
+            "id": "jean-cto-20001303001-lpior-lbp-isr-obl-rev-5d",
+            "ticker": "LPIOR",
+            "yahooTicker": "LPIOR",
+            "isin": "",
+            "name": "LBP.ISR OBL.REV.5D",
+            "assetClass": "Obligations",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 0.136,
+            "pru": 771.103,
+            "currentPrice": 768.02,
+            "stopLevel": 0
+          },
+          {
+            "id": "jean-cto-20001303001-fr001400u5q4-amundi-pea-monde-msci-world-ucits-etf",
+            "ticker": "WPEA",
+            "yahooTicker": "WPEA",
+            "isin": "FR001400U5Q4",
+            "name": "AMUNDI PEA MONDE (MSCI WORLD) UCITS ETF",
+            "assetClass": "ETF",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 1425,
+            "pru": 5.648,
+            "currentPrice": 5.987,
+            "stopLevel": 0
+          },
+          {
+            "id": "jean-cto-20001303001-lu1834983477-amundi-stoxx-europe-600-bank",
+            "ticker": "LU1834983477",
+            "yahooTicker": "LU1834983477",
+            "isin": "LU1834983477",
+            "name": "AMUNDI STOXX Europe 600 Bank",
+            "assetClass": "ETF",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 113,
+            "pru": 62.088,
+            "currentPrice": 64.044,
+            "stopLevel": 0
+          },
+          {
+            "id": "jean-cto-20001303001-fr0011550193-bnp-paribas-easy-stoxx-europe-600-ucits-etf",
+            "ticker": "FR0011550193",
+            "yahooTicker": "FR0011550193",
+            "isin": "FR0011550193",
+            "name": "BNP PARIBAS EASY STOXX EUROPE 600 UCITS ETF",
+            "assetClass": "ETF",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 225,
+            "pru": 19.935,
+            "currentPrice": 20.45,
+            "stopLevel": 0
+          },
+          {
+            "id": "jean-cto-20001303001-fr0013412020-am-pea-em-es-t-acc-euronext-paris",
+            "ticker": "PAEEM",
+            "yahooTicker": "PAEEM",
+            "isin": "FR0013412020",
+            "name": "AM.PEA EM.ES.T.ACC EURONEXT PARIS ",
+            "assetClass": "ETF",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 120,
+            "pru": 30.837,
+            "currentPrice": 35.074,
+            "stopLevel": 0
+          },
+          {
+            "id": "jean-cto-20001303001-fr0011871110-am-peanasd-100-acc-euronext-paris",
+            "ticker": "PUST",
+            "yahooTicker": "PUST",
+            "isin": "FR0011871110",
+            "name": "AM.PEANASD.100 ACC EURONEXT PARIS",
+            "assetClass": "ETF",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 128,
+            "pru": 87.4,
+            "currentPrice": 103.08,
+            "stopLevel": 0
+          },
+          {
+            "id": "jean-cto-20001303001-lu1861132840-am-msci-rob-ai-etf-euronext-paris",
+            "ticker": "GOAI",
+            "yahooTicker": "GOAI",
+            "isin": "LU1861132840",
+            "name": "AM.MSCI ROB.AI ETF EURONEXT PARIS ",
+            "assetClass": "ETF",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 28,
+            "pru": 125.93,
+            "currentPrice": 141.466,
+            "stopLevel": 0
+          }
+        ]
+      },
+      {
+        "id": "claire-pea-017555352116",
+        "ownerId": "claire",
+        "name": "Claire PEA 017555352116",
+        "type": "PEA",
+        "profileId": "dca",
+        "color": "#16a34a",
+        "versements": 1000,
+        "currentCash": 0.18,
+        "initialSituation": {
+          "date": "20/01/2026",
+          "total": 1000,
+          "titres": 984.62,
+          "especes": 15.38,
+          "apportAnnuel": 0
+        },
+        "targetSituation": {
+          "date": "",
+          "value": 1100,
+          "returnPct": 10
+        },
+        "positions": [
+          {
+            "id": "claire-pea-017555352116-fr001400u5q4-amundi-pea-monde-msci-world-ucits-etf",
+            "ticker": "WPEA",
+            "yahooTicker": "WPEA",
+            "isin": "FR001400U5Q4",
+            "name": "AMUNDI PEA MONDE (MSCI WORLD) UCITS ETF",
+            "assetClass": "ETF",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 129,
+            "pru": 5.429,
+            "currentPrice": 5.638,
+            "stopLevel": 0
+          },
+          {
+            "id": "claire-pea-017555352116-fr0007059670-lcl-serenite-pea-c",
+            "ticker": "FR0007059670",
+            "yahooTicker": "FR0007059670",
+            "isin": "FR0007059670",
+            "name": "LCL Sérénité PEA C",
+            "assetClass": "Obligations",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 5.995,
+            "pru": 50.18,
+            "currentPrice": 50.3,
+            "stopLevel": 0
+          }
+        ]
+      },
+      {
+        "id": "damien-pea-011956912916",
+        "ownerId": "damien",
+        "name": "Damien PEA 011956912916",
+        "type": "PEA",
+        "profileId": "dynamique",
+        "color": "#d97706",
+        "versements": 24762.25,
+        "currentCash": 17.11,
+        "initialSituation": {
+          "date": "08/01/2026",
+          "total": 24762.25,
+          "titres": 24761.3,
+          "especes": 1.95,
+          "apportAnnuel": 12400
+        },
+        "targetSituation": {
+          "date": "30/09/2026",
+          "value": 42736.59,
+          "returnPct": 15
+        },
+        "positions": [
+          {
+            "id": "damien-pea-011956912916-fr001400u5q4-amundi-pea-monde-msci-world-ucits-etf-acc-dcam",
+            "ticker": "WPEA",
+            "yahooTicker": "WPEA",
+            "isin": "FR001400U5Q4",
+            "name": "AMUNDI PEA MONDE (MSCI WORLD) UCITS ETF - ACC (DCAM)",
+            "assetClass": "ETF",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 2439,
+            "pru": 5.547,
+            "currentPrice": 5.982,
+            "stopLevel": 0
+          },
+          {
+            "id": "damien-pea-011956912916-non-cote-sowefunded-cuvee",
+            "ticker": "Non Coté",
+            "yahooTicker": "Non Coté",
+            "isin": "",
+            "name": "SOWEFUNDED CUVEE",
+            "assetClass": "Actions",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 2000,
+            "pru": 1,
+            "currentPrice": 1,
+            "stopLevel": 0
+          },
+          {
+            "id": "damien-pea-011956912916-non-cote-tudi-holding-73-geev",
+            "ticker": "Non Coté",
+            "yahooTicker": "Non Coté",
+            "isin": "",
+            "name": "TUDI HOLDING 73 Geev",
+            "assetClass": "Actions",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 1200,
+            "pru": 1,
+            "currentPrice": 1,
+            "stopLevel": 0
+          },
+          {
+            "id": "damien-pea-011956912916-fr0011871110-amundi-pea-nasdaq-100-ucits-etf-eur-acc",
+            "ticker": "PUST",
+            "yahooTicker": "PUST",
+            "isin": "FR0011871110",
+            "name": "Amundi PEA Nasdaq-100 UCITS ETF - EUR ACC",
+            "assetClass": "ETF",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 115,
+            "pru": 89.182,
+            "currentPrice": 104.02,
+            "stopLevel": 0
+          },
+          {
+            "id": "damien-pea-011956912916-fr0013341781-2crsi",
+            "ticker": "AL2SI",
+            "yahooTicker": "AL2SI",
+            "isin": "FR0013341781",
+            "name": "2CRSI",
+            "assetClass": "Actions",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 90,
+            "pru": 37.668,
+            "currentPrice": 49.42,
+            "stopLevel": 0
+          },
+          {
+            "id": "damien-pea-011956912916-fr0011550185-bnp-paribas-easy-s-p-500-ucits-etf-c-eur-acc",
+            "ticker": "ESE",
+            "yahooTicker": "ESE",
+            "isin": "FR0011550185",
+            "name": "BNP PARIBAS EASY S&P 500 UCITS ETF - C EUR ACC",
+            "assetClass": "ETF",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 140,
+            "pru": 32.122,
+            "currentPrice": 32.8151,
+            "stopLevel": 0
+          },
+          {
+            "id": "damien-pea-011956912916-fr0000073272-safran",
+            "ticker": "SAF",
+            "yahooTicker": "SAF",
+            "isin": "FR0000073272",
+            "name": "SAFRAN",
+            "assetClass": "Actions",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 10,
+            "pru": 300.649,
+            "currentPrice": 303,
+            "stopLevel": 0
+          }
+        ]
+      },
+      {
+        "id": "damien-cto-011956912901",
+        "ownerId": "damien",
+        "name": "Damien CTO 011956912901",
+        "type": "CTO",
+        "profileId": "offensif",
+        "color": "#d97706",
+        "versements": 508,
+        "currentCash": 55.08,
+        "initialSituation": {
+          "date": "14/04/2026",
+          "total": 1500,
+          "titres": 2497.05,
+          "especes": 2.95,
+          "apportAnnuel": 508
+        },
+        "targetSituation": {
+          "date": "30/09/2026",
+          "value": 2309.2,
+          "returnPct": 15
+        },
+        "positions": [
+          {
+            "id": "damien-cto-011956912901-lu1681038672-amundi-russell-2000-ucits-etf-eur-acc",
+            "ticker": "RS2K",
+            "yahooTicker": "RS2K",
+            "isin": "LU1681038672",
+            "name": "AMUNDI RUSSELL 2000 - UCITS ETF - EUR ACC",
+            "assetClass": "ETF",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 1,
+            "pru": 339.67,
+            "currentPrice": 352.964,
+            "stopLevel": 0
+          },
+          {
+            "id": "damien-cto-011956912901-lu1861132840-amundi-msci-robotics-ai-ucits-etf-acc-eur",
+            "ticker": "GOAI",
+            "yahooTicker": "GOAI",
+            "isin": "LU1861132840",
+            "name": "AMUNDI MSCI ROBOTICS & AI - UCITS ETF ACC EUR",
+            "assetClass": "ETF",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 4,
+            "pru": 113.967,
+            "currentPrice": 116.79,
+            "stopLevel": 0
+          },
+          {
+            "id": "damien-cto-011956912901-fr0000035081-icade",
+            "ticker": "ICAD",
+            "yahooTicker": "ICAD",
+            "isin": "FR0000035081",
+            "name": "ICADE",
+            "assetClass": "Actions",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 14,
+            "pru": 20.581,
+            "currentPrice": 20.96,
+            "stopLevel": 0
+          },
+          {
+            "id": "damien-cto-011956912901-ie00b579f325-inve-phys-gold-etc",
+            "ticker": "SGLD",
+            "yahooTicker": "SGLD",
+            "isin": "IE00B579F325",
+            "name": "INVE PHYS GOLD ETC",
+            "assetClass": "ETF",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 2,
+            "pru": 429.625,
+            "currentPrice": 397.12,
+            "stopLevel": 0
+          }
+        ]
+      }
+    ]
+  }
+}

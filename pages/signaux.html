@@ -58,7 +58,7 @@
     try {
       const events = await fetchMacroNews();
       target.innerHTML = events.map(event => `
-        <a class="mini-card md:col-span-3 macro-card" ${event.url ? `href="${event.url}" target="_blank" rel="noreferrer"` : ''}>
+        <a class="mini-card md:col-span-3 macro-card ${sentimentClass(event.sentiment)}" ${event.url ? `href="${event.url}" target="_blank" rel="noreferrer"` : ''}>
           <div><strong>${event.title}</strong><span>${event.summary || event.source || ''}</span></div>
           <span class="signal-badge ${sentimentClass(event.sentiment)}">${event.sentiment || 'Neutre'}</span>
         </a>

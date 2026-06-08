@@ -1,4 +1,6 @@
 export const SCHEMA_VERSION = 2;
+export const PROFILE_DEFAULTS_VERSION = 3;
+export const APP_VERSION = '0.9.0';
 
 export const KEYS = {
   data: 'alphaTerm_data',
@@ -10,15 +12,16 @@ export const KEYS = {
 };
 
 export const DEFAULT_INVESTOR_PROFILES = {
-  prudent: { label: 'Prudent', objective: '3-5%/an', horizon: '< 3 ans', rate: 0.04, atrMultiplier: 2, target: { Actions: 30, ETF: 20, Obligations: 50, Liquidités: 20, Crypto: 0 }, etf: 'ETF obligataire court terme + fonds monétaire' },
-  equilibre: { label: 'Equilibre', objective: '5-8%/an', horizon: '3-7 ans', rate: 0.065, atrMultiplier: 3, target: { Actions: 50, ETF: 40, Obligations: 35, Liquidités: 15, Crypto: 0 }, etf: 'MSCI World + obligations EUR' },
-  dynamique: { label: 'Dynamique', objective: '8-12%/an', horizon: '5-10 ans', rate: 0.10, atrMultiplier: 3, target: { Actions: 70, ETF: 55, Obligations: 15, Liquidités: 15, Crypto: 0 }, etf: 'MSCI World / Nasdaq via PEA' },
-  offensif: { label: 'Offensif', objective: '12-20%/an', horizon: '> 7 ans', rate: 0.15, atrMultiplier: 4, target: { Actions: 90, ETF: 65, Obligations: 0, Liquidités: 10, Crypto: 0 }, etf: 'Nasdaq-100 + MSCI World' },
-  dca: { label: 'DCA Automatique', objective: 'cumulatif configurable', horizon: 'regulier', rate: 0.08, atrMultiplier: 3, target: { Actions: 75, ETF: 65, Obligations: 10, Liquidités: 15, Crypto: 0 }, etf: 'Plan DCA MSCI World' }
+  prudent: { label: 'Prudent', objective: '3-5%/an', horizon: '< 3 ans', rate: 0.04, atrMultiplier: 2, target: { Actions: 25, Obligations: 60, Liquidités: 15, Crypto: 0 }, etfShare: 65, etf: 'ETF monétaire/obligataire EUR court terme + MSCI World plafonné' },
+  equilibre: { label: 'Equilibre', objective: '5-8%/an', horizon: '3-7 ans', rate: 0.065, atrMultiplier: 2.5, target: { Actions: 60, Obligations: 35, Liquidités: 5, Crypto: 0 }, etfShare: 75, etf: 'ETF MSCI World coeur + obligations EUR diversifiées' },
+  dynamique: { label: 'Dynamique', objective: '8-12%/an', horizon: '5-10 ans', rate: 0.10, atrMultiplier: 3, target: { Actions: 95, Obligations: 0, Liquidités: 5, Crypto: 0 }, etfShare: 80, etf: 'ETF MSCI World PEA coeur + actions satellites' },
+  offensif: { label: 'Offensif', objective: '12-20%/an', horizon: '> 7 ans', rate: 0.15, atrMultiplier: 4, target: { Actions: 95, Obligations: 0, Liquidités: 5, Crypto: 0 }, etfShare: 65, etf: 'ETF Monde/Nasdaq coeur + actions de conviction plafonnees' },
+  dca: { label: 'DCA Automatique', objective: 'cumulatif configurable', horizon: 'regulier', rate: 0.08, atrMultiplier: 3, target: { Actions: 95, Obligations: 0, Liquidités: 5, Crypto: 0 }, etfShare: 90, etf: 'Plan DCA MSCI World PEA, complement ETF/action modere' }
 };
 
 const defaultSettings = {
   darkMode: false,
+  profileDefaultsVersion: PROFILE_DEFAULTS_VERSION,
   investorProfile: 'equilibre',
   investorProfiles: DEFAULT_INVESTOR_PROFILES,
   notificationsEnabled: false,
@@ -36,7 +39,7 @@ const defaultSettings = {
   macroLanguage: 'fr,en',
   stopAtrMultipliers: {
     prudent: 2,
-    equilibre: 3,
+    equilibre: 2.5,
     dynamique: 3,
     offensif: 4,
     dca: 3
@@ -80,8 +83,11 @@ function normalizePortfolio(portfolio) {
     type: portfolio.type || 'CTO',
     profileId: portfolio.profileId || portfolio.investorProfile || 'equilibre',
     color: portfolio.color || '#2563eb',
-    versements: Number(portfolio.versements || 0),
+    versements: parseNumber(portfolio.versements),
     deposits: Array.isArray(portfolio.deposits) ? portfolio.deposits : [],
+    currentCash: parseNumber(portfolio.currentCash || portfolio.cash),
+    initialSituation: normalizeSituation(portfolio.initialSituation || portfolio.initial),
+    targetSituation: normalizeTargetSituation(portfolio.targetSituation || portfolio.cible || portfolio.target),
     positions: Array.isArray(portfolio.positions) ? portfolio.positions.map(position => ({
       id: position.id || uid('position'),
       ticker: position.ticker || '',
@@ -91,13 +97,37 @@ function normalizePortfolio(portfolio) {
       assetClass: position.assetClass || position.type || 'Actions',
       sector: position.sector || 'World',
       currency: position.currency || 'EUR',
-      qty: Number(position.qty || 0),
-      pru: Number(position.pru || 0),
-      currentPrice: Number(position.currentPrice || position.pru || 0),
-      stopLevel: Number(position.stopLevel || 0),
+      qty: parseNumber(position.qty),
+      pru: parseNumber(position.pru),
+      currentPrice: parseNumber(position.currentPrice || position.pru),
+      stopLevel: parseNumber(position.stopLevel),
+      atrMultiplier: position.atrMultiplier ? parseNumber(position.atrMultiplier) : undefined,
       lastUpdate: position.lastUpdate || null,
       history: position.history || null
     })) : []
+  };
+}
+
+function parseNumber(value) {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  return Number(String(value || '0').replace(/[\s\u202f\u00a0€%]/g, '').replace(',', '.')) || 0;
+}
+
+function normalizeSituation(situation = {}) {
+  return {
+    date: situation.date || '',
+    total: parseNumber(situation.total),
+    titres: parseNumber(situation.titres),
+    especes: parseNumber(situation.especes),
+    apportAnnuel: parseNumber(situation.apportAnnuel)
+  };
+}
+
+function normalizeTargetSituation(target = {}) {
+  return {
+    date: target.date || target.targetDate || '',
+    value: parseNumber(target.value || target.valeurCible || target.targetValue),
+    returnPct: parseNumber(target.returnPct || target.rendementPct)
   };
 }
 
@@ -107,6 +137,7 @@ function normalizeProfiles(profiles = {}) {
     ...DEFAULT_INVESTOR_PROFILES[id],
     ...profile,
     target: { ...(DEFAULT_INVESTOR_PROFILES[id]?.target || {}), ...(profile.target || {}) },
+    etfShare: Number(profile.etfShare ?? profile.target?.ETF ?? DEFAULT_INVESTOR_PROFILES[id]?.etfShare ?? 0),
     rate: Number(profile.rate ?? DEFAULT_INVESTOR_PROFILES[id]?.rate ?? 0.08),
     atrMultiplier: Number(profile.atrMultiplier ?? profile.atr ?? DEFAULT_INVESTOR_PROFILES[id]?.atrMultiplier ?? 3)
   }]));
@@ -114,7 +145,12 @@ function normalizeProfiles(profiles = {}) {
 
 function normalizeSettings(settings = {}) {
   const merged = { ...defaultSettings, ...settings };
+  if (settings.profileDefaultsVersion !== PROFILE_DEFAULTS_VERSION) {
+    const customProfiles = Object.fromEntries(Object.entries(settings.investorProfiles || {}).filter(([id]) => !DEFAULT_INVESTOR_PROFILES[id]));
+    merged.investorProfiles = { ...DEFAULT_INVESTOR_PROFILES, ...customProfiles };
+  }
   merged.investorProfiles = normalizeProfiles(merged.investorProfiles);
+  merged.profileDefaultsVersion = PROFILE_DEFAULTS_VERSION;
   merged.stopAtrMultipliers = {
     ...defaultSettings.stopAtrMultipliers,
     ...merged.stopAtrMultipliers,
@@ -243,7 +279,8 @@ export function flattenPositions(portfolios = getVisiblePortfolios()) {
       portfolioColor: portfolio.color,
       ownerId: portfolio.ownerId,
       ownerName: owner?.name || portfolio.ownerId,
-      versements: portfolio.versements || 0
+      versements: portfolio.versements || 0,
+      currentCash: portfolio.currentCash || 0
     }));
   });
 }
@@ -251,15 +288,24 @@ export function flattenPositions(portfolios = getVisiblePortfolios()) {
 export function totals(portfolios = getVisiblePortfolios()) {
   const positions = flattenPositions(portfolios);
   const invested = positions.reduce((sum, p) => sum + p.qty * p.pru, 0);
-  const value = positions.reduce((sum, p) => sum + p.qty * p.currentPrice, 0);
+  const positionsValue = positions.reduce((sum, p) => sum + p.qty * p.currentPrice, 0);
+  const cash = portfolios.reduce((sum, p) => sum + Number(p.currentCash || 0), 0);
+  const value = positionsValue + cash;
   const gain = value - invested;
   const peaVersements = portfolios.filter(p => p.type === 'PEA').reduce((sum, p) => sum + Number(p.versements || 0), 0);
+  const initialValue = portfolios.reduce((sum, p) => sum + Number(p.initialSituation?.total || 0), 0);
+  const targetValue = portfolios.reduce((sum, p) => sum + Number(p.targetSituation?.value || 0), 0);
   return {
     positions,
     invested,
+    positionsValue,
+    cash,
     value,
     gain,
     perf: invested ? gain / invested * 100 : 0,
+    initialValue,
+    targetValue,
+    progressToTarget: targetValue > initialValue ? (value - initialValue) / (targetValue - initialValue) * 100 : 0,
     peaVersements,
     portfolioCount: portfolios.length
   };
@@ -372,6 +418,7 @@ export function importBackup(payload, mode = 'replace') {
     state.alerts = payload.alerts;
     writeJSON(KEYS.alerts, state.alerts);
   }
+  if (payload.selectedScope) setSelectedScope(payload.selectedScope);
   emit();
 }
 

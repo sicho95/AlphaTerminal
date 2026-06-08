@@ -7,6 +7,7 @@
     </div>
     <div class="action-row">
       <span id="offlinePill" class="status-pill neutral">Cache local</span>
+      <button id="printDashboard" class="ghost-btn" type="button"><span class="material-symbols-outlined">print</span>Rapport</button>
       <button id="refreshPrices" class="primary-btn" type="button"><span class="material-symbols-outlined">sync</span>Actualiser</button>
     </div>
   </div>
@@ -50,6 +51,17 @@
       <div class="section-title"><span class="material-symbols-outlined">warning</span>Alertes contexte</div>
       <div id="criticalAlerts" class="list-stack"></div>
     </article>
+
+    <article class="glass-panel md:col-span-12 report-block">
+      <div class="section-title"><span class="material-symbols-outlined">flag</span>Trajectoire objectifs</div>
+      <div class="situation-grid">
+        <div class="situation-tile initial"><span>Situation initiale</span><strong id="initialSituation">0 EUR</strong><em id="initialDate">Date non renseignee</em></div>
+        <div class="situation-tile target"><span>Objectif</span><strong id="targetSituation">0 EUR</strong><em id="targetDate">Date non renseignee</em></div>
+        <div class="situation-tile current"><span>Situation actuelle</span><strong id="currentSituation">0 EUR</strong><em id="targetProgress">0% de l'objectif</em></div>
+      </div>
+      <div class="progress-track compact"><div id="targetBar" class="progress-fill"></div></div>
+      <div id="objectiveList" class="objective-list"></div>
+    </article>
   </div>
 </section>
 
@@ -65,6 +77,7 @@
     document.getElementById('offlinePill').textContent = navigator.onLine ? 'En ligne' : 'Hors ligne - cache';
     document.getElementById('emptyDashboard').classList.toggle('hidden', portfolios.length > 0);
     document.getElementById('dashboardContent').classList.toggle('hidden', portfolios.length === 0);
+    document.getElementById('printDashboard').onclick = () => window.print();
     if (!portfolios.length) return;
 
     document.getElementById('totalValue').textContent = money(total.value);
@@ -82,6 +95,7 @@
     renderDonut(portfolios);
     renderTop(total.positions);
     renderAlerts(total.positions, peaPercent);
+    renderObjectives(portfolios, total);
 
     document.getElementById('refreshPrices').onclick = async event => {
       const button = event.currentTarget;
@@ -102,10 +116,10 @@
 
   function renderDonut(portfolios) {
     document.querySelectorAll('#allocationLegend').forEach(element => element.remove());
-    const totalValue = portfolios.reduce((sum, p) => sum + p.positions.reduce((s, pos) => s + pos.qty * pos.currentPrice, 0), 0) || 1;
+    const totalValue = portfolios.reduce((sum, p) => sum + p.positions.reduce((s, pos) => s + pos.qty * pos.currentPrice, 0) + Number(p.currentCash || 0), 0) || 1;
     let cursor = 0;
     const segments = portfolios.map(portfolio => {
-      const value = portfolio.positions.reduce((sum, pos) => sum + pos.qty * pos.currentPrice, 0);
+      const value = portfolio.positions.reduce((sum, pos) => sum + pos.qty * pos.currentPrice, 0) + Number(portfolio.currentCash || 0);
       const start = cursor;
       const size = value / totalValue * 360;
       cursor += size;
@@ -118,7 +132,7 @@
     chart.onclick = () => setSelectedScope('all');
 
     const list = portfolios.map(portfolio => {
-      const value = portfolio.positions.reduce((sum, pos) => sum + pos.qty * pos.currentPrice, 0);
+      const value = portfolio.positions.reduce((sum, pos) => sum + pos.qty * pos.currentPrice, 0) + Number(portfolio.currentCash || 0);
       return `<button class="legend-row" data-id="${portfolio.id}"><span style="background:${portfolio.color || '#2563eb'}"></span><strong>${portfolio.name}</strong><em>${money(value)}</em></button>`;
     }).join('');
     chart.insertAdjacentHTML('afterend', `<div id="allocationLegend" class="legend-stack">${list}</div>`);
@@ -152,6 +166,42 @@
         <div><strong>${alert.name}</strong><span>${alert.message || `${alert.ticker} est a ${alert.distance.toFixed(1)}% du stop.`}</span></div>
       </div>
     `).join('') : `<p class="text-muted">Aucune alerte critique sur le perimetre courant.</p>`;
+  }
+
+  function renderObjectives(portfolios, total) {
+    const dates = portfolios.flatMap(portfolio => [portfolio.initialSituation?.date, portfolio.targetSituation?.date]).filter(Boolean);
+    const initialDates = portfolios.map(portfolio => portfolio.initialSituation?.date).filter(Boolean);
+    const targetDates = portfolios.map(portfolio => portfolio.targetSituation?.date).filter(Boolean);
+    const progress = Math.max(0, Math.min(total.progressToTarget || 0, 999));
+    document.getElementById('initialSituation').textContent = money(total.initialValue);
+    document.getElementById('targetSituation').textContent = money(total.targetValue);
+    document.getElementById('currentSituation').textContent = money(total.value);
+    document.getElementById('initialDate').textContent = formatDateRange(initialDates);
+    document.getElementById('targetDate').textContent = formatDateRange(targetDates);
+    document.getElementById('targetProgress').textContent = total.targetValue ? `${pct(progress)} de l'objectif` : 'Objectif non renseigne';
+    document.getElementById('targetBar').style.width = `${Math.min(progress, 100)}%`;
+    document.getElementById('objectiveList').innerHTML = portfolios.map(portfolio => {
+      const positionsValue = portfolio.positions.reduce((sum, position) => sum + position.qty * position.currentPrice, 0);
+      const current = positionsValue + Number(portfolio.currentCash || 0);
+      const initial = Number(portfolio.initialSituation?.total || 0);
+      const target = Number(portfolio.targetSituation?.value || 0);
+      const portfolioProgress = target > initial ? (current - initial) / (target - initial) * 100 : 0;
+      return `<div class="objective-row">
+        <div><strong>${portfolio.name}</strong><span>${portfolio.type} · initial ${portfolio.initialSituation?.date || '-'} · objectif ${portfolio.targetSituation?.date || '-'}</span></div>
+        <div><span>Initial</span><strong>${money(initial)}</strong></div>
+        <div><span>Actuel</span><strong>${money(current)}</strong></div>
+        <div><span>Objectif</span><strong>${money(target)}</strong></div>
+        <div><span>Avancement</span><strong>${target ? pct(Math.max(0, portfolioProgress)) : '-'}</strong></div>
+      </div>`;
+    }).join('');
+    if (!dates.length) document.getElementById('objectiveList').innerHTML = `<p class="text-muted">Aucune situation initiale ou cible renseignee sur ce perimetre.</p>`;
+  }
+
+  function formatDateRange(dates) {
+    const unique = [...new Set(dates.filter(Boolean))];
+    if (!unique.length) return 'Date non renseignee';
+    if (unique.length === 1) return unique[0];
+    return `${unique[0]} - ${unique.at(-1)}`;
   }
 
   initDashboard();

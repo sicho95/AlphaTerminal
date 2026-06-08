@@ -2,7 +2,7 @@ import { DEFAULT_DATA } from './data.js';
 import { initStore, state, subscribe, getOwners, getPortfolios, setSelectedScope, getScopeLabel, getSettings, saveSettings, markAlertsRead } from './store.js';
 import { NotifService } from './notifications.js';
 
-const routes = new Set(['dashboard', 'analyse', 'signaux', 'inventaire']);
+const routes = new Set(['dashboard', 'analyse', 'signaux', 'inventaire', 'parametres']);
 
 const App = {
   async init() {

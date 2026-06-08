@@ -3,7 +3,7 @@
     <div>
       <p class="eyebrow">Données locales</p>
       <h1 class="headline-lg">Inventaire</h1>
-      <p class="text-muted">Positions, portefeuilles, sauvegarde JSON et configuration.</p>
+      <p class="text-muted">Positions et portefeuilles du périmètre sélectionné.</p>
     </div>
     <div class="action-row">
       <button id="exportJson" class="ghost-btn" type="button"><span class="material-symbols-outlined">download</span>JSON</button>
@@ -39,38 +39,30 @@
         </div>
         <div class="field"><label>Profil portefeuille</label><select name="profileId"></select></div>
         <div class="field"><label>Versements actuels</label><input name="versements" type="number" step="0.01" value="0"></div>
+        <div class="field"><label>Especes actuelles</label><input name="currentCash" type="number" step="0.01" value="0"></div>
+        <div class="form-grid two">
+          <div class="field"><label>Date initiale</label><input name="initialDate" placeholder="29/12/2025"></div>
+          <div class="field"><label>Situation initiale</label><input name="initialTotal" type="number" step="0.01" value="0"></div>
+          <div class="field"><label>Date objectif</label><input name="targetDate" placeholder="31/08/2026"></div>
+          <div class="field"><label>Valeur objectif</label><input name="targetValue" type="number" step="0.01" value="0"></div>
+        </div>
         <button class="primary-btn" type="submit"><span class="material-symbols-outlined">save</span>Sauver portefeuille</button>
       </form>
       <div id="portfolioList" class="list-stack mt-4"></div>
     </aside>
 
-    <article class="glass-panel md:col-span-12">
-      <div class="section-title"><span class="material-symbols-outlined">tune</span>Configuration</div>
-      <form id="settingsForm" class="form-grid three">
-        <div class="field"><label>Fournisseur cours</label><select name="dataProvider"><option value="twelvedata">Twelve Data</option><option value="yahoo">Yahoo fallback</option></select></div>
-        <div class="field"><label>Cle Twelve Data locale</label><input name="twelveDataApiKey" type="password" autocomplete="off" placeholder="Non commitee dans le repo"></div>
-        <div class="field"><label>Proxy CORS</label><input name="corsProxy" placeholder="https://proxy.example/?url= ou .../{url}"></div>
-        <div class="field"><label>Plafond PEA</label><input name="peaLimit" type="number" step="1"></div>
-        <div class="field"><label>Profil</label><select name="investorProfile"><option value="prudent">Prudent</option><option value="equilibre">Equilibre</option><option value="dynamique">Dynamique</option><option value="offensif">Offensif</option><option value="dca">DCA</option></select></div>
-        <div class="field"><label>Fallback Yahoo</label><select name="yahooFallback"><option value="true">Oui</option><option value="false">Non</option></select></div>
-        <div class="field"><label>Source macro/news</label><select name="macroProvider"><option value="static">Offline statique</option><option value="gdelt">GDELT mondial</option><option value="marketaux">Marketaux finance</option><option value="finnhub">Finnhub finance</option></select></div>
-        <div class="field"><label>Requête macro</label><input name="macroQuery" placeholder="inflation OR energy OR geopolitics"></div>
-        <div class="field"><label>Clé Marketaux</label><input name="marketauxApiKey" type="password" autocomplete="off"></div>
-        <div class="field"><label>Clé Finnhub</label><input name="finnhubApiKey" type="password" autocomplete="off"></div>
-        <button class="primary-btn" type="submit"><span class="material-symbols-outlined">save</span>Sauver config</button>
-      </form>
-      <div class="section-title mt-6"><span class="material-symbols-outlined">settings_suggest</span>Profils investisseur</div>
-      <div id="profilesEditor" class="profiles-editor"></div>
-      <button id="saveProfiles" class="primary-btn mt-4" type="button"><span class="material-symbols-outlined">save</span>Sauver profils</button>
-    </article>
   </div>
 </section>
 
 <div id="positionModal" class="modal-backdrop hidden">
-  <form id="positionForm" class="glass-panel w-full max-w-2xl">
-    <div class="section-title"><span class="material-symbols-outlined">edit</span><span id="positionTitle">Position</span></div>
+  <form id="positionForm" class="glass-panel modal-sheet">
+    <div class="modal-head">
+      <div class="section-title"><span class="material-symbols-outlined">edit</span><span id="positionTitle">Position</span></div>
+      <button id="closePositionModalTop" class="icon-btn" type="button" aria-label="Fermer"><span class="material-symbols-outlined">close</span></button>
+    </div>
     <input type="hidden" name="id">
-    <div class="form-grid two">
+    <div class="modal-scroll">
+      <div class="form-grid two">
       <div class="field"><label>Portefeuille</label><select name="portfolioId" required></select></div>
       <div class="field"><label>Ticker affiché</label><input name="ticker" required></div>
       <div class="field"><label>Ticker API</label><input name="yahooTicker" placeholder="AAPL, CW8.PA..."></div>
@@ -83,16 +75,17 @@
       <div class="field"><label>Cours actuel</label><input name="currentPrice" type="number" step="any" required></div>
       <div class="field"><label>Stop loss</label><input name="stopLevel" type="number" step="any"></div>
       <div class="field"><label>Override ATR</label><input name="atrMultiplier" type="number" step="0.5" placeholder="Vide = profil"></div>
+      </div>
     </div>
-    <div class="action-row mt-4">
+    <div class="modal-actions action-row mt-4">
       <button class="primary-btn" type="submit"><span class="material-symbols-outlined">save</span>Sauver</button>
-      <button id="closePositionModal" class="ghost-btn" type="button">Annuler</button>
+      <button id="closePositionModal" class="ghost-btn" type="button"><span class="material-symbols-outlined">arrow_back</span>Retour</button>
     </div>
   </form>
 </div>
 
 <script type="module">
-  import { getOwners, getPortfolios, getVisiblePortfolios, flattenPositions, totals, money, pct, addOwner, upsertPortfolio, deletePortfolio, upsertPosition, deletePosition, exportBackup, importBackup, getSettings, saveSettings, state } from './js/store.js';
+  import { getOwners, getPortfolios, getVisiblePortfolios, flattenPositions, money, pct, addOwner, upsertPortfolio, deletePortfolio, upsertPosition, deletePosition, exportBackup, importBackup, getSettings, state } from './js/store.js';
   import { suggestedStop } from './js/data.js';
 
   function initInventaire() {
@@ -105,7 +98,8 @@
     document.getElementById('assetFilter').addEventListener('change', renderPositions);
     document.getElementById('sortFilter').addEventListener('change', renderPositions);
     document.getElementById('addPosition').onclick = () => openPosition();
-    document.getElementById('closePositionModal').onclick = () => document.getElementById('positionModal').classList.add('hidden');
+    document.getElementById('closePositionModal').onclick = closePosition;
+    document.getElementById('closePositionModalTop').onclick = closePosition;
     document.getElementById('ownerForm').onsubmit = event => {
       event.preventDefault();
       try { addOwner(Object.fromEntries(new FormData(event.target))); event.target.reset(); renderAll(); } catch (error) { alert(error.message); }
@@ -114,7 +108,16 @@
       event.preventDefault();
       try {
         const data = Object.fromEntries(new FormData(event.target));
-        upsertPortfolio({ ...data, versements: Number(data.versements || 0), positions: getPortfolios().find(p => p.id === data.id)?.positions || [], deposits: getPortfolios().find(p => p.id === data.id)?.deposits || [] });
+        const existing = getPortfolios().find(p => p.id === data.id);
+        upsertPortfolio({
+          ...data,
+          versements: Number(data.versements || 0),
+          currentCash: Number(data.currentCash || 0),
+          initialSituation: { ...(existing?.initialSituation || {}), date: data.initialDate, total: Number(data.initialTotal || 0) },
+          targetSituation: { ...(existing?.targetSituation || {}), date: data.targetDate, value: Number(data.targetValue || 0) },
+          positions: existing?.positions || [],
+          deposits: existing?.deposits || []
+        });
         event.target.reset(); renderAll();
       } catch (error) { alert(error.message); }
     };
@@ -135,27 +138,9 @@
         stopLevel: Number(data.stopLevel || 0),
         atrMultiplier: data.atrMultiplier ? Number(data.atrMultiplier) : undefined
       });
-      document.getElementById('positionModal').classList.add('hidden');
+      closePosition();
       renderAll();
     };
-    document.getElementById('settingsForm').onsubmit = event => {
-      event.preventDefault();
-      const data = Object.fromEntries(new FormData(event.target));
-      saveSettings({
-        dataProvider: data.dataProvider,
-        twelveDataApiKey: data.twelveDataApiKey,
-        corsProxy: data.corsProxy,
-        peaLimit: Number(data.peaLimit || 150000),
-        investorProfile: data.investorProfile,
-        yahooFallback: data.yahooFallback === 'true',
-        macroProvider: data.macroProvider,
-        macroQuery: data.macroQuery,
-        marketauxApiKey: data.marketauxApiKey,
-        finnhubApiKey: data.finnhubApiKey
-      });
-      renderSettings();
-    };
-    document.getElementById('saveProfiles').onclick = saveProfilesFromEditor;
     document.getElementById('exportJson').onclick = () => {
       const blob = new Blob([JSON.stringify(exportBackup(), null, 2)], { type: 'application/json' });
       const link = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `alphaterminal-backup-${new Date().toISOString().slice(0, 10)}.json` });
@@ -180,22 +165,25 @@
     renderOwners();
     renderPortfolios();
     renderPositions();
-    renderSettings();
   }
 
   function renderOwners() {
     const owners = getOwners();
-    document.querySelector('#portfolioForm [name="ownerId"]').innerHTML = owners.map(owner => `<option value="${owner.id}">${owner.name}</option>`).join('');
+    const ownerSelect = document.querySelector('#portfolioForm [name="ownerId"]');
+    ownerSelect.innerHTML = owners.map(owner => `<option value="${owner.id}">${owner.name}</option>`).join('');
+    const scopedPortfolio = getVisiblePortfolios()[0];
+    const scopedOwnerId = state.selectedScope.startsWith('owner:') ? state.selectedScope.slice(6) : scopedPortfolio?.ownerId;
+    if (scopedOwnerId && owners.some(owner => owner.id === scopedOwnerId)) ownerSelect.value = scopedOwnerId;
     renderProfileOptions(document.querySelector('#portfolioForm [name="profileId"]'));
   }
 
   function renderPortfolios() {
-    const portfolios = getPortfolios();
+    const portfolios = getVisiblePortfolios();
     const owners = getOwners();
     document.getElementById('portfolioList').innerHTML = portfolios.length ? portfolios.map(portfolio => {
       const owner = owners.find(item => item.id === portfolio.ownerId);
       const profile = getSettings().investorProfiles?.[portfolio.profileId || 'equilibre'];
-      return `<div class="mini-card"><div><strong>${portfolio.name}</strong><span>${owner?.name || ''} · ${portfolio.type} · ${profile?.label || 'Profil'} · ${money(portfolio.versements)}</span></div><div class="action-row"><button class="ghost-btn" data-edit-portfolio="${portfolio.id}">Editer</button><button class="ghost-btn" data-delete-portfolio="${portfolio.id}">Suppr.</button></div></div>`;
+      return `<div class="mini-card"><div><strong>${portfolio.name}</strong><span>${owner?.name || ''} · ${portfolio.type} · ${profile?.label || 'Profil'} · verse ${money(portfolio.versements)} · especes ${money(portfolio.currentCash)}</span></div><div class="action-row"><button class="ghost-btn" data-edit-portfolio="${portfolio.id}">Editer</button><button class="ghost-btn" data-delete-portfolio="${portfolio.id}">Suppr.</button></div></div>`;
     }).join('') : `<div class="empty-state compact">Aucun portefeuille.</div>`;
     document.querySelectorAll('[data-edit-portfolio]').forEach(button => button.onclick = () => editPortfolio(button.dataset.editPortfolio));
     document.querySelectorAll('[data-delete-portfolio]').forEach(button => button.onclick = () => { if (confirm('Supprimer ce portefeuille et ses positions ?')) { deletePortfolio(button.dataset.deletePortfolio); renderAll(); } });
@@ -238,22 +226,6 @@
     });
   }
 
-  function renderSettings() {
-    const settings = getSettings();
-    const form = document.getElementById('settingsForm');
-    form.dataProvider.value = settings.dataProvider;
-    form.twelveDataApiKey.value = settings.twelveDataApiKey || '';
-    form.corsProxy.value = settings.corsProxy || '';
-    form.peaLimit.value = settings.peaLimit || 150000;
-    form.investorProfile.value = settings.investorProfile || 'equilibre';
-    form.yahooFallback.value = String(settings.yahooFallback !== false);
-    form.macroProvider.value = settings.macroProvider || 'static';
-    form.macroQuery.value = settings.macroQuery || '';
-    form.marketauxApiKey.value = settings.marketauxApiKey || '';
-    form.finnhubApiKey.value = settings.finnhubApiKey || '';
-    renderProfilesEditor();
-  }
-
   function editPortfolio(id) {
     const portfolio = getPortfolios().find(item => item.id === id);
     const form = document.getElementById('portfolioForm');
@@ -264,6 +236,11 @@
     form.profileId.value = portfolio.profileId || 'equilibre';
     form.color.value = portfolio.color || '#2563eb';
     form.versements.value = portfolio.versements || 0;
+    form.currentCash.value = portfolio.currentCash || 0;
+    form.initialDate.value = portfolio.initialSituation?.date || '';
+    form.initialTotal.value = portfolio.initialSituation?.total || 0;
+    form.targetDate.value = portfolio.targetSituation?.date || '';
+    form.targetValue.value = portfolio.targetSituation?.value || 0;
   }
 
   function renderProfileOptions(select) {
@@ -271,57 +248,11 @@
     select.innerHTML = Object.entries(profiles).map(([id, profile]) => `<option value="${id}">${profile.label}</option>`).join('');
   }
 
-  function renderProfilesEditor() {
-    const profiles = getSettings().investorProfiles || {};
-    document.getElementById('profilesEditor').innerHTML = Object.entries(profiles).map(([id, profile]) => `
-      <div class="profile-edit-card" data-profile="${id}">
-        <div class="form-grid three">
-          <div class="field"><label>Nom</label><input name="label" value="${profile.label || id}"></div>
-          <div class="field"><label>Objectif</label><input name="objective" value="${profile.objective || ''}"></div>
-          <div class="field"><label>Horizon</label><input name="horizon" value="${profile.horizon || ''}"></div>
-          <div class="field"><label>Rendement</label><input name="rate" type="number" step="0.005" value="${profile.rate ?? 0.08}"></div>
-          <div class="field"><label>ATR stop</label><input name="atrMultiplier" type="number" step="0.5" value="${profile.atrMultiplier ?? 3}"></div>
-          <div class="field"><label>ETF idee</label><input name="etf" value="${profile.etf || ''}"></div>
-          <div class="field"><label>Actions %</label><input name="Actions" type="number" step="1" value="${profile.target?.Actions ?? 0}"></div>
-          <div class="field"><label>dont ETF %</label><input name="ETF" type="number" step="1" value="${profile.target?.ETF ?? 0}"></div>
-          <div class="field"><label>Obligations %</label><input name="Obligations" type="number" step="1" value="${profile.target?.Obligations ?? 0}"></div>
-          <div class="field"><label>Liquidites %</label><input name="Liquidités" type="number" step="1" value="${profile.target?.Liquidités ?? 0}"></div>
-          <div class="field"><label>Crypto %</label><input name="Crypto" type="number" step="1" value="${profile.target?.Crypto ?? 0}"></div>
-        </div>
-      </div>
-    `).join('');
-  }
-
-  function saveProfilesFromEditor() {
-    const investorProfiles = {};
-    document.querySelectorAll('[data-profile]').forEach(card => {
-      const data = Object.fromEntries(new FormData(card.closest('form') || document.createElement('form')));
-      const id = card.dataset.profile;
-      const read = name => card.querySelector(`[name="${name}"]`)?.value;
-      investorProfiles[id] = {
-        label: read('label'),
-        objective: read('objective'),
-        horizon: read('horizon'),
-        rate: Number(read('rate') || 0),
-        atrMultiplier: Number(read('atrMultiplier') || 3),
-        etf: read('etf'),
-        target: {
-          Actions: Number(read('Actions') || 0),
-          ETF: Number(read('ETF') || 0),
-          Obligations: Number(read('Obligations') || 0),
-          Liquidités: Number(read('Liquidités') || 0),
-          Crypto: Number(read('Crypto') || 0)
-        }
-      };
-    });
-    saveSettings({ investorProfiles });
-    renderAll();
-  }
-
   function openPosition(portfolioId, positionId) {
     const form = document.getElementById('positionForm');
     form.reset();
-    form.portfolioId.innerHTML = getPortfolios().map(portfolio => `<option value="${portfolio.id}">${portfolio.name}</option>`).join('');
+    const selectablePortfolios = getVisiblePortfolios().length ? getVisiblePortfolios() : getPortfolios();
+    form.portfolioId.innerHTML = selectablePortfolios.map(portfolio => `<option value="${portfolio.id}">${portfolio.name}</option>`).join('');
     if (portfolioId) form.portfolioId.value = portfolioId;
     const position = getPortfolios().find(p => p.id === portfolioId)?.positions.find(p => p.id === positionId);
     if (position) {
@@ -330,6 +261,12 @@
     }
     document.getElementById('positionTitle').textContent = position ? 'Editer position' : 'Ajouter position';
     document.getElementById('positionModal').classList.remove('hidden');
+    document.body.classList.add('modal-open');
+  }
+
+  function closePosition() {
+    document.getElementById('positionModal').classList.add('hidden');
+    document.body.classList.remove('modal-open');
   }
 
   initInventaire();
