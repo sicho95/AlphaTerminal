@@ -71,11 +71,11 @@
       <div class="field"><label>Nom</label><input name="name" required></div>
       <div class="field"><label>Classe actif</label><select name="assetClass"><option>Actions</option><option>ETF</option><option>Obligations</option><option>Liquidités</option><option>Crypto</option></select></div>
       <div class="field"><label>Secteur</label><input name="sector" value="World"></div>
-      <div class="field"><label>Quantité</label><input name="qty" type="number" step="any" required></div>
-      <div class="field"><label>PRU</label><input name="pru" type="number" step="any" required></div>
-      <div class="field"><label>Cours actuel</label><input name="currentPrice" type="number" step="any" required></div>
-      <div class="field"><label>Stop loss</label><input name="stopLevel" type="number" step="any"></div>
-      <div class="field"><label>Override ATR</label><input name="atrMultiplier" type="number" step="0.5" placeholder="Vide = profil"></div>
+      <div class="field"><label>Quantité</label><input name="qty" type="number" step="0.001" required></div>
+      <div class="field"><label>PRU</label><input name="pru" type="number" step="0.001" required></div>
+      <div class="field"><label>Cours actuel</label><input name="currentPrice" type="number" step="0.001" required></div>
+      <div class="field"><label>Stop loss</label><input name="stopLevel" type="number" step="0.001"></div>
+      <div class="field"><label>Override ATR</label><input name="atrMultiplier" type="number" step="0.001" placeholder="Vide = profil"></div>
       </div>
     </div>
     <div class="modal-actions action-row mt-4">
@@ -86,7 +86,7 @@
 </div>
 
 <script type="module">
-  import { getOwners, getPortfolios, getVisiblePortfolios, flattenPositions, money, pct, addOwner, upsertPortfolio, deletePortfolio, upsertPosition, deletePosition, exportBackup, importBackup, getSettings, state } from './js/store.js';
+  import { getOwners, getPortfolios, getVisiblePortfolios, flattenPositions, money, pct, decimal, round3, addOwner, upsertPortfolio, deletePortfolio, upsertPosition, deletePosition, exportBackup, importBackup, getSettings, state } from './js/store.js';
   import { suggestedStop } from './js/data.js';
 
   function initInventaire() {
@@ -125,6 +125,17 @@
     document.getElementById('positionForm').onsubmit = event => {
       event.preventDefault();
       const data = Object.fromEntries(new FormData(event.target));
+      const qty = round3(Number(data.qty || 0));
+      if (!data.id && qty <= 0) {
+        closePosition();
+        return;
+      }
+      if (data.id && qty <= 0) {
+        deletePosition(data.portfolioId, data.id);
+        closePosition();
+        renderAll();
+        return;
+      }
       upsertPosition(data.portfolioId, {
         id: data.id || undefined,
         ticker: data.ticker,
@@ -133,11 +144,11 @@
         name: data.name,
         assetClass: data.assetClass,
         sector: data.sector,
-        qty: Number(data.qty || 0),
-        pru: Number(data.pru || 0),
-        currentPrice: Number(data.currentPrice || 0),
-        stopLevel: Number(data.stopLevel || 0),
-        atrMultiplier: data.atrMultiplier ? Number(data.atrMultiplier) : undefined
+        qty,
+        pru: round3(Number(data.pru || 0)),
+        currentPrice: round3(Number(data.currentPrice || 0)),
+        stopLevel: round3(Number(data.stopLevel || 0)),
+        atrMultiplier: data.atrMultiplier ? round3(Number(data.atrMultiplier)) : undefined
       });
       closePosition();
       renderAll();
@@ -194,7 +205,7 @@
     const sort = document.getElementById('sortFilter').value;
     let positions = flattenPositions(getVisiblePortfolios()).filter(position => {
       const text = `${position.ticker} ${position.name} ${position.isin} ${position.accountName}`.toLowerCase();
-      return text.includes(query) && (asset === 'all' || position.assetClass === asset);
+      return Number(position.qty) > 0 && text.includes(query) && (asset === 'all' || position.assetClass === asset);
     });
     positions.sort((a, b) => {
       if (sort === 'perf') return ((b.currentPrice - b.pru) / (b.pru || 1)) - ((a.currentPrice - a.pru) / (a.pru || 1));
@@ -209,9 +220,10 @@
       return `<div class="mini-card position-row">
         <div><strong>${position.name}</strong><span>${position.ticker} · ${position.isin || 'ISIN absent'} · ${position.accountName}</span></div>
         <div><span>Valeur</span><strong>${money(value)}</strong></div>
+        <div><span>Qté / PRU</span><strong>${decimal(position.qty)} · ${decimal(position.pru)}</strong></div>
         <div><span>Perf</span><strong class="${perf < 0 ? 'text-error' : 'text-secondary'}">${pct(perf)}</strong></div>
         <div><span>Stop actuel</span><strong>${money(position.stopLevel)}</strong></div>
-        <div><span>Stop ATR${stop.atr ? '14' : ''}</span><strong>${stop.atr ? money(stop.stop) + ' · ' + stop.multiplier + 'x' : 'Historique requis'}</strong></div>
+        <div><span>Stop ATR${stop.atr ? '14' : ''}</span><strong>${stop.atr ? `${decimal(stop.stop)} · ${decimal(stop.multiplier)}x` : 'Historique requis'}</strong></div>
         <div class="action-row"><button class="ghost-btn" data-edit-position="${position.portfolioId}:${position.id}">Editer</button><button class="ghost-btn" data-delete-position="${position.portfolioId}:${position.id}">Suppr.</button></div>
       </div>`;
     }).join('') : `<div class="empty-state compact">Aucune position sur ce perimetre.</div>`;
@@ -270,7 +282,7 @@
     if (portfolioId) form.portfolioId.value = portfolioId;
     const position = getPortfolios().find(p => p.id === portfolioId)?.positions.find(p => p.id === positionId);
     if (position) {
-      Object.entries(position).forEach(([key, value]) => { if (form[key]) form[key].value = value ?? ''; });
+      Object.entries(position).forEach(([key, value]) => { if (form[key]) form[key].value = typeof value === 'number' ? decimal(value) : (value ?? ''); });
       form.portfolioId.value = portfolioId;
     }
     document.getElementById('positionTitle').textContent = position ? 'Editer position' : 'Ajouter position';

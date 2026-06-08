@@ -40,7 +40,7 @@
 </section>
 
 <script type="module">
-  import { getVisiblePortfolios, totals, getSettings, money, pct } from './js/store.js';
+  import { getVisiblePortfolios, totals, getSettings, money, pct, decimal } from './js/store.js';
   import { suggestedStop } from './js/data.js';
 
   function initAnalyse() {
@@ -136,13 +136,13 @@
         const gain = value - invested;
         const perf = invested ? gain / invested * 100 : 0;
         return `<div class="holding-row">
-          <div><strong>${position.name}</strong><em>${position.ticker} · ${position.accountName}</em></div>
-          <span>${Number(position.qty).toLocaleString('fr-FR')}</span>
-          <span>${money(position.pru)}</span>
-          <span>${money(position.currentPrice)}</span>
-          <span>${money(value)}</span>
-          <span class="${gain < 0 ? 'text-error' : 'text-secondary'}">${money(gain)}</span>
-          <span class="${perf < 0 ? 'text-error' : 'text-secondary'}">${pct(perf)}</span>
+          <div class="holding-main"><strong>${position.name}</strong><em>${position.ticker} · ${position.accountName}</em></div>
+          <span data-label="Qté">${decimal(position.qty)}</span>
+          <span data-label="PRU">${decimal(position.pru)}</span>
+          <span data-label="Cours">${decimal(position.currentPrice)}</span>
+          <span data-label="Valeur">${money(value)}</span>
+          <span data-label="+/-" class="${gain < 0 ? 'text-error' : 'text-secondary'}">${money(gain)}</span>
+          <span data-label="Perf" class="${perf < 0 ? 'text-error' : 'text-secondary'}">${pct(perf)}</span>
         </div>`;
       }).join('')}
     ` : `<p class="text-muted">Aucune ligne detenue sur ce perimetre.</p>`;

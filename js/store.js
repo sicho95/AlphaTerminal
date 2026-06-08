@@ -97,20 +97,31 @@ function normalizePortfolio(portfolio) {
       assetClass: position.assetClass || position.type || 'Actions',
       sector: position.sector || 'World',
       currency: position.currency || 'EUR',
-      qty: parseNumber(position.qty),
-      pru: parseNumber(position.pru),
-      currentPrice: parseNumber(position.currentPrice || position.pru),
-      stopLevel: parseNumber(position.stopLevel),
-      atrMultiplier: position.atrMultiplier ? parseNumber(position.atrMultiplier) : undefined,
+      qty: round3(parseNumber(position.qty)),
+      pru: round3(parseNumber(position.pru)),
+      currentPrice: round3(parseNumber(position.currentPrice || position.pru)),
+      stopLevel: round3(parseNumber(position.stopLevel)),
+      atrMultiplier: position.atrMultiplier ? round3(parseNumber(position.atrMultiplier)) : undefined,
       lastUpdate: position.lastUpdate || null,
       history: position.history || null
     })) : []
   };
 }
 
+export function round3(value) {
+  return Math.round((Number(value) || 0) * 1000) / 1000;
+}
+
 function parseNumber(value) {
   if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
   return Number(String(value || '0').replace(/[\s\u202f\u00a0€%]/g, '').replace(',', '.')) || 0;
+}
+
+export function decimal(value, digits = 3) {
+  return round3(value).toLocaleString('fr-FR', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: digits
+  });
 }
 
 function normalizeSituation(situation = {}) {
@@ -340,12 +351,17 @@ export function deletePortfolio(portfolioId) {
 
 export function upsertPosition(portfolioId, position) {
   const next = { ...normalizePortfolio({ positions: [position] }).positions[0], id: position.id || uid('position') };
+  if (next.qty <= 0) {
+    if (position.id) deletePosition(portfolioId, position.id);
+    return next.id;
+  }
+  const identity = positionIdentity(next);
   saveData({
     ...state.data,
     portfolios: state.data.portfolios.map(portfolio => portfolio.id !== portfolioId ? portfolio : {
       ...portfolio,
-      positions: portfolio.positions.some(item => item.id === next.id)
-        ? portfolio.positions.map(item => item.id === next.id ? { ...item, ...next } : item)
+      positions: portfolio.positions.some(item => item.id === next.id || (!position.id && positionIdentity(item) === identity))
+        ? portfolio.positions.map(item => item.id === next.id || (!position.id && positionIdentity(item) === identity) ? { ...item, ...next, id: item.id } : item)
         : [...portfolio.positions, next]
     })
   });
@@ -425,3 +441,7 @@ export function importBackup(payload, mode = 'replace') {
 export const money = value => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(value || 0);
 export const money2 = value => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }).format(value || 0);
 export const pct = value => `${(value || 0).toLocaleString('fr-FR', { maximumFractionDigits: 1, minimumFractionDigits: 1 })}%`;
+
+function positionIdentity(position) {
+  return [position.isin || '', position.ticker || '', position.name || ''].join('|').toLowerCase();
+}
