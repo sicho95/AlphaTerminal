@@ -61,8 +61,5 @@
     return Math.round(100 - (100 / (1 + rs)));
   }
 
-  window.addEventListener('pageLoaded', event => {
-    if (event.detail.page === 'signaux') initSignaux();
-  });
-  if (window.location.hash === '#/signaux') initSignaux();
+  initSignaux();
 </script>

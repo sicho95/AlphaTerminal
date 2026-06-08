@@ -101,6 +101,7 @@
   }
 
   function renderDonut(portfolios) {
+    document.querySelectorAll('#allocationLegend').forEach(element => element.remove());
     const totalValue = portfolios.reduce((sum, p) => sum + p.positions.reduce((s, pos) => s + pos.qty * pos.currentPrice, 0), 0) || 1;
     let cursor = 0;
     const segments = portfolios.map(portfolio => {
@@ -120,7 +121,7 @@
       const value = portfolio.positions.reduce((sum, pos) => sum + pos.qty * pos.currentPrice, 0);
       return `<button class="legend-row" data-id="${portfolio.id}"><span style="background:${portfolio.color || '#2563eb'}"></span><strong>${portfolio.name}</strong><em>${money(value)}</em></button>`;
     }).join('');
-    chart.insertAdjacentHTML('afterend', `<div class="legend-stack">${list}</div>`);
+    chart.insertAdjacentHTML('afterend', `<div id="allocationLegend" class="legend-stack">${list}</div>`);
     chart.parentElement.querySelectorAll('.legend-row').forEach(row => {
       row.onclick = () => setSelectedScope(`portfolio:${row.dataset.id}`);
     });
@@ -153,8 +154,5 @@
     `).join('') : `<p class="text-muted">Aucune alerte critique sur le perimetre courant.</p>`;
   }
 
-  window.addEventListener('pageLoaded', event => {
-    if (event.detail.page === 'dashboard') initDashboard();
-  });
-  if (!window.location.hash || window.location.hash === '#/dashboard') initDashboard();
+  initDashboard();
 </script>

@@ -41,9 +41,26 @@ const App = {
       this.applyTheme(darkMode);
     });
 
-    document.getElementById('account-select')?.addEventListener('change', event => {
-      setSelectedScope(event.target.value);
+    document.getElementById('scope-toggle')?.addEventListener('click', event => {
+      event.stopPropagation();
+      const menu = document.getElementById('scope-menu');
+      const open = menu.classList.toggle('hidden');
+      event.currentTarget.setAttribute('aria-expanded', String(!open));
+    });
+
+    document.getElementById('scope-menu')?.addEventListener('click', event => {
+      const button = event.target.closest('[data-scope]');
+      if (!button) return;
+      setSelectedScope(button.dataset.scope);
+      document.getElementById('scope-menu').classList.add('hidden');
+      document.getElementById('scope-toggle')?.setAttribute('aria-expanded', 'false');
       this.router();
+    });
+
+    document.addEventListener('click', event => {
+      if (event.target.closest('#scope-picker')) return;
+      document.getElementById('scope-menu')?.classList.add('hidden');
+      document.getElementById('scope-toggle')?.setAttribute('aria-expanded', 'false');
     });
 
     document.getElementById('notification-toggle')?.addEventListener('click', () => {
@@ -70,7 +87,6 @@ const App = {
       const response = await fetch(`./pages/${route}.html`, { cache: navigator.onLine ? 'no-cache' : 'default' });
       if (!response.ok) throw new Error('Page not found');
       await this.injectPage(content, await response.text());
-      window.dispatchEvent(new CustomEvent('pageLoaded', { detail: { page: route } }));
       content.focus({ preventScroll: true });
     } catch (error) {
       content.innerHTML = `<section class="empty-state"><h2>Page indisponible</h2><p>La page demandee ne peut pas etre chargee. Verifiez le cache offline ou revenez au tableau de bord.</p></section>`;
@@ -104,23 +120,40 @@ const App = {
   },
 
   renderScopeSelect() {
-    const select = document.getElementById('account-select');
-    if (!select) return;
+    const menu = document.getElementById('scope-menu');
+    const current = document.getElementById('scope-current');
+    if (!menu || !current) return;
     const selected = state.selectedScope;
     const owners = getOwners();
     const portfolios = getPortfolios();
-    const html = [
-      `<option value="all">Tous les portefeuilles</option>`,
+    current.textContent = getScopeLabel();
+    if (!owners.length && !portfolios.length) {
+      menu.innerHTML = `
+        <button class="scope-node ${selected === 'all' ? 'is-active' : ''}" type="button" data-scope="all" role="treeitem">
+          <span class="material-symbols-outlined">account_tree</span>Tous
+        </button>
+        <div class="scope-empty">Aucune structure. Importe un JSON ou cree un portefeuille.</div>
+      `;
+      return;
+    }
+    menu.innerHTML = [
+      `<button class="scope-node ${selected === 'all' ? 'is-active' : ''}" type="button" data-scope="all" role="treeitem"><span class="material-symbols-outlined">account_tree</span>Tous</button>`,
       ...owners.map(owner => {
+        const ownerScope = `owner:${owner.id}`;
         const children = portfolios.filter(portfolio => portfolio.ownerId === owner.id)
-          .map(portfolio => `<option value="portfolio:${portfolio.id}">  ${portfolio.name}</option>`)
+          .map(portfolio => {
+            const portfolioScope = `portfolio:${portfolio.id}`;
+            return `<button class="scope-node portfolio ${selected === portfolioScope ? 'is-active' : ''}" type="button" data-scope="${portfolioScope}" role="treeitem"><span class="material-symbols-outlined">subdirectory_arrow_right</span>${portfolio.name}</button>`;
+          })
           .join('');
-        return `<option value="owner:${owner.id}">${owner.name}</option>${children}`;
+        return `
+          <button class="scope-node ${selected === ownerScope ? 'is-active' : ''}" type="button" data-scope="${ownerScope}" role="treeitem" aria-expanded="true">
+            <span class="material-symbols-outlined">person</span>${owner.name}
+          </button>
+          <div class="scope-children" role="group">${children || '<div class="scope-empty">Aucun portefeuille</div>'}</div>
+        `;
       })
     ].join('');
-    select.innerHTML = html || `<option value="all">Aucune donnee</option>`;
-    select.value = selected;
-    select.title = getScopeLabel();
   },
 
   renderNotifications() {

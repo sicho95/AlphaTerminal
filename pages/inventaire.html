@@ -7,8 +7,7 @@
     </div>
     <div class="action-row">
       <button id="exportJson" class="ghost-btn" type="button"><span class="material-symbols-outlined">download</span>JSON</button>
-      <label class="ghost-btn" for="importJson"><span class="material-symbols-outlined">upload</span>Importer</label>
-      <input id="importJson" class="hidden" type="file" accept="application/json">
+      <label class="ghost-btn import-label" for="importJson"><span class="material-symbols-outlined">upload</span>Importer<input id="importJson" class="file-input-cover" type="file" accept="application/json,.json"></label>
       <button id="addPosition" class="primary-btn" type="button"><span class="material-symbols-outlined">add</span>Position</button>
     </div>
   </div>
@@ -272,8 +271,5 @@
     document.getElementById('positionModal').classList.remove('hidden');
   }
 
-  window.addEventListener('pageLoaded', event => {
-    if (event.detail.page === 'inventaire') initInventaire();
-  });
-  if ((window.location.hash || '#/dashboard') === '#/inventaire') initInventaire();
+  initInventaire();
 </script>
