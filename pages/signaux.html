@@ -59,8 +59,15 @@
       const events = await fetchMacroNews();
       target.innerHTML = events.map(event => `
         <a class="mini-card md:col-span-3 macro-card ${sentimentClass(event.sentiment)}" ${event.url ? `href="${event.url}" target="_blank" rel="noreferrer"` : ''}>
-          <div><strong>${event.title}</strong><span>${event.summary || event.source || ''}</span></div>
-          <span class="signal-badge ${sentimentClass(event.sentiment)}">${event.sentiment || 'Neutre'}</span>
+          <div class="macro-copy">
+            <strong>${event.title}</strong>
+            <span>${event.summary || event.source || ''}</span>
+            <em>${event.analysisLabel || `${event.macroTheme || 'Macro generale'} · impact ${(event.impactLevel || 'Faible').toLowerCase()}`}</em>
+          </div>
+          <div class="macro-pills">
+            <span class="status-pill neutral">${event.impactLevel || 'Faible'}</span>
+            <span class="signal-badge ${sentimentClass(event.sentiment)}">${event.sentiment || 'Neutre'}</span>
+          </div>
         </a>
       `).join('');
     } catch {

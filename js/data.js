@@ -21,6 +21,38 @@ const MACRO_CACHE_KEY = 'alphaTerm_macroCache';
 const MACRO_CACHE_TTL = 30 * 60 * 1000;
 const GDELT_MIN_INTERVAL = 6000;
 const GDELT_RATE_LIMIT_BACKOFF = 15 * 60 * 1000;
+const MACRO_TOPICS = [
+  { id: 'rates', label: 'Taux / banques centrales', impact: 5, keywords: ['fed', 'fomc', 'ecb', 'bce', 'boe', 'boj', 'pboc', 'central bank', 'banque centrale', 'interest rate', 'interest rates', 'policy rate', 'benchmark rate', 'yield', 'yields', 'bond market', 'treasury', 'treasuries', 'qt', 'quantitative tightening', 'quantitative easing'] },
+  { id: 'inflation', label: 'Inflation', impact: 5, keywords: ['inflation', 'cpi', 'pce', 'ppi', 'consumer prices', 'producer prices', 'core inflation', 'price pressure', 'disinflation', 'deflation'] },
+  { id: 'growth', label: 'Croissance / activite', impact: 4, keywords: ['gdp', 'gross domestic product', 'growth', 'slowdown', 'recession', 'soft landing', 'hard landing', 'pmi', 'ism', 'manufacturing', 'services activity', 'industrial production', 'retail sales', 'consumer spending', 'business activity'] },
+  { id: 'employment', label: 'Emploi', impact: 4, keywords: ['jobs', 'job market', 'labour market', 'labor market', 'employment', 'payroll', 'nonfarm payroll', 'nfp', 'wages', 'wage growth', 'jobless claims', 'unemployment', 'layoffs'] },
+  { id: 'energy', label: 'Energie / matieres premieres', impact: 4, keywords: ['oil', 'crude', 'brent', 'wti', 'gas', 'lng', 'opec', 'energy prices', 'power prices', 'electricity prices', 'commodity', 'commodities', 'copper', 'natural gas'] },
+  { id: 'fx', label: 'Devises / dollar', impact: 3, keywords: ['dollar', 'usd', 'eur/usd', 'yuan', 'yen', 'fx', 'currency', 'currencies', 'exchange rate', 'forex'] },
+  { id: 'credit', label: 'Credit / liquidite', impact: 4, keywords: ['credit', 'liquidity', 'default', 'defaults', 'downgrade', 'banking stress', 'bank failure', 'debt market', 'sovereign debt', 'funding stress', 'refinancing'] },
+  { id: 'geopolitics', label: 'Geopolitique / commerce', impact: 5, keywords: ['tariff', 'tariffs', 'trade war', 'trade talks', 'sanction', 'sanctions', 'export curbs', 'export controls', 'conflict', 'military', 'war', 'ceasefire', 'shipping', 'strait', 'red sea', 'taiwan', 'ukraine', 'middle east', 'iran', 'china', 'embargo', 'blockade'] },
+  { id: 'technology', label: 'Technologie / semi-conducteurs', impact: 3, keywords: ['chip', 'chips', 'semiconductor', 'semiconductors', 'ai', 'artificial intelligence', 'data center', 'cloud', 'gpu'] },
+  { id: 'corporate', label: 'Entreprise / marche', impact: 1, keywords: ['ipo', 'earnings', 'quarterly results', 'shares', 'stock', 'stocks', 'deal', 'merger', 'acquisition', 'wall st', 'wall street', 'investors'] }
+];
+const MACRO_SENTIMENT_RULES = [
+  { pattern: /\b(rate cut|cuts rates|cut rates|lower rates|easing cycle|policy easing|dovish|qe|quantitative easing|stimulus|reserve requirement cut)\b/g, score: 3, impact: 3, rationale: 'assouplissement monetaire' },
+  { pattern: /\b(rate hike|hikes rates|raise rates|higher for longer|hawkish|tightening|qt|quantitative tightening)\b/g, score: -3, impact: 3, rationale: 'resserrement monetaire' },
+  { pattern: /\b(inflation cools|inflation eased|inflation slows|cooling inflation|disinflation|below forecast|below expectations|price pressures ease)\b/g, score: 3, impact: 3, rationale: 'inflation en deceleration' },
+  { pattern: /\b(sticky inflation|inflation rises|inflation accelerates|hot cpi|above forecast|above expectations|price pressures persist)\b/g, score: -3, impact: 3, rationale: 'inflation persistante' },
+  { pattern: /\b(soft landing|gdp beats|growth beats|pmi rebounds|activity rebounds|retail sales beat|consumer spending rises|productivity rises)\b/g, score: 2, impact: 2, rationale: 'croissance plus solide' },
+  { pattern: /\b(recession|hard landing|contraction|pmi slump|slowdown|weak demand|manufacturing slump|consumer weakness)\b/g, score: -3, impact: 2, rationale: 'ralentissement economique' },
+  { pattern: /\b(payrolls beat|job growth accelerates|unemployment falls|wages cool)\b/g, score: 1, impact: 2, rationale: 'emploi resilient' },
+  { pattern: /\b(jobless claims rise|unemployment rises|layoffs surge|job cuts|wage pressures)\b/g, score: -2, impact: 2, rationale: 'stress sur l emploi' },
+  { pattern: /\b(oil falls|oil eases|gas prices fall|energy prices ease|supply resumes|output rises)\b/g, score: 2, impact: 2, rationale: 'energie moins inflationniste' },
+  { pattern: /\b(oil spikes|oil surges|gas spikes|supply disruption|output cuts|opec cuts|shipping disruption)\b/g, score: -3, impact: 3, rationale: 'choc energie / logistique' },
+  { pattern: /\b(ceasefire|trade deal|tariff relief|sanctions eased|export curbs eased|reopening)\b/g, score: 2, impact: 2, rationale: 'detente geopolitique' },
+  { pattern: /\b(tariffs|sanctions|export controls|export curbs|conflict|military strike|missile|blockade|embargo|trade war)\b/g, score: -3, impact: 3, rationale: 'tension geopolitique' },
+  { pattern: /\b(pentagon|military blacklist|blacklisted|aiding chinese military|national security)\b/g, score: -2, impact: 2, rationale: 'durcissement strategique' },
+  { pattern: /\b(liquidity support|credit support|bank rescue|backstop|funding facility)\b/g, score: 2, impact: 2, rationale: 'soutien a la liquidite' },
+  { pattern: /\b(default|defaults|downgrade|bank failure|funding stress|debt crisis|credit crunch)\b/g, score: -3, impact: 3, rationale: 'stress credit' },
+  { pattern: /\b(chip rebound|semiconductor rebound|tech rebound|ai spending rises)\b/g, score: 1, impact: 1, rationale: 'soutien technologique' },
+  { pattern: /\b(futures rise|stocks rise|stocks jump|rebound lifts|market rally|shares rally)\b/g, score: 1, impact: 1, rationale: 'rebond de marche' },
+  { pattern: /\b(ipo|files confidentially for ipo|m&a|acquisition|quarterly results|earnings)\b/g, score: 0, impact: 0, rationale: 'nouvelle corporate' }
+];
 
 const proxied = url => {
   const proxy = getSettings().corsProxy || 'https://api.allorigins.win/raw?url=';
@@ -149,7 +181,7 @@ export async function fetchMacroNews() {
 }
 
 function staticMacroEvents(source) {
-  return MACRO_EVENTS.map(item => ({ ...item, source }));
+  return sortMacroEvents(MACRO_EVENTS.map(item => enrichMacroEvent({ ...item, source }, 'static')));
 }
 
 function readMacroCache(cacheKey) {
@@ -180,15 +212,17 @@ async function fetchGdeltNews(query) {
     if (error.code === 'RATE_LIMIT') markGdeltRateLimited();
     throw error;
   }
-  return (json.articles || []).slice(0, 8).map(article => ({
+  return sortMacroEvents((json.articles || []).slice(0, 8).map(article => enrichMacroEvent({
     title: article.title || 'Actualite macro',
     summary: article.seendate ? `${article.domain || 'News'} · ${article.seendate}` : (article.domain || 'News mondiale'),
     sentiment: toneToSentiment(article.tone),
     tags: ['Macro', article.language || 'News'],
     source: article.domain || 'GDELT',
     url: article.url,
-    impact: {}
-  }));
+    impact: {},
+    provider: 'GDELT',
+    providerTone: Number(article.tone || 0)
+  }, 'gdelt')));
 }
 
 function gdeltQuery(query) {
@@ -261,15 +295,17 @@ async function fetchMarketauxNews(query, apiKey) {
   const response = await fetch(url);
   if (!response.ok) throw new Error('Marketaux indisponible');
   const json = await response.json();
-  return (json.data || []).map(article => ({
+  return sortMacroEvents((json.data || []).map(article => enrichMacroEvent({
     title: article.title || 'News marche',
     summary: article.description || article.snippet || '',
     sentiment: scoreToSentiment(article.sentiment_score),
     tags: (article.entities || []).slice(0, 3).map(entity => entity.symbol || entity.name).filter(Boolean),
     source: article.source || 'Marketaux',
     url: article.url,
-    impact: {}
-  }));
+    impact: {},
+    provider: 'Marketaux',
+    providerScore: Number(article.sentiment_score || 0)
+  }, 'marketaux')));
 }
 
 async function fetchOkSurfNews() {
@@ -280,18 +316,20 @@ async function fetchOkSurfNews() {
   });
   if (!response.ok) throw new Error('OKSURF indisponible');
   const json = await response.json();
-  return Object.entries(json || {})
+  return sortMacroEvents(Object.entries(json || {})
     .flatMap(([section, articles]) => (Array.isArray(articles) ? articles : []).map(article => ({ ...article, section })))
     .slice(0, 8)
-    .map(article => ({
+    .map(article => enrichMacroEvent({
       title: article.title || 'Actualite macro',
       summary: `${article.source || article.section || 'News'} · OKSURF`,
       sentiment: sectionToSentiment(article.section),
       tags: ['Macro', article.section || 'News'],
       source: article.source || 'OKSURF',
       url: article.link,
-      impact: {}
-    }));
+      impact: {},
+      provider: 'OKSURF',
+      section: article.section || ''
+    }, 'oksurf')));
 }
 
 async function fetchFinnhubNews(apiKey) {
@@ -299,15 +337,16 @@ async function fetchFinnhubNews(apiKey) {
   const response = await fetch(url);
   if (!response.ok) throw new Error('Finnhub indisponible');
   const json = await response.json();
-  return (json || []).slice(0, 8).map(article => ({
+  return sortMacroEvents((json || []).slice(0, 8).map(article => enrichMacroEvent({
     title: article.headline || 'News marche',
     summary: article.summary || '',
     sentiment: 'Neutre',
     tags: ['Finance'],
     source: article.source || 'Finnhub',
     url: article.url,
-    impact: {}
-  }));
+    impact: {},
+    provider: 'Finnhub'
+  }, 'finnhub')));
 }
 
 function toneToSentiment(tone) {
@@ -327,6 +366,126 @@ function scoreToSentiment(score) {
 function sectionToSentiment(section) {
   if (String(section || '').toLowerCase().includes('business')) return 'Neutre';
   return 'Neutre';
+}
+
+function enrichMacroEvent(event, provider = '') {
+  const analysis = analyzeMacroText(event, provider);
+  return {
+    ...event,
+    sentiment: analysis.sentiment,
+    macroTheme: analysis.theme,
+    impactLevel: analysis.impactLevel,
+    impactScore: analysis.impactScore,
+    sentimentScore: analysis.sentimentScore,
+    macroPriority: analysis.priority,
+    analysisLabel: analysis.rationale,
+    provider: event.provider || provider || '',
+    impact: event.impact || {}
+  };
+}
+
+function analyzeMacroText(event, provider = '') {
+  const text = normalizeMacroText([event.title, event.summary, event.source, event.section, ...(event.tags || [])].join(' '));
+  const nativeBias = providerBias(provider, event);
+  const topicMatches = MACRO_TOPICS
+    .map(topic => {
+      const count = topic.keywords.reduce((total, keyword) => total + (text.includes(keyword) ? 1 : 0), 0);
+      return { ...topic, count };
+    })
+    .filter(topic => topic.count > 0);
+
+  const dominantTopic = topicMatches.sort((a, b) => (b.count * b.impact) - (a.count * a.impact))[0];
+  let sentimentScore = nativeBias.score;
+  let impactScore = Math.max(nativeBias.impact, dominantTopic?.impact || 1);
+  const reasons = [];
+
+  MACRO_SENTIMENT_RULES.forEach(rule => {
+    const matches = text.match(rule.pattern);
+    if (!matches?.length) return;
+    const weight = matches.length;
+    sentimentScore += rule.score * weight;
+    impactScore = Math.max(impactScore, rule.impact);
+    reasons.push(rule.rationale);
+  });
+
+  if (dominantTopic) {
+    impactScore = Math.max(impactScore, dominantTopic.impact);
+  }
+
+  if (!dominantTopic && isMostlyCorporate(text)) {
+    impactScore = 1;
+  }
+  if (isMostlyCorporate(text) && !hasSystemicMacroTopic(topicMatches)) {
+    impactScore = Math.min(impactScore, 2);
+  }
+
+  const theme = dominantTopic?.label || (isMostlyCorporate(text) ? 'Entreprise / marche' : 'Macro generale');
+  const sentiment = scoreToLabel(sentimentScore);
+  const impactLevel = impactScore >= 5 ? 'Fort' : impactScore >= 3 ? 'Moyen' : 'Faible';
+  const rationale = compactReasons(reasons, dominantTopic?.label, sentiment, impactLevel);
+  const priority = impactScore * 10 + Math.min(9, Math.abs(sentimentScore));
+
+  return { sentiment, sentimentScore, impactScore, impactLevel, theme, rationale, priority };
+}
+
+function providerBias(provider, event) {
+  const key = String(provider || '').toLowerCase();
+  if (key === 'gdelt') {
+    const tone = Number(event.providerTone || 0);
+    return { score: clamp(Math.round(tone / 1.5), -2, 2), impact: Math.abs(tone) > 3 ? 4 : 2 };
+  }
+  if (key === 'marketaux') {
+    const score = Number(event.providerScore || 0);
+    return { score: clamp(Math.round(score * 8), -2, 2), impact: Math.abs(score) > 0.35 ? 4 : 2 };
+  }
+  if (key === 'oksurf') {
+    const section = normalizeMacroText(event.section || '');
+    if (section.includes('world')) return { score: 0, impact: 4 };
+    if (section.includes('business')) return { score: 0, impact: 3 };
+    if (section.includes('technology')) return { score: 0, impact: 2 };
+  }
+  return { score: 0, impact: 1 };
+}
+
+function scoreToLabel(score) {
+  if (score >= 2) return 'Positif';
+  if (score <= -2) return 'Negatif';
+  return 'Neutre';
+}
+
+function compactReasons(reasons, theme, sentiment, impactLevel) {
+  const unique = [...new Set(reasons)];
+  const lead = unique.slice(0, 2).join(' + ');
+  if (lead) return `${theme} · impact ${impactLevel.toLowerCase()} · ${lead}`;
+  if (sentiment === 'Neutre') return `${theme} · impact ${impactLevel.toLowerCase()} · signal macro faible ou mixte`;
+  return `${theme} · impact ${impactLevel.toLowerCase()} · signal ${sentiment.toLowerCase()}`;
+}
+
+function normalizeMacroText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9/%+\-. ]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isMostlyCorporate(text) {
+  return /(ipo|earnings|quarterly results|merger|acquisition|wall street|shares|stock futures|investors)/.test(text)
+    && !/(inflation|fed|ecb|bce|rates|yield|gdp|recession|oil|gas|tariff|sanction|jobs|unemployment)/.test(text);
+}
+
+function hasSystemicMacroTopic(topicMatches = []) {
+  return topicMatches.some(topic => !['corporate', 'technology'].includes(topic.id));
+}
+
+function sortMacroEvents(events = []) {
+  return events.slice().sort((a, b) => (b.macroPriority || 0) - (a.macroPriority || 0) || (b.impactScore || 0) - (a.impactScore || 0));
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
 }
 
 export async function refreshQuotes(onProgress = () => {}) {

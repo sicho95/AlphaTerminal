@@ -186,8 +186,12 @@ main#app-content { width: min(1280px, 100%); margin: 0 auto; padding: 24px 16px 
 .macro-card.watch { border-left-color: #16a34a; }
 .macro-card.sell { border-left-color: #e11d48; }
 .macro-card.neutral { border-left-color: #6b7280; }
-.macro-card > div { min-width: 0; }
-.macro-card strong, .macro-card span:not(.signal-badge) { overflow: hidden; text-overflow: ellipsis; }
+.macro-copy { min-width: 0; }
+.macro-card strong { overflow: hidden; text-overflow: ellipsis; }
+.macro-card span:not(.signal-badge):not(.status-pill) { overflow: hidden; text-overflow: ellipsis; }
+.macro-copy em { display: block; margin-top: 6px; color: #475569; font-size: .78rem; font-style: normal; font-weight: 750; line-height: 1.35; }
+.dark .macro-copy em { color: #cbd5e1; }
+.macro-pills { display: grid; gap: 8px; justify-items: end; align-content: start; flex: 0 0 auto; }
 .empty-state { display: grid; justify-items: center; gap: 12px; padding: 48px 20px; border: 1px dashed #c4c6cd; border-radius: 8px; text-align: center; color: #667085; }
 .empty-state.compact { padding: 24px 14px; }
 .form-grid { display: grid; gap: 12px; }
