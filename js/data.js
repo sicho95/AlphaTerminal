@@ -20,6 +20,7 @@ const twelveUrl = (ticker, apiKey) => `https://api.twelvedata.com/time_series?sy
 const MACRO_CACHE_KEY = 'alphaTerm_macroCache';
 const MACRO_CACHE_TTL = 30 * 60 * 1000;
 const GDELT_MIN_INTERVAL = 6000;
+const GDELT_RATE_LIMIT_BACKOFF = 15 * 60 * 1000;
 
 const proxied = url => {
   const proxy = getSettings().corsProxy || 'https://api.allorigins.win/raw?url=';
@@ -100,14 +101,28 @@ export async function fetchMacroNews() {
   const query = settings.macroQuery || 'markets OR inflation OR geopolitics';
   const cacheKey = `${provider}:${query}:${settings.macroLanguage || ''}`;
   const cached = readMacroCache(cacheKey);
+  const macroCache = readJSON(MACRO_CACHE_KEY, {});
 
   if (provider !== 'static' && cached?.events?.length && Date.now() - cached.timestamp < MACRO_CACHE_TTL) {
     return cached.events.map(event => ({ ...event, source: event.source || `Cache ${provider}` }));
   }
 
+  if (provider === 'gdelt' && Date.now() - (macroCache.lastGdeltRateLimitedAt || 0) < GDELT_RATE_LIMIT_BACKOFF) {
+    if (cached?.events?.length) {
+      return cached.events.map(event => ({ ...event, source: event.source || 'Cache gdelt' }));
+    }
+    try {
+      const events = await fetchOkSurfNews();
+      if (events.length) return events;
+    } catch {
+    }
+    return staticMacroEvents('GDELT limite temporairement les requetes');
+  }
+
   try {
     let events = [];
     if (provider === 'gdelt') events = await fetchGdeltNews(query);
+    if (provider === 'oksurf') events = await fetchOkSurfNews();
     if (provider === 'marketaux' && settings.marketauxApiKey) events = await fetchMarketauxNews(query, settings.marketauxApiKey);
     if (provider === 'finnhub' && settings.finnhubApiKey) events = await fetchFinnhubNews(settings.finnhubApiKey);
     if (events.length) {
@@ -115,6 +130,17 @@ export async function fetchMacroNews() {
       return events;
     }
   } catch {
+    if (provider === 'gdelt') {
+      markGdeltRateLimited();
+      try {
+        const events = await fetchOkSurfNews();
+        if (events.length) {
+          writeMacroCache(`oksurf:fallback:${settings.macroLanguage || ''}`, events);
+          return events.map(event => ({ ...event, source: event.source || 'OKSURF fallback' }));
+        }
+      } catch {
+      }
+    }
   }
   if (cached?.events?.length) {
     return cached.events.map(event => ({ ...event, source: event.source || `Cache ${provider}` }));
@@ -147,7 +173,13 @@ async function fetchGdeltNews(query) {
     ? [url, proxied(url), `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`]
     : [proxied(url), `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`];
   await throttleGdelt();
-  const json = await fetchJsonWithFallbacks(targets);
+  let json;
+  try {
+    json = await fetchJsonWithFallbacks(targets);
+  } catch (error) {
+    if (error.code === 'RATE_LIMIT') markGdeltRateLimited();
+    throw error;
+  }
   return (json.articles || []).slice(0, 8).map(article => ({
     title: article.title || 'Actualite macro',
     summary: article.seendate ? `${article.domain || 'News'} · ${article.seendate}` : (article.domain || 'News mondiale'),
@@ -204,17 +236,24 @@ async function fetchJsonWithFallbacks(urls) {
       const response = await fetch(target);
       if (!response.ok) {
         errors.push(`${target}: HTTP ${response.status}`);
-        if (response.status === 429 && targets.length > 1) {
-          await new Promise(resolve => setTimeout(resolve, GDELT_MIN_INTERVAL));
+        if (response.status === 429) {
+          const error = new Error(errors.join(' | '));
+          error.code = 'RATE_LIMIT';
+          throw error;
         }
         continue;
       }
       return await response.json();
     } catch (error) {
+      if (error.code === 'RATE_LIMIT') throw error;
       errors.push(`${target}: ${error.message || 'erreur reseau'}`);
     }
   }
   throw new Error(errors.join(' | ') || 'Source indisponible');
+}
+
+function markGdeltRateLimited() {
+  writeJSON(MACRO_CACHE_KEY, { ...readJSON(MACRO_CACHE_KEY, {}), lastGdeltRateLimitedAt: Date.now() });
 }
 
 async function fetchMarketauxNews(query, apiKey) {
@@ -231,6 +270,28 @@ async function fetchMarketauxNews(query, apiKey) {
     url: article.url,
     impact: {}
   }));
+}
+
+async function fetchOkSurfNews() {
+  const response = await fetch('https://ok.surf/api/v1/cors/news-section', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sections: ['Business', 'World', 'Technology'] })
+  });
+  if (!response.ok) throw new Error('OKSURF indisponible');
+  const json = await response.json();
+  return Object.entries(json || {})
+    .flatMap(([section, articles]) => (Array.isArray(articles) ? articles : []).map(article => ({ ...article, section })))
+    .slice(0, 8)
+    .map(article => ({
+      title: article.title || 'Actualite macro',
+      summary: `${article.source || article.section || 'News'} · OKSURF`,
+      sentiment: sectionToSentiment(article.section),
+      tags: ['Macro', article.section || 'News'],
+      source: article.source || 'OKSURF',
+      url: article.link,
+      impact: {}
+    }));
 }
 
 async function fetchFinnhubNews(apiKey) {
@@ -260,6 +321,11 @@ function scoreToSentiment(score) {
   const value = Number(score || 0);
   if (value > 0.15) return 'Positif';
   if (value < -0.15) return 'Negatif';
+  return 'Neutre';
+}
+
+function sectionToSentiment(section) {
+  if (String(section || '').toLowerCase().includes('business')) return 'Neutre';
   return 'Neutre';
 }
 

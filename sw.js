@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'alphaterminal-v11';
+const CACHE_VERSION = 'alphaterminal-v12';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DATA_CACHE = `${CACHE_VERSION}-data`;
 
@@ -26,7 +26,6 @@ const STATIC_ASSETS = [
 ];
 
 const OPTIONAL_ASSETS = [
-  'https://cdn.tailwindcss.com',
   'https://cdn.jsdelivr.net/npm/chart.js',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0'
 ];
@@ -73,7 +72,8 @@ function isMarketData(url) {
     || url.hostname.includes('gdeltproject.org')
     || url.hostname.includes('query1.finance.yahoo.com')
     || url.hostname.includes('api.allorigins.win')
-    || url.hostname.includes('proxy.sicho95.workers.dev');
+    || url.hostname.includes('proxy.sicho95.workers.dev')
+    || url.hostname.includes('ok.surf');
 }
 
 async function cacheFirst(request, cacheName) {
@@ -93,7 +93,12 @@ async function networkFirst(request, cacheName, fallbackUrl = null) {
   const cache = await caches.open(cacheName);
   try {
     const response = await fetch(request);
-    if (response.ok) cache.put(request, response.clone());
+    if (response.ok) {
+      cache.put(request, response.clone());
+      return response;
+    }
+    const cached = await cache.match(request);
+    if (cached) return cached;
     return response;
   } catch {
     const cached = await cache.match(request);
