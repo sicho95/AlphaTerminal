@@ -78,19 +78,19 @@ a { color: inherit; text-decoration: none; }
 .dark .glass-card { border-color: rgba(51,65,85,.8); background: linear-gradient(135deg, rgba(15,23,42,.92), rgba(15,23,42,.72)); }
 .top-app-bar { position: sticky; top: 0; z-index: 40; border-bottom: 1px solid rgba(196,198,205,.7); background: rgba(247,249,255,.92); backdrop-filter: blur(18px); }
 .dark .top-app-bar { border-color: #334155; background: rgba(7,17,31,.92); }
-.app-shell { display: flex; align-items: center; gap: 8px; width: min(1280px, 100%); margin: 0 auto; padding: 12px 12px; }
+.app-shell { display: flex; align-items: center; gap: 8px; width: min(1600px, 100%); margin: 0 auto; padding: 12px 12px; }
 .brand-link { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
 .brand-mark { display: grid; width: 40px; height: 40px; place-items: center; border-radius: 999px; background: var(--primary); color: #fff; box-shadow: 0 20px 60px rgba(4,22,39,.12); }
 .brand-name { display: none; font-size: 1.18rem; font-weight: 900; letter-spacing: -.02em; white-space: nowrap; }
 .mobile-nav { position: fixed; inset-inline: 0; bottom: 0; z-index: 40; border-top: 1px solid var(--outline-variant); background: rgba(255,255,255,.95); padding: 8px 8px max(8px, env(safe-area-inset-bottom)); backdrop-filter: blur(18px); }
 .dark .mobile-nav { border-color: #334155; background: rgba(2,6,23,.95); }
 .mobile-nav-grid { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 4px; }
-main#app-content { width: min(1280px, 100%); margin: 0 auto; padding: 24px 16px 112px; }
+main#app-content { width: min(1600px, 100%); margin: 0 auto; padding: 24px 16px 112px; }
 @media (min-width: 640px) { .brand-name { display: inline; } }
 @media (min-width: 768px) {
   .app-shell { padding-inline: 40px; }
   .mobile-nav { padding: 12px 40px 14px; }
-  .mobile-nav-grid { width: min(1280px, 100%); margin: 0 auto; gap: 12px; }
+  .mobile-nav-grid { width: min(1600px, 100%); margin: 0 auto; gap: 12px; }
   .bottom-link { min-height: 58px; flex-direction: row; justify-content: center; gap: 10px; border-radius: 14px; font-size: .95rem; }
   .bottom-link .material-symbols-outlined { font-size: 24px; }
   main#app-content { padding: 24px 40px 112px; }
@@ -186,6 +186,7 @@ main#app-content { width: min(1280px, 100%); margin: 0 auto; padding: 24px 16px 
 .trend-pill.positive { background: rgba(28,116,48,.16); color: #1c7430; }
 .trend-pill.negative, .status-pill.danger { background: rgba(186,26,26,.16); color: #ba1a1a; }
 .status-pill.neutral { background: rgba(4,22,39,.08); color: #041627; }
+.status-pill.watch { background: rgba(22,163,74,.16); color: #166534; }
 .dark .status-pill.neutral { color: #e2e8f0; background: rgba(255,255,255,.1); }
 .signal-badge { display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; padding: 6px 8px; min-height: 30px; font-size: .72rem; font-weight: 950; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
 .signal-badge.neutral { color: #374151; background: rgba(75,85,99,.18); }
@@ -211,12 +212,17 @@ main#app-content { width: min(1280px, 100%); margin: 0 auto; padding: 24px 16px 
 .macro-card.watch { border-left-color: #16a34a; }
 .macro-card.sell { border-left-color: #e11d48; }
 .macro-card.neutral { border-left-color: #6b7280; }
+.macro-card.impact-danger { box-shadow: inset 0 0 0 1px rgba(225,29,72,.14); }
+.macro-card.impact-watch { box-shadow: inset 0 0 0 1px rgba(22,163,74,.14); }
 .macro-copy { min-width: 0; }
 .macro-card strong { overflow: hidden; text-overflow: ellipsis; }
 .macro-card span:not(.signal-badge):not(.status-pill) { overflow: hidden; text-overflow: ellipsis; }
 .macro-copy em { display: block; margin-top: 6px; color: #475569; font-size: .78rem; font-style: normal; font-weight: 750; line-height: 1.35; }
 .dark .macro-copy em { color: #cbd5e1; }
 .macro-pills { display: grid; gap: 8px; justify-items: end; align-content: start; flex: 0 0 auto; }
+.provider-block { display: grid; gap: 14px; }
+.provider-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.provider-head strong { font-size: 1rem; font-weight: 850; }
 .empty-state { display: grid; justify-items: center; gap: 12px; padding: 48px 20px; border: 1px dashed #c4c6cd; border-radius: 8px; text-align: center; color: #667085; }
 .empty-state.compact { padding: 24px 14px; }
 .form-grid { display: grid; gap: 12px; }
@@ -245,7 +251,36 @@ main#app-content { width: min(1280px, 100%); margin: 0 auto; padding: 24px 16px 
 .table-list { display: grid; gap: 10px; min-width: 0; overflow-x: auto; }
 .position-row { display: grid; gap: 12px; padding: 14px; }
 .position-row em { display: block; margin-top: 3px; font-size: .72rem; font-style: normal; font-weight: 750; line-height: 1.25; }
-@media (min-width: 1180px) { .position-row { grid-template-columns: minmax(180px, 1.5fr) repeat(6, minmax(86px, 1fr)) auto; align-items: center; } }
+@media (min-width: 768px) and (max-width: 959px) {
+  .position-row { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .position-row .action-row { grid-column: 1 / -1; }
+}
+@media (min-width: 960px) and (max-width: 1179px) {
+  .position-row { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; }
+  .position-row .action-row { grid-column: 1 / -1; justify-content: flex-start; }
+}
+@media (min-width: 1180px) {
+  .position-row { grid-template-columns: minmax(280px, 2.2fr) repeat(6, minmax(0, 1fr)); align-items: start; }
+  .position-row .action-row { grid-column: 1 / -1; }
+}
+@media (min-width: 1400px) {
+  .position-row { grid-template-columns: minmax(340px, 2.4fr) repeat(6, minmax(110px, 1fr)) auto; align-items: center; }
+  .position-row .action-row { grid-column: auto; justify-content: flex-end; }
+}
+.position-row > div { min-width: 0; }
+.position-row strong, .position-row span, .position-row em { overflow-wrap: anywhere; }
+.text-error { color: #b91c1c; }
+.text-secondary { color: #15803d; }
+.hidden { display: none !important; }
+@media (min-width: 768px) and (max-width: 1099px) {
+  #app-content .bento-grid > .md\:col-span-8,
+  #app-content .bento-grid > .md\:col-span-4,
+  #app-content .bento-grid > .md\:col-span-6,
+  #app-content .bento-grid > .md\:col-span-5,
+  #app-content .bento-grid > .md\:col-span-7 {
+    grid-column: span 12 / span 12;
+  }
+}
 .situation-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
 .situation-tile { border-left: 4px solid #64748b; border-radius: 8px; padding: 12px; background: rgba(4,22,39,.05); }
 .situation-tile.initial { border-color: #2563eb; }

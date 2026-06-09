@@ -8,18 +8,18 @@
     <button id="printReport" class="ghost-btn" type="button"><span class="material-symbols-outlined">print</span>Rapport</button>
   </div>
 
-  <div id="signalsList" class="bento-grid"></div>
+  <div id="signalsList" class="page-stack"></div>
 </section>
 
 <script type="module">
-  import { flattenPositions, getVisiblePortfolios, getSettings, money, decimal } from './js/store.js';
-  import { fetchMacroNews, suggestedStop } from './js/data.js';
+  import { flattenPositions, getVisiblePortfolios, getSettings, money, decimal, pct } from './js/store.js';
+  import { fetchMacroFeeds, stopMetrics } from './js/data.js';
 
   async function initSignaux() {
     document.getElementById('printReport').onclick = () => window.print();
     const positions = flattenPositions(getVisiblePortfolios());
     document.getElementById('signalsList').innerHTML = positions.length
-      ? positions.map(renderSignal).join('') + renderMacroShell()
+      ? renderTechniqueShell(positions) + renderMacroShell()
       : `<div class="empty-state md:col-span-12"><span class="material-symbols-outlined">bolt</span><h2>Aucun signal</h2><p>Importe ou cree des positions pour lancer l'analyse.</p></div>`;
     if (positions.length) await renderMacro();
   }
@@ -27,8 +27,7 @@
   function renderSignal(position) {
     const closes = position.history?.closes || [];
     const rsi = calculateRSI(closes);
-    const stop = suggestedStop(position, position.profileId);
-    const distance = position.stopLevel ? (position.currentPrice - position.stopLevel) / position.currentPrice * 100 : null;
+    const stop = stopMetrics(position, position.profileId);
     const signal = signalFromRsi(rsi);
     return `<article class="glass-panel md:col-span-6">
       <div class="flex items-start justify-between gap-3">
@@ -40,40 +39,61 @@
         <div><span>Cours</span><strong>${decimal(position.currentPrice)} €</strong></div>
         <div><span>Signal</span><strong>${signal.detail}</strong></div>
         <div><span>Stop actuel</span><strong>${money(position.stopLevel)}</strong></div>
-        <div><span>Stop ATR</span><strong>${stop.atr ? money(stop.stop) : '-'}</strong></div>
+        <div><span>Stop ATR14</span><strong>${stop.atr ? `${decimal(stop.stop)} €` : '-'}</strong><em>${stop.stopPct === null ? '' : pct(stop.stopPct)}</em></div>
       </div>
-      <p class="mt-4 text-muted">${distance === null ? 'Aucun stop configure.' : `Distance au stop: ${distance.toFixed(1)}%.`} ${stop.atr ? `ATR14: ${stop.atr.toFixed(2)} avec multiplicateur ${stop.multiplier}x.` : 'Actualise les cours pour calculer ATR14.'}</p>
+      <p class="mt-4 text-muted">${stop.distancePct === null ? 'Aucun stop configure.' : `Distance au stop actuel: ${pct(stop.distancePct)}.`} ${stop.atr ? `ATR14: ${decimal(stop.atr)} avec multiplicateur ${decimal(stop.multiplier)}x.` : 'Actualise les cours pour calculer ATR14.'}</p>
+    </article>`;
+  }
+
+  function renderTechniqueShell(positions) {
+    return `<article class="glass-panel">
+      <div class="section-title"><span class="material-symbols-outlined">monitoring</span>Technique</div>
+      <div class="bento-grid">${positions.map(renderSignal).join('')}</div>
     </article>`;
   }
 
   function renderMacroShell() {
-    const settings = getSettings();
-    return `<article class="glass-panel md:col-span-12">
-      <div class="section-title"><span class="material-symbols-outlined">public</span>Macro / geopolitique · ${settings.macroProvider || 'static'}</div>
-      <div id="macroNews" class="bento-grid"><div class="text-muted md:col-span-12">Chargement du contexte macro...</div></div>
+    return `<article class="glass-panel">
+      <div class="section-title"><span class="material-symbols-outlined">public</span>Macro / geopolitique</div>
+      <div id="macroNews" class="list-stack"><div class="text-muted">Chargement du contexte macro...</div></div>
     </article>`;
   }
 
   async function renderMacro() {
     const target = document.getElementById('macroNews');
     try {
-      const events = await fetchMacroNews();
-      target.innerHTML = events.map(event => `
-        <a class="mini-card md:col-span-3 macro-card ${sentimentClass(event.sentiment)}" ${event.url ? `href="${event.url}" target="_blank" rel="noreferrer"` : ''}>
-          <div class="macro-copy">
-            <strong>${event.title}</strong>
-            <span>${event.summary || event.source || ''}</span>
-            <em>${event.analysisLabel || `${event.macroTheme || 'Macro generale'} · impact ${(event.impactLevel || 'Faible').toLowerCase()}`}</em>
-          </div>
-          <div class="macro-pills">
-            <span class="status-pill neutral">${event.impactLevel || 'Faible'}</span>
-            <span class="signal-badge ${sentimentClass(event.sentiment)}">${event.sentiment || 'Neutre'}</span>
-          </div>
-        </a>
-      `).join('');
+      const settings = getSettings();
+      const feeds = await fetchMacroFeeds(settings.macroQuery, settings);
+      target.innerHTML = feeds.length
+        ? feeds.map(renderProviderBlock).join('')
+        : `<div class="text-muted">Aucune source macro/news n'a repondu pour le moment.</div>`;
     } catch {
-      target.innerHTML = `<div class="text-muted md:col-span-12">Source macro indisponible. Les donnees offline restent utilisees au prochain chargement statique.</div>`;
+      target.innerHTML = `<div class="text-muted">Aucune source macro/news n'a repondu pour le moment.</div>`;
     }
+  }
+
+  function renderProviderBlock(feed) {
+    return `<section class="provider-block">
+      <div class="provider-head">
+        <strong>${feed.label}</strong>
+        <span class="status-pill neutral">${feed.events.length} news</span>
+      </div>
+      <div class="bento-grid">
+        ${feed.events.slice(0, 8).map(event => `
+          <a class="mini-card md:col-span-3 macro-card ${sentimentClass(event.sentiment)} impact-${impactClass(event.impactLevel)}" ${event.url ? `href="${event.url}" target="_blank" rel="noreferrer"` : ''}>
+            <div class="macro-copy">
+              <strong>${event.title}</strong>
+              <span>${event.summary || event.source || ''}</span>
+              <em>${event.analysisLabel || `${event.macroTheme || 'Macro generale'} · impact ${(event.impactLevel || 'Faible').toLowerCase()}`}</em>
+            </div>
+            <div class="macro-pills">
+              <span class="status-pill ${impactClass(event.impactLevel)}">${event.impactLevel || 'Faible'}</span>
+              <span class="signal-badge ${sentimentClass(event.sentiment)}">${event.sentiment || 'Neutre'}</span>
+            </div>
+          </a>
+        `).join('')}
+      </div>
+    </section>`;
   }
 
   function calculateRSI(closes, period = 14) {
@@ -101,6 +121,13 @@
     const value = String(sentiment || '').toLowerCase();
     if (value.includes('neg')) return 'sell';
     if (value.includes('pos')) return 'watch';
+    return 'neutral';
+  }
+
+  function impactClass(level) {
+    const value = String(level || '').toLowerCase();
+    if (value.includes('fort')) return 'danger';
+    if (value.includes('moy')) return 'watch';
     return 'neutral';
   }
 

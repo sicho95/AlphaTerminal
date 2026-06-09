@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'alphaterminal-v15';
+const CACHE_VERSION = 'alphaterminal-v16';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DATA_CACHE = `${CACHE_VERSION}-data`;
 
@@ -66,10 +66,8 @@ self.addEventListener('fetch', event => {
 });
 
 function isMarketData(url) {
-  return url.hostname.includes('twelvedata.com')
-    || url.hostname.includes('marketaux.com')
+  return url.hostname.includes('marketaux.com')
     || url.hostname.includes('finnhub.io')
-    || url.hostname.includes('gdeltproject.org')
     || url.hostname.includes('query1.finance.yahoo.com')
     || url.hostname.includes('api.allorigins.win')
     || url.hostname.includes('proxy.sicho95.workers.dev')

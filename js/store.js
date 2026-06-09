@@ -1,6 +1,6 @@
 export const SCHEMA_VERSION = 2;
 export const PROFILE_DEFAULTS_VERSION = 3;
-export const APP_VERSION = '0.9.6';
+export const APP_VERSION = '0.9.7';
 
 export const KEYS = {
   data: 'alphaTerm_data',
@@ -34,7 +34,7 @@ const defaultSettings = {
   yahooFallback: true,
   autoRefreshMinutes: 10,
   lastQuotesRefreshAt: '',
-  macroProvider: 'static',
+  macroProvider: 'multi',
   marketauxApiKey: '',
   finnhubApiKey: '',
   macroQuery: 'central banks OR inflation OR energy OR geopolitics OR markets',

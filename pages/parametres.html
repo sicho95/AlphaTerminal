@@ -17,7 +17,7 @@
         <div class="field"><label>Proxy CORS</label><input name="corsProxy" placeholder="https://proxy.example/?url= ou .../{url}"></div>
         <div class="field"><label>Plafond PEA</label><input name="peaLimit" inputmode="decimal"></div>
         <div class="field"><label>Profil par défaut</label><select name="investorProfile"><option value="prudent">Prudent</option><option value="equilibre">Equilibre</option><option value="dynamique">Dynamique</option><option value="offensif">Offensif</option><option value="dca">DCA</option></select></div>
-        <div class="field"><label>Source macro/news</label><select name="macroProvider"><option value="static">Offline statique</option><option value="gdelt">GDELT mondial</option><option value="oksurf">OKSURF sans cle</option><option value="yahoo">Yahoo Finance</option><option value="marketaux">Marketaux finance</option><option value="finnhub">Finnhub finance</option></select></div>
+        <div class="field"><label>Source macro/news</label><select name="macroProvider"><option value="yahoo">Yahoo Finance</option><option value="oksurf">OKSURF sans cle</option><option value="marketaux">Marketaux finance</option><option value="finnhub">Finnhub finance</option><option value="multi">Multi-sources auto</option></select></div>
         <div class="field"><label>Requête macro</label><input name="macroQuery" placeholder="inflation OR energy OR geopolitics"></div>
         <div class="field"><label>Clé Marketaux</label><input name="marketauxApiKey" type="password" autocomplete="off"></div>
         <div class="field"><label>Clé Finnhub</label><input name="finnhubApiKey" type="password" autocomplete="off"></div>
@@ -67,7 +67,7 @@
     form.corsProxy.value = settings.corsProxy || '';
     form.peaLimit.value = settings.peaLimit || 150000;
     form.investorProfile.value = settings.investorProfile || 'equilibre';
-    form.macroProvider.value = settings.macroProvider || 'static';
+    form.macroProvider.value = settings.macroProvider || 'multi';
     form.macroQuery.value = settings.macroQuery || '';
     form.marketauxApiKey.value = settings.marketauxApiKey || '';
     form.finnhubApiKey.value = settings.finnhubApiKey || '';

@@ -16,7 +16,7 @@ export const MACRO_EVENTS = [
 ];
 
 const yahooUrl = ticker => `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=1y&interval=1d`;
-const yahooNewsUrl = query => `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&newsCount=8&quotesCount=0`;
+const yahooNewsUrl = query => `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&newsCount=8&quotesCount=0&lang=fr-FR&region=FR`;
 const MACRO_CACHE_KEY = 'alphaTerm_macroCache';
 const MACRO_CACHE_TTL = 30 * 60 * 1000;
 const GDELT_MIN_INTERVAL = 6000;
@@ -127,33 +127,31 @@ export function suggestedStop(position, profileKey = position.profileId || getSe
   return { atr, multiplier, stop: Math.max(0, position.currentPrice - atr * multiplier) };
 }
 
+export function stopMetrics(position, profileKey = position.profileId || getSettings().investorProfile) {
+  const stop = suggestedStop(position, profileKey);
+  const current = parseLocaleNumber(position.currentPrice);
+  const stopPct = current > 0 && stop.stop > 0 ? ((stop.stop / current) - 1) * 100 : null;
+  const distancePct = current > 0 && position.stopLevel > 0 ? ((position.stopLevel / current) - 1) * 100 : null;
+  return { ...stop, stopPct, distancePct };
+}
+
 export async function fetchMacroNews() {
   const settings = getSettings();
-  const provider = settings.macroProvider || 'static';
+  const provider = settings.macroProvider || 'multi';
   const query = settings.macroQuery || 'markets OR inflation OR geopolitics';
+  if (provider === 'multi') {
+    const feeds = await fetchMacroFeeds(query, settings);
+    return feeds.flatMap(feed => feed.events);
+  }
   const cacheKey = `${provider}:${query}:${settings.macroLanguage || ''}`;
   const cached = readMacroCache(cacheKey);
-  const macroCache = readJSON(MACRO_CACHE_KEY, {});
 
-  if (provider !== 'static' && cached?.events?.length && Date.now() - cached.timestamp < MACRO_CACHE_TTL) {
+  if (cached?.events?.length && Date.now() - cached.timestamp < MACRO_CACHE_TTL) {
     return cached.events.map(event => ({ ...event, source: event.source || `Cache ${provider}` }));
-  }
-
-  if (provider === 'gdelt' && Date.now() - (macroCache.lastGdeltRateLimitedAt || 0) < GDELT_RATE_LIMIT_BACKOFF) {
-    if (cached?.events?.length) {
-      return cached.events.map(event => ({ ...event, source: event.source || 'Cache gdelt' }));
-    }
-    try {
-      const events = await fetchOkSurfNews();
-      if (events.length) return events;
-    } catch {
-    }
-    return staticMacroEvents('GDELT limite temporairement les requetes');
   }
 
   try {
     let events = [];
-    if (provider === 'gdelt') events = await fetchGdeltNews(query);
     if (provider === 'oksurf') events = await fetchOkSurfNews();
     if (provider === 'yahoo') events = await fetchYahooFinanceNews(query);
     if (provider === 'marketaux' && settings.marketauxApiKey) events = await fetchMarketauxNews(query, settings.marketauxApiKey);
@@ -163,26 +161,33 @@ export async function fetchMacroNews() {
       return events;
     }
   } catch {
-    if (provider === 'gdelt') {
-      markGdeltRateLimited();
-      try {
-        const events = await fetchOkSurfNews();
-        if (events.length) {
-          writeMacroCache(`oksurf:fallback:${settings.macroLanguage || ''}`, events);
-          return events.map(event => ({ ...event, source: event.source || 'OKSURF fallback' }));
-        }
-      } catch {
-      }
-    }
   }
   if (cached?.events?.length) {
     return cached.events.map(event => ({ ...event, source: event.source || `Cache ${provider}` }));
   }
-  return staticMacroEvents(provider === 'static' ? 'Configuration statique offline' : `Fallback offline (${provider})`);
+  return [];
 }
 
-function staticMacroEvents(source) {
-  return sortMacroEvents(MACRO_EVENTS.map(item => enrichMacroEvent({ ...item, source }, 'static')));
+export async function fetchMacroFeeds(query = '', settings = getSettings()) {
+  const mode = settings.macroProvider || 'multi';
+  const use = source => mode === 'multi' || mode === source;
+  const tasks = [
+    { id: 'yahoo', label: 'Yahoo Finance', enabled: use('yahoo'), run: () => fetchYahooFinanceNews(query || settings.macroQuery) },
+    { id: 'oksurf', label: 'OKSURF', enabled: use('oksurf'), run: () => fetchOkSurfNews() },
+    { id: 'marketaux', label: 'Marketaux', enabled: use('marketaux') && Boolean(settings.marketauxApiKey), run: () => fetchMarketauxNews(query || settings.macroQuery, settings.marketauxApiKey) },
+    { id: 'finnhub', label: 'Finnhub', enabled: use('finnhub') && Boolean(settings.finnhubApiKey), run: () => fetchFinnhubNews(settings.finnhubApiKey) }
+  ].filter(task => task.enabled);
+
+  const results = await Promise.all(tasks.map(async task => {
+    try {
+      const events = await task.run();
+      return { id: task.id, label: task.label, events: (events || []).slice(0, 8) };
+    } catch {
+      return { id: task.id, label: task.label, events: [] };
+    }
+  }));
+
+  return results.filter(result => result.events.length);
 }
 
 function readMacroCache(cacheKey) {
@@ -198,69 +203,6 @@ function writeMacroCache(cacheKey, events) {
       events
     }
   });
-}
-
-async function fetchGdeltNews(query) {
-  const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(gdeltQuery(query))}&mode=ArtList&format=json&maxrecords=8&sort=hybridrel`;
-  const targets = typeof window === 'undefined'
-    ? [url, proxied(url), `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`]
-    : [proxied(url), `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`];
-  await throttleGdelt();
-  let json;
-  try {
-    json = await fetchJsonWithFallbacks(targets);
-  } catch (error) {
-    if (error.code === 'RATE_LIMIT') markGdeltRateLimited();
-    throw error;
-  }
-  return sortMacroEvents((json.articles || []).slice(0, 8).map(article => enrichMacroEvent({
-    title: article.title || 'Actualite macro',
-    summary: article.seendate ? `${article.domain || 'News'} · ${article.seendate}` : (article.domain || 'News mondiale'),
-    sentiment: toneToSentiment(article.tone),
-    tags: ['Macro', article.language || 'News'],
-    source: article.domain || 'GDELT',
-    url: article.url,
-    impact: {},
-    provider: 'GDELT',
-    providerTone: Number(article.tone || 0)
-  }, 'gdelt')));
-}
-
-function gdeltQuery(query) {
-  const base = String(query || 'markets OR inflation OR geopolitics').trim();
-  const languageFilter = gdeltLanguageFilter(getSettings().macroLanguage);
-  const normalizedBase = /\bOR\b/.test(base) && !base.startsWith('(') ? `(${base})` : base;
-  return [normalizedBase, languageFilter].filter(Boolean).join(' ');
-}
-
-function gdeltLanguageFilter(languageSetting = 'fr,en') {
-  const labels = {
-    en: 'english',
-    eng: 'english',
-    english: 'english',
-    fr: 'french',
-    fra: 'french',
-    fre: 'french',
-    french: 'french',
-    francais: 'french',
-    français: 'french'
-  };
-  const languages = String(languageSetting || '')
-    .split(',')
-    .map(item => labels[item.trim().toLowerCase()])
-    .filter((item, index, list) => item && list.indexOf(item) === index);
-  if (!languages.length) return '';
-  if (languages.length === 1) return `sourcelang:${languages[0]}`;
-  return `(${languages.map(language => `sourcelang:${language}`).join(' OR ')})`;
-}
-
-async function throttleGdelt() {
-  const cache = readJSON(MACRO_CACHE_KEY, {});
-  const elapsed = Date.now() - (cache.lastGdeltRequestAt || 0);
-  if (elapsed > 0 && elapsed < GDELT_MIN_INTERVAL) {
-    await new Promise(resolve => setTimeout(resolve, GDELT_MIN_INTERVAL - elapsed));
-  }
-  writeJSON(MACRO_CACHE_KEY, { ...readJSON(MACRO_CACHE_KEY, {}), lastGdeltRequestAt: Date.now() });
 }
 
 async function fetchJsonWithFallbacks(urls) {
@@ -285,10 +227,6 @@ async function fetchJsonWithFallbacks(urls) {
     }
   }
   throw new Error(errors.join(' | ') || 'Source indisponible');
-}
-
-function markGdeltRateLimited() {
-  writeJSON(MACRO_CACHE_KEY, { ...readJSON(MACRO_CACHE_KEY, {}), lastGdeltRateLimitedAt: Date.now() });
 }
 
 async function fetchMarketauxNews(query, apiKey) {

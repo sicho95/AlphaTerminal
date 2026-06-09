@@ -7,8 +7,8 @@
     </div>
     <div class="action-row">
       <button id="exportJson" class="ghost-btn" type="button"><span class="material-symbols-outlined">download</span>JSON</button>
-      <label class="ghost-btn import-label" for="importJson"><span class="material-symbols-outlined">upload</span>Importer en remplaçant<input id="importJson" class="file-input-cover" type="file" accept="application/json,.json"></label>
-      <button id="addPosition" class="primary-btn" type="button"><span class="material-symbols-outlined">add</span>Position</button>
+      <label class="ghost-btn import-label" for="importJson"><span class="material-symbols-outlined">upload</span>Importer<input id="importJson" class="file-input-cover" type="file" accept="application/json,.json"></label>
+      <button id="addPosition" class="ghost-btn" type="button"><span class="material-symbols-outlined">add</span>Position</button>
     </div>
   </div>
 
@@ -26,12 +26,11 @@
     <aside class="glass-panel md:col-span-4">
       <div class="section-title"><span class="material-symbols-outlined">account_tree</span>Structure</div>
       <div id="importStatus" class="mini-card hidden"></div>
-      <div class="action-row mt-4"><button id="addPortfolio" class="primary-btn" type="button"><span class="material-symbols-outlined">add_business</span>Portefeuille</button></div>
+      <div class="action-row mt-4">
+        <button id="addOwner" class="ghost-btn" type="button"><span class="material-symbols-outlined">person_add</span>Propriétaire</button>
+        <button id="addPortfolio" class="ghost-btn" type="button"><span class="material-symbols-outlined">add_business</span>Portefeuille</button>
+      </div>
       <div id="portfolioList" class="list-stack mt-4"></div>
-      <form id="ownerForm" class="form-grid">
-        <div class="field"><label>Nouveau propriétaire</label><input name="name" placeholder="Jean, Damien..."></div>
-        <button class="ghost-btn" type="submit"><span class="material-symbols-outlined">person_add</span>Ajouter</button>
-      </form>
     </aside>
 
   </div>
@@ -96,6 +95,24 @@
   </form>
 </div>
 
+<div id="ownerModal" class="modal-backdrop hidden">
+  <form id="ownerForm" class="glass-panel modal-sheet">
+    <div class="modal-head">
+      <div class="section-title"><span class="material-symbols-outlined">person_add</span><span id="ownerTitle">Propriétaire</span></div>
+      <button id="closeOwnerModalTop" class="icon-btn" type="button" aria-label="Fermer"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div class="modal-scroll">
+      <div class="form-grid">
+        <div class="field"><label>Nom propriétaire</label><input name="name" placeholder="Jean, Damien..." required></div>
+      </div>
+    </div>
+    <div class="modal-actions action-row mt-4">
+      <button class="primary-btn" type="submit"><span class="material-symbols-outlined">save</span>Sauver</button>
+      <button id="closeOwnerModal" class="ghost-btn" type="button"><span class="material-symbols-outlined">arrow_back</span>Retour</button>
+    </div>
+  </form>
+</div>
+
 <script type="module">
   import { getOwners, getPortfolios, getVisiblePortfolios, flattenPositions, money, pct, decimal, round3, parseLocaleNumber, addOwner, upsertPortfolio, deletePortfolio, upsertPosition, deletePosition, exportBackup, importBackup, getSettings, state } from './js/store.js';
   import { suggestedStop } from './js/data.js';
@@ -110,14 +127,22 @@
     document.getElementById('assetFilter').addEventListener('change', renderPositions);
     document.getElementById('sortFilter').addEventListener('change', renderPositions);
     document.getElementById('addPosition').onclick = () => openPosition();
+    document.getElementById('addOwner').onclick = () => openOwner();
     document.getElementById('addPortfolio').onclick = () => openPortfolio();
     document.getElementById('closePositionModal').onclick = closePosition;
     document.getElementById('closePositionModalTop').onclick = closePosition;
+    document.getElementById('closeOwnerModal').onclick = closeOwner;
+    document.getElementById('closeOwnerModalTop').onclick = closeOwner;
     document.getElementById('closePortfolioModal').onclick = closePortfolio;
     document.getElementById('closePortfolioModalTop').onclick = closePortfolio;
     document.getElementById('ownerForm').onsubmit = event => {
       event.preventDefault();
-      try { addOwner(Object.fromEntries(new FormData(event.target))); event.target.reset(); renderAll(); } catch (error) { alert(error.message); }
+      try {
+        addOwner(Object.fromEntries(new FormData(event.target)));
+        closeOwner();
+        event.target.reset();
+        renderAll();
+      } catch (error) { alert(error.message); }
     };
     document.getElementById('portfolioForm').onsubmit = event => {
       event.preventDefault();
@@ -292,6 +317,18 @@
     document.getElementById('portfolioTitle').textContent = portfolio ? 'Editer portefeuille' : 'Ajouter portefeuille';
     document.getElementById('portfolioModal').classList.remove('hidden');
     document.body.classList.add('modal-open');
+  }
+
+  function openOwner() {
+    document.getElementById('ownerForm').reset();
+    document.getElementById('ownerTitle').textContent = 'Ajouter propriétaire';
+    document.getElementById('ownerModal').classList.remove('hidden');
+    document.body.classList.add('modal-open');
+  }
+
+  function closeOwner() {
+    document.getElementById('ownerModal').classList.add('hidden');
+    document.body.classList.remove('modal-open');
   }
 
   function closePortfolio() {
