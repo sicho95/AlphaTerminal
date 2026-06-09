@@ -1,4 +1,4 @@
-import { getPortfolios, saveData, getData, totals, getSettings, DEFAULT_INVESTOR_PROFILES, parseLocaleNumber, round3 } from './store.js';
+import { getPortfolios, saveData, getData, totals, getSettings, DEFAULT_INVESTOR_PROFILES, readJSON, writeJSON, parseLocaleNumber, round3 } from './store.js';
 
 export const DEFAULT_DATA = {
   schemaVersion: 2,
@@ -17,6 +17,10 @@ export const MACRO_EVENTS = [
 
 const yahooUrl = ticker => `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=1y&interval=1d`;
 const twelveUrl = (ticker, apiKey) => `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(ticker)}&interval=1day&outputsize=260&apikey=${encodeURIComponent(apiKey)}`;
+const MACRO_CACHE_KEY = 'alphaTerm_macroCache';
+const MACRO_CACHE_TTL = 30 * 60 * 1000;
+const GDELT_MIN_INTERVAL = 6000;
+
 const proxied = url => {
   const proxy = getSettings().corsProxy || 'https://api.allorigins.win/raw?url=';
   return proxy.includes('{url}') ? proxy.replace('{url}', encodeURIComponent(url)) : proxy + encodeURIComponent(url);
@@ -94,11 +98,26 @@ export async function fetchMacroNews() {
   const settings = getSettings();
   const provider = settings.macroProvider || 'static';
   const query = settings.macroQuery || 'markets OR inflation OR geopolitics';
+  const cacheKey = `${provider}:${query}:${settings.macroLanguage || ''}`;
+  const cached = readMacroCache(cacheKey);
+
+  if (provider !== 'static' && cached?.events?.length && Date.now() - cached.timestamp < MACRO_CACHE_TTL) {
+    return cached.events.map(event => ({ ...event, source: event.source || `Cache ${provider}` }));
+  }
+
   try {
-    if (provider === 'gdelt') return await fetchGdeltNews(query);
-    if (provider === 'marketaux' && settings.marketauxApiKey) return await fetchMarketauxNews(query, settings.marketauxApiKey);
-    if (provider === 'finnhub' && settings.finnhubApiKey) return await fetchFinnhubNews(settings.finnhubApiKey);
+    let events = [];
+    if (provider === 'gdelt') events = await fetchGdeltNews(query);
+    if (provider === 'marketaux' && settings.marketauxApiKey) events = await fetchMarketauxNews(query, settings.marketauxApiKey);
+    if (provider === 'finnhub' && settings.finnhubApiKey) events = await fetchFinnhubNews(settings.finnhubApiKey);
+    if (events.length) {
+      writeMacroCache(cacheKey, events);
+      return events;
+    }
   } catch {
+  }
+  if (cached?.events?.length) {
+    return cached.events.map(event => ({ ...event, source: event.source || `Cache ${provider}` }));
   }
   return staticMacroEvents(provider === 'static' ? 'Configuration statique offline' : `Fallback offline (${provider})`);
 }
@@ -107,11 +126,28 @@ function staticMacroEvents(source) {
   return MACRO_EVENTS.map(item => ({ ...item, source }));
 }
 
+function readMacroCache(cacheKey) {
+  return readJSON(MACRO_CACHE_KEY, {})[cacheKey] || null;
+}
+
+function writeMacroCache(cacheKey, events) {
+  const cache = readJSON(MACRO_CACHE_KEY, {});
+  writeJSON(MACRO_CACHE_KEY, {
+    ...cache,
+    [cacheKey]: {
+      timestamp: Date.now(),
+      events
+    }
+  });
+}
+
 async function fetchGdeltNews(query) {
-  const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(query)}&mode=ArtList&format=json&maxrecords=8&sort=hybridrel`;
-  const response = await fetch(proxied(url));
-  if (!response.ok) throw new Error('GDELT indisponible');
-  const json = await response.json();
+  const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(gdeltQuery(query))}&mode=ArtList&format=json&maxrecords=8&sort=hybridrel`;
+  const targets = typeof window === 'undefined'
+    ? [url, proxied(url), `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`]
+    : [proxied(url), `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`];
+  await throttleGdelt();
+  const json = await fetchJsonWithFallbacks(targets);
   return (json.articles || []).slice(0, 8).map(article => ({
     title: article.title || 'Actualite macro',
     summary: article.seendate ? `${article.domain || 'News'} · ${article.seendate}` : (article.domain || 'News mondiale'),
@@ -121,6 +157,64 @@ async function fetchGdeltNews(query) {
     url: article.url,
     impact: {}
   }));
+}
+
+function gdeltQuery(query) {
+  const base = String(query || 'markets OR inflation OR geopolitics').trim();
+  const languageFilter = gdeltLanguageFilter(getSettings().macroLanguage);
+  const normalizedBase = /\bOR\b/.test(base) && !base.startsWith('(') ? `(${base})` : base;
+  return [normalizedBase, languageFilter].filter(Boolean).join(' ');
+}
+
+function gdeltLanguageFilter(languageSetting = 'fr,en') {
+  const labels = {
+    en: 'english',
+    eng: 'english',
+    english: 'english',
+    fr: 'french',
+    fra: 'french',
+    fre: 'french',
+    french: 'french',
+    francais: 'french',
+    français: 'french'
+  };
+  const languages = String(languageSetting || '')
+    .split(',')
+    .map(item => labels[item.trim().toLowerCase()])
+    .filter((item, index, list) => item && list.indexOf(item) === index);
+  if (!languages.length) return '';
+  if (languages.length === 1) return `sourcelang:${languages[0]}`;
+  return `(${languages.map(language => `sourcelang:${language}`).join(' OR ')})`;
+}
+
+async function throttleGdelt() {
+  const cache = readJSON(MACRO_CACHE_KEY, {});
+  const elapsed = Date.now() - (cache.lastGdeltRequestAt || 0);
+  if (elapsed > 0 && elapsed < GDELT_MIN_INTERVAL) {
+    await new Promise(resolve => setTimeout(resolve, GDELT_MIN_INTERVAL - elapsed));
+  }
+  writeJSON(MACRO_CACHE_KEY, { ...readJSON(MACRO_CACHE_KEY, {}), lastGdeltRequestAt: Date.now() });
+}
+
+async function fetchJsonWithFallbacks(urls) {
+  const targets = urls.filter((target, index, list) => target && list.indexOf(target) === index);
+  const errors = [];
+  for (const target of targets) {
+    try {
+      const response = await fetch(target);
+      if (!response.ok) {
+        errors.push(`${target}: HTTP ${response.status}`);
+        if (response.status === 429 && targets.length > 1) {
+          await new Promise(resolve => setTimeout(resolve, GDELT_MIN_INTERVAL));
+        }
+        continue;
+      }
+      return await response.json();
+    } catch (error) {
+      errors.push(`${target}: ${error.message || 'erreur reseau'}`);
+    }
+  }
+  throw new Error(errors.join(' | ') || 'Source indisponible');
 }
 
 async function fetchMarketauxNews(query, apiKey) {

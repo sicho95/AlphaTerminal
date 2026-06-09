@@ -1,6 +1,6 @@
 export const SCHEMA_VERSION = 2;
 export const PROFILE_DEFAULTS_VERSION = 3;
-export const APP_VERSION = '0.9.1';
+export const APP_VERSION = '0.9.2';
 
 export const KEYS = {
   data: 'alphaTerm_data',
@@ -66,7 +66,10 @@ export function readJSON(key, fallback) {
 }
 
 export function writeJSON(key, value) {
-  localStorage.setItem(key, JSON.stringify(value));
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+  }
 }
 
 function ownerSlug(name) {
