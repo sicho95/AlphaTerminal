@@ -29,7 +29,7 @@
     const rsi = calculateRSI(closes);
     const stop = stopMetrics(position, position.profileId);
     const signal = signalFromRsi(rsi);
-    return `<article class="glass-panel md:col-span-6">
+    return `<article class="glass-panel signal-card">
       <div class="flex items-start justify-between gap-3">
         <div><div class="section-title"><span class="material-symbols-outlined">show_chart</span>${position.ticker}</div><h2 class="headline-md">${position.name}</h2></div>
         <span class="signal-badge ${signal.kind}">${signal.label}</span>
@@ -48,7 +48,7 @@
   function renderTechniqueShell(positions) {
     return `<article class="glass-panel">
       <div class="section-title"><span class="material-symbols-outlined">monitoring</span>Technique</div>
-      <div class="bento-grid">${positions.map(renderSignal).join('')}</div>
+      <div class="signals-grid">${positions.map(renderSignal).join('')}</div>
     </article>`;
   }
 

@@ -34,6 +34,7 @@
         <div><span>Portefeuilles</span><strong id="portfolioCount">0</strong></div>
       </div>
       <div class="progress-track"><div id="peaBar" class="progress-fill"></div></div>
+      <div id="portfolioGauges" class="portfolio-gauges"></div>
     </article>
 
     <article class="glass-panel md:col-span-4">
@@ -85,13 +86,16 @@
     document.getElementById('totalPerf').className = `trend-pill ${total.perf < 0 ? 'negative' : 'positive'}`;
 
     const peaLimit = getSettings().peaLimit || 150000;
-    const peaPercent = Math.min(total.peaVersements / peaLimit * 100, 100);
-    document.getElementById('peaUsage').textContent = `${money(total.peaVersements)} / ${money(peaLimit)}`;
+    const peaPortfolios = portfolios.filter(portfolio => portfolio.type === 'PEA');
+    const peaLimitTotal = peaLimit * peaPortfolios.length;
+    const peaPercent = peaLimitTotal ? Math.min(total.peaVersements / peaLimitTotal * 100, 100) : 0;
+    document.getElementById('peaUsage').textContent = peaLimitTotal ? `${money(total.peaVersements)} / ${money(peaLimitTotal)}` : 'Aucun PEA';
     document.getElementById('peaBar').style.width = `${peaPercent}%`;
+    renderPortfolioGauges(portfolios, peaLimit);
 
     renderDonut(portfolios);
     renderTop(total.positions);
-    renderAlerts(total.positions, peaPercent);
+    renderAlerts(portfolios, total.positions, peaLimit);
     renderObjectives(portfolios, total);
 
   }
@@ -108,8 +112,8 @@
       return `${portfolio.color || '#2563eb'} ${start}deg ${cursor}deg`;
     });
     const chart = document.getElementById('allocationChart');
-    chart.style.background = `conic-gradient(${segments.join(', ')})`;
-    chart.innerHTML = `<div>${money(totalValue)}</div>`;
+    chart.style.background = 'transparent';
+    chart.innerHTML = `${renderDonutSvg(portfolios, totalValue)}<div>${money(totalValue)}</div>`;
     chart.title = 'Cliquer une ligne pour filtrer';
     chart.onclick = () => setSelectedScope('all');
 
@@ -121,6 +125,39 @@
     chart.parentElement.querySelectorAll('.legend-row').forEach(row => {
       row.onclick = () => setSelectedScope(`portfolio:${row.dataset.id}`);
     });
+  }
+
+  function renderDonutSvg(portfolios, totalValue) {
+    let offset = 0;
+    const circles = portfolios.map(portfolio => {
+      const value = portfolio.positions.reduce((sum, pos) => sum + pos.qty * pos.currentPrice, 0) + Number(portfolio.currentCash || 0);
+      const share = totalValue ? value / totalValue * 100 : 0;
+      const circle = `<circle cx="50" cy="50" r="39" pathLength="100" fill="none" stroke="${portfolio.color || '#2563eb'}" stroke-width="18" stroke-dasharray="${share} ${100 - share}" stroke-dashoffset="${-offset}" />`;
+      offset += share;
+      return circle;
+    }).join('');
+    return `<svg class="donut-svg" viewBox="0 0 100 100" aria-hidden="true"><g transform="rotate(-90 50 50)">${circles}</g></svg>`;
+  }
+
+  function renderPortfolioGauges(portfolios, peaLimit) {
+    const target = document.getElementById('portfolioGauges');
+    if (!target) return;
+    target.innerHTML = portfolios.map(portfolio => {
+      const positionsValue = portfolio.positions.reduce((sum, position) => sum + position.qty * position.currentPrice, 0);
+      const current = positionsValue + Number(portfolio.currentCash || 0);
+      const targetValue = Number(portfolio.targetSituation?.value || 0);
+      const versements = Number(portfolio.versements || 0);
+      const isPea = portfolio.type === 'PEA';
+      const reference = isPea ? peaLimit : targetValue;
+      const ratio = reference ? Math.max(0, Math.min((isPea ? versements : current) / reference * 100, 100)) : 0;
+      const caption = isPea
+        ? `${money(versements)} / ${money(peaLimit)}`
+        : targetValue ? `${money(current)} / ${money(targetValue)}` : `${money(current)} · CTO sans plafond PEA`;
+      return `<div class="portfolio-gauge">
+        <div class="portfolio-gauge-head"><strong>${portfolio.name}</strong><span>${caption}</span></div>
+        <div class="progress-track compact"><div class="progress-fill" style="width:${ratio}%; background:${portfolio.color || '#2563eb'}"></div></div>
+      </div>`;
+    }).join('');
   }
 
   function renderTop(positions) {
@@ -136,12 +173,23 @@
     `).join('') : `<p class="text-muted">Aucune position dans ce perimetre.</p>`;
   }
 
-  function renderAlerts(positions, peaPercent) {
+  function renderAlerts(portfolios, positions, peaLimit) {
     const alerts = positions.filter(position => position.stopLevel && position.currentPrice > position.stopLevel)
       .map(position => ({ ...position, distance: (position.currentPrice - position.stopLevel) / position.currentPrice * 100 }))
       .filter(position => position.distance < 3)
       .slice(0, 4);
-    if (peaPercent > 93) alerts.unshift({ name: 'Plafond PEA', ticker: 'PEA', distance: 0, message: 'Le plafond PEA est proche.' });
+    portfolios.filter(portfolio => portfolio.type === 'PEA').forEach(portfolio => {
+      const versements = Number(portfolio.versements || 0);
+      const percent = peaLimit ? versements / peaLimit * 100 : 0;
+      if (percent > 93) {
+        alerts.unshift({
+          name: `Plafond PEA - ${portfolio.name}`,
+          ticker: 'PEA',
+          distance: 0,
+          message: `${money(versements)} verses sur ${money(peaLimit)} (${pct(percent)}).`
+        });
+      }
+    });
     document.getElementById('criticalAlerts').innerHTML = alerts.length ? alerts.map(alert => `
       <div class="mini-card alert">
         <span class="material-symbols-outlined">priority_high</span>

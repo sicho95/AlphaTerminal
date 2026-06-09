@@ -29,9 +29,9 @@ const MACRO_TOPICS = [
   { id: 'energy', label: 'Energie / matieres premieres', impact: 4, keywords: ['oil', 'crude', 'brent', 'wti', 'gas', 'lng', 'opec', 'energy prices', 'power prices', 'electricity prices', 'commodity', 'commodities', 'copper', 'natural gas'] },
   { id: 'fx', label: 'Devises / dollar', impact: 3, keywords: ['dollar', 'usd', 'eur/usd', 'yuan', 'yen', 'fx', 'currency', 'currencies', 'exchange rate', 'forex'] },
   { id: 'credit', label: 'Credit / liquidite', impact: 4, keywords: ['credit', 'liquidity', 'default', 'defaults', 'downgrade', 'banking stress', 'bank failure', 'debt market', 'sovereign debt', 'funding stress', 'refinancing'] },
-  { id: 'geopolitics', label: 'Geopolitique / commerce', impact: 5, keywords: ['tariff', 'tariffs', 'trade war', 'trade talks', 'sanction', 'sanctions', 'export curbs', 'export controls', 'conflict', 'military', 'war', 'ceasefire', 'shipping', 'strait', 'red sea', 'taiwan', 'ukraine', 'middle east', 'iran', 'china', 'embargo', 'blockade'] },
-  { id: 'technology', label: 'Technologie / semi-conducteurs', impact: 3, keywords: ['chip', 'chips', 'semiconductor', 'semiconductors', 'ai', 'artificial intelligence', 'data center', 'cloud', 'gpu'] },
-  { id: 'corporate', label: 'Entreprise / marche', impact: 1, keywords: ['ipo', 'earnings', 'quarterly results', 'shares', 'stock', 'stocks', 'deal', 'merger', 'acquisition', 'wall st', 'wall street', 'investors'] }
+  { id: 'geopolitics', label: 'Geopolitique / commerce', impact: 5, keywords: ['tariff', 'tariffs', 'trade war', 'trade talks', 'sanction', 'sanctions', 'export curbs', 'export controls', 'conflict', 'military', 'war', 'ceasefire', 'shipping', 'strait', 'red sea', 'taiwan', 'ukraine', 'middle east', 'iran', 'china', 'embargo', 'blockade', 'frappe', 'frappes', 'mort', 'morts', 'tues', 'tués', 'attaque', 'attaques', 'guerre', 'liban', 'israel', 'israélien', 'israelien'] },
+  { id: 'technology', label: 'Technologie / semi-conducteurs', impact: 3, keywords: ['chip', 'chips', 'semiconductor', 'semiconductors', 'ai', 'artificial intelligence', 'intelligence artificielle', 'ia', 'data center', 'cloud', 'gpu', 'openai', 'nvidia'] },
+  { id: 'corporate', label: 'Entreprise / marche', impact: 1, keywords: ['ipo', 'introduction en bourse', 'earnings', 'quarterly results', 'shares', 'stock', 'stocks', 'deal', 'merger', 'acquisition', 'wall st', 'wall street', 'investors', 'previsions', 'prévisions', 'marche', 'marché'] }
 ];
 const MACRO_SENTIMENT_RULES = [
   { pattern: /\b(rate cut|cuts rates|cut rates|lower rates|easing cycle|policy easing|dovish|qe|quantitative easing|stimulus|reserve requirement cut)\b/g, score: 3, impact: 3, rationale: 'assouplissement monetaire' },
@@ -39,18 +39,25 @@ const MACRO_SENTIMENT_RULES = [
   { pattern: /\b(inflation cools|inflation eased|inflation slows|cooling inflation|disinflation|below forecast|below expectations|price pressures ease)\b/g, score: 3, impact: 3, rationale: 'inflation en deceleration' },
   { pattern: /\b(sticky inflation|inflation rises|inflation accelerates|hot cpi|above forecast|above expectations|price pressures persist)\b/g, score: -3, impact: 3, rationale: 'inflation persistante' },
   { pattern: /\b(soft landing|gdp beats|growth beats|pmi rebounds|activity rebounds|retail sales beat|consumer spending rises|productivity rises)\b/g, score: 2, impact: 2, rationale: 'croissance plus solide' },
+  { pattern: /\b(croissance|acceleration|accelere|accélère|rebond|demande solide|perspectives relevees|perspectives relevées|previsions relevees|prévisions relevées|releve ses previsions|relève ses prévisions|hausse des previsions|hausse des prévisions)\b/g, score: 2, impact: 2, rationale: 'perspectives de croissance mieux orientees' },
   { pattern: /\b(recession|hard landing|contraction|pmi slump|slowdown|weak demand|manufacturing slump|consumer weakness)\b/g, score: -3, impact: 2, rationale: 'ralentissement economique' },
+  { pattern: /\b(recession|récession|ralentissement|contraction|faible demande|demande faible|crise|chute de l activite|chute de l activité)\b/g, score: -3, impact: 2, rationale: 'ralentissement economique' },
   { pattern: /\b(payrolls beat|job growth accelerates|unemployment falls|wages cool)\b/g, score: 1, impact: 2, rationale: 'emploi resilient' },
   { pattern: /\b(jobless claims rise|unemployment rises|layoffs surge|job cuts|wage pressures)\b/g, score: -2, impact: 2, rationale: 'stress sur l emploi' },
   { pattern: /\b(oil falls|oil eases|gas prices fall|energy prices ease|supply resumes|output rises)\b/g, score: 2, impact: 2, rationale: 'energie moins inflationniste' },
   { pattern: /\b(oil spikes|oil surges|gas spikes|supply disruption|output cuts|opec cuts|shipping disruption)\b/g, score: -3, impact: 3, rationale: 'choc energie / logistique' },
   { pattern: /\b(ceasefire|trade deal|tariff relief|sanctions eased|export curbs eased|reopening)\b/g, score: 2, impact: 2, rationale: 'detente geopolitique' },
+  { pattern: /\b(cessez le feu|cessez-le-feu|accord commercial|detente|détente|sanctions allegees|sanctions allégées|reouverture|réouverture)\b/g, score: 2, impact: 2, rationale: 'detente geopolitique' },
   { pattern: /\b(tariffs|sanctions|export controls|export curbs|conflict|military strike|missile|blockade|embargo|trade war)\b/g, score: -3, impact: 3, rationale: 'tension geopolitique' },
+  { pattern: /\b(frappe|frappes|attaque|attaques|missile|missiles|bombardement|bombardements|morts|mort|tues|tuees|tués|tuées|victimes|blesses|blessés|guerre|conflit|embargo|blocus)\b/g, score: -3, impact: 3, rationale: 'violence ou tension geopolitique' },
   { pattern: /\b(pentagon|military blacklist|blacklisted|aiding chinese military|national security)\b/g, score: -2, impact: 2, rationale: 'durcissement strategique' },
   { pattern: /\b(liquidity support|credit support|bank rescue|backstop|funding facility)\b/g, score: 2, impact: 2, rationale: 'soutien a la liquidite' },
   { pattern: /\b(default|defaults|downgrade|bank failure|funding stress|debt crisis|credit crunch)\b/g, score: -3, impact: 3, rationale: 'stress credit' },
   { pattern: /\b(chip rebound|semiconductor rebound|tech rebound|ai spending rises)\b/g, score: 1, impact: 1, rationale: 'soutien technologique' },
+  { pattern: /\b(ia|intelligence artificielle|ai|openai|semi conducteurs|semi-conducteurs).{0,80}\b(ouvre les vannes|essor|croissance|demande|investissement|capex|previsions relevees|prévisions relevées|hausse|releve|relève|optimiste|opportunite|opportunité)\b/g, score: 3, impact: 2, rationale: 'dynamique IA positive' },
+  { pattern: /\b(ouvre les vannes|previsions relevees|prévisions relevées|marche de l ia|marché de l ia|introduction en bourse d openai|ipo d openai)\b/g, score: 2, impact: 2, rationale: 'appetit de marche pour l IA' },
   { pattern: /\b(futures rise|stocks rise|stocks jump|rebound lifts|market rally|shares rally)\b/g, score: 1, impact: 1, rationale: 'rebond de marche' },
+  { pattern: /\b(marches en hausse|marchés en hausse|actions montent|rebond des marches|rebond des marchés|rally|hausse des actions)\b/g, score: 1, impact: 1, rationale: 'rebond de marche' },
   { pattern: /\b(ipo|files confidentially for ipo|m&a|acquisition|quarterly results|earnings)\b/g, score: 0, impact: 0, rationale: 'nouvelle corporate' }
 ];
 
@@ -390,6 +397,9 @@ function analyzeMacroText(event, provider = '') {
   if (isMostlyCorporate(text) && !hasSystemicMacroTopic(topicMatches)) {
     impactScore = Math.min(impactScore, 2);
   }
+  if (isLocalViolenceWithoutMarketSpillover(text)) {
+    impactScore = Math.min(impactScore, 2);
+  }
 
   const theme = dominantTopic?.label || (isMostlyCorporate(text) ? 'Entreprise / marche' : 'Macro generale');
   const sentiment = scoreToLabel(sentimentScore);
@@ -450,6 +460,11 @@ function isMostlyCorporate(text) {
 
 function hasSystemicMacroTopic(topicMatches = []) {
   return topicMatches.some(topic => !['corporate', 'technology'].includes(topic.id));
+}
+
+function isLocalViolenceWithoutMarketSpillover(text) {
+  return /(frappe|frappes|attaque|attaques|mort|morts|tues|tuees|tues|victimes|blesses|bombardement)/.test(text)
+    && !/(oil|petrole|pétrole|brent|wti|gas|gaz|shipping|navire|mer rouge|red sea|detroit|strait|iran|taiwan|sanction|sanctions|export|commerce|trade|market|markets|marche|marches|marché|marchés|escalade|escalation)/.test(text);
 }
 
 function sortMacroEvents(events = []) {
