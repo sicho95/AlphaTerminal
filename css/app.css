@@ -69,8 +69,8 @@ a { color: inherit; text-decoration: none; }
   .md\:col-span-12 { grid-column: span 12 / span 12; }
 }
 .material-symbols-outlined { font-size: 22px; line-height: 1; vertical-align: middle; }
-.headline-lg { font-size: clamp(2rem, 6vw, 4.5rem); line-height: .95; letter-spacing: -.06em; font-weight: 800; }
-.headline-md { font-size: clamp(1.35rem, 3vw, 2.1rem); line-height: 1.05; letter-spacing: -.04em; font-weight: 800; }
+.headline-lg { font-size: clamp(2rem, 5vw, 4rem); line-height: .95; letter-spacing: -.04em; font-weight: 800; }
+.headline-md { font-size: clamp(1.25rem, 2.4vw, 1.8rem); line-height: 1.08; letter-spacing: -.02em; font-weight: 800; }
 .body-sm { font-size: .875rem; line-height: 1.45; }
 .data-tabular { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
 .label-caps { font-size: .72rem; line-height: 1; text-transform: uppercase; letter-spacing: .12em; font-weight: 800; }
@@ -78,22 +78,35 @@ a { color: inherit; text-decoration: none; }
 .dark .glass-card { border-color: rgba(51,65,85,.8); background: linear-gradient(135deg, rgba(15,23,42,.92), rgba(15,23,42,.72)); }
 .top-app-bar { position: sticky; top: 0; z-index: 40; border-bottom: 1px solid rgba(196,198,205,.7); background: rgba(247,249,255,.92); backdrop-filter: blur(18px); }
 .dark .top-app-bar { border-color: #334155; background: rgba(7,17,31,.92); }
-.app-shell { display: flex; align-items: center; gap: 8px; width: min(1600px, 100%); margin: 0 auto; padding: 12px 12px; }
+.app-shell { display: flex; align-items: center; gap: 8px; width: 100%; margin: 0 auto; padding: 12px 12px; }
 .brand-link { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
 .brand-mark { display: grid; width: 40px; height: 40px; place-items: center; border-radius: 999px; background: var(--primary); color: #fff; box-shadow: 0 20px 60px rgba(4,22,39,.12); }
 .brand-name { display: none; font-size: 1.18rem; font-weight: 900; letter-spacing: -.02em; white-space: nowrap; }
 .mobile-nav { position: fixed; inset-inline: 0; bottom: 0; z-index: 40; border-top: 1px solid var(--outline-variant); background: rgba(255,255,255,.95); padding: 8px 8px max(8px, env(safe-area-inset-bottom)); backdrop-filter: blur(18px); }
 .dark .mobile-nav { border-color: #334155; background: rgba(2,6,23,.95); }
 .mobile-nav-grid { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 4px; }
-main#app-content { width: min(1600px, 100%); margin: 0 auto; padding: 24px 16px 112px; }
+main#app-content { width: 100%; max-width: none; margin: 0 auto; padding: 24px 16px 112px; }
 @media (min-width: 640px) { .brand-name { display: inline; } }
 @media (min-width: 768px) {
   .app-shell { padding-inline: 40px; }
   .mobile-nav { padding: 12px 40px 14px; }
-  .mobile-nav-grid { width: min(1600px, 100%); margin: 0 auto; gap: 12px; }
+  .mobile-nav-grid { width: 100%; margin: 0 auto; gap: 12px; }
   .bottom-link { min-height: 58px; flex-direction: row; justify-content: center; gap: 10px; border-radius: 14px; font-size: .95rem; }
   .bottom-link .material-symbols-outlined { font-size: 24px; }
   main#app-content { padding: 24px 40px 112px; }
+}
+@media (min-width: 1180px) {
+  .app-shell { padding-inline: 48px; }
+  main#app-content { padding: 26px 48px 112px; }
+  .headline-lg { font-size: 3.25rem; letter-spacing: -.025em; }
+  .metric-xl { font-size: 3.2rem; letter-spacing: -.02em; }
+  .hero-card, .glass-panel { padding: 18px; }
+  .bento-grid { gap: 20px; }
+  .page-stack { gap: 20px; }
+}
+@media (min-width: 1800px) {
+  .app-shell { padding-inline: 64px; }
+  main#app-content { padding-inline: 64px; }
 }
 .bottom-link.active, .bottom-link.is-active { color: #041627; background: rgba(4,22,39,.08); font-weight: 800; }
 .dark .bottom-link.active, .dark .bottom-link.is-active { color: #fff; background: rgba(255,255,255,.1); }
@@ -248,7 +261,7 @@ main#app-content { width: min(1600px, 100%); margin: 0 auto; padding: 24px 16px 
 .dark .allocation-bars { border-color: rgba(255,255,255,.18); background: repeating-linear-gradient(to right, rgba(255,255,255,.12) 0 1px, transparent 1px 20%); }
 .import-label { position: relative; overflow: hidden; cursor: pointer; }
 .file-input-cover { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.001; cursor: pointer; font-size: 100px; }
-.table-list { display: grid; gap: 10px; min-width: 0; overflow-x: auto; }
+.table-list { display: grid; gap: 10px; min-width: 0; overflow-x: visible; }
 .position-row { display: grid; gap: 12px; padding: 14px; }
 .position-row em { display: block; margin-top: 3px; font-size: .72rem; font-style: normal; font-weight: 750; line-height: 1.25; }
 @media (min-width: 768px) and (max-width: 959px) {
@@ -260,12 +273,24 @@ main#app-content { width: min(1600px, 100%); margin: 0 auto; padding: 24px 16px 
   .position-row .action-row { grid-column: 1 / -1; justify-content: flex-start; }
 }
 @media (min-width: 1180px) {
-  .position-row { grid-template-columns: minmax(280px, 2.2fr) repeat(6, minmax(0, 1fr)); align-items: start; }
-  .position-row .action-row { grid-column: 1 / -1; }
+  .position-row { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; align-items: start; padding: 12px; }
+  .position-row .action-row { grid-column: 1 / -1; justify-content: flex-start; gap: 8px; }
+  .position-row .ghost-btn { padding: 8px 10px; border-radius: 10px; }
+  .position-row span { font-size: .7rem; }
+  .position-row strong { font-size: .96rem; line-height: 1.1; }
 }
 @media (min-width: 1400px) {
-  .position-row { grid-template-columns: minmax(340px, 2.4fr) repeat(6, minmax(110px, 1fr)) auto; align-items: center; }
+  .position-row { grid-template-columns: minmax(260px, 1.8fr) repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 1900px) {
+  .position-row { grid-template-columns: minmax(320px, 2.4fr) repeat(6, minmax(88px, 1fr)) minmax(112px, auto); align-items: center; }
   .position-row .action-row { grid-column: auto; justify-content: flex-end; }
+  .position-row .ghost-btn { padding: 9px 12px; }
+  .position-row strong { font-size: 1.02rem; }
+}
+@media (min-width: 1600px) {
+  #inventoryGrid > .md\:col-span-8 { grid-column: span 9 / span 9; }
+  #inventoryGrid > .md\:col-span-4 { grid-column: span 3 / span 3; }
 }
 .position-row > div { min-width: 0; }
 .position-row strong, .position-row span, .position-row em { overflow-wrap: anywhere; }
