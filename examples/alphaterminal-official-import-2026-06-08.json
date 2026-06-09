@@ -160,7 +160,7 @@
           {
             "id": "jean-pea-20001303091-fr001400u5q4-am-pea-m-m-w-uc-ac-euronext-paris",
             "ticker": "WPEA",
-            "yahooTicker": "WPEA",
+            "yahooTicker": "WPEA.PA",
             "isin": "FR001400U5Q4",
             "name": "AM.PEA M.M.W.UC.AC EURONEXT PARIS",
             "assetClass": "ETF",
@@ -268,7 +268,7 @@
           {
             "id": "jean-cto-20001303001-fr001400u5q4-amundi-pea-monde-msci-world-ucits-etf",
             "ticker": "WPEA",
-            "yahooTicker": "WPEA",
+            "yahooTicker": "WPEA.PA",
             "isin": "FR001400U5Q4",
             "name": "AMUNDI PEA MONDE (MSCI WORLD) UCITS ETF",
             "assetClass": "ETF",
@@ -376,7 +376,7 @@
           {
             "id": "claire-pea-017555352116-fr001400u5q4-amundi-pea-monde-msci-world-ucits-etf",
             "ticker": "WPEA",
-            "yahooTicker": "WPEA",
+            "yahooTicker": "WPEA.PA",
             "isin": "FR001400U5Q4",
             "name": "AMUNDI PEA MONDE (MSCI WORLD) UCITS ETF",
             "assetClass": "ETF",
@@ -428,7 +428,7 @@
           {
             "id": "damien-pea-011956912916-fr001400u5q4-amundi-pea-monde-msci-world-ucits-etf-acc-dcam",
             "ticker": "WPEA",
-            "yahooTicker": "WPEA",
+            "yahooTicker": "WPEA.PA",
             "isin": "FR001400U5Q4",
             "name": "AMUNDI PEA MONDE (MSCI WORLD) UCITS ETF - ACC (DCAM)",
             "assetClass": "ETF",

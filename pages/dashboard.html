@@ -102,8 +102,14 @@
       button.disabled = true;
       button.classList.add('is-loading');
       try {
-        await refreshQuotes();
-        NotifService.push('Cours mis a jour', 'Les positions ont ete actualisees quand une source etait disponible.');
+        const result = await refreshQuotes();
+        const stats = result.refreshStats || { updated: 0, failed: 0, total: 0, failures: [] };
+        const failedTickers = stats.failures.slice(0, 4).map(item => item.ticker).join(', ');
+        if (stats.failed) {
+          NotifService.sendError('Actualisation partielle', `${stats.updated}/${stats.total} lignes mises a jour. Echecs: ${failedTickers || stats.failed}.`);
+        } else {
+          NotifService.push('Cours mis a jour', `${stats.updated}/${stats.total} lignes actualisees avec une source de marche.`);
+        }
         initDashboard();
       } catch {
         NotifService.sendError('Actualisation partielle', 'La connexion ou la source de cours est indisponible. Les donnees cachees restent affichees.');

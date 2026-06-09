@@ -72,7 +72,7 @@ export async function fetchTwelveDataChart(ticker, apiKey) {
   const highs = values.map(row => parseLocaleNumber(row.high)).filter(isPositiveNumber);
   const lows = values.map(row => parseLocaleNumber(row.low)).filter(isPositiveNumber);
   const price = closes.at(-1);
-  return { closes, highs, lows, price };
+  return { closes, highs, lows, price, symbol: ticker, source: 'Twelve Data' };
 }
 
 export async function fetchYahooChart(ticker) {
@@ -87,21 +87,46 @@ export async function fetchYahooChart(ticker) {
     closes: quote.close.map(parseLocaleNumber).filter(isPositiveNumber),
     highs: quote.high.map(parseLocaleNumber).filter(isPositiveNumber),
     lows: quote.low.map(parseLocaleNumber).filter(isPositiveNumber),
-    price: parseLocaleNumber(result.meta.regularMarketPrice || result.meta.previousClose)
+    price: parseLocaleNumber(result.meta.regularMarketPrice || result.meta.previousClose),
+    symbol: ticker,
+    source: 'Yahoo'
   };
 }
 
 export async function fetchMarketChart(position) {
   const settings = getSettings();
-  const symbol = position.yahooTicker || position.ticker;
-  if (settings.dataProvider === 'twelvedata' && settings.twelveDataApiKey) {
+  const symbols = quoteSymbols(position);
+  const errors = [];
+  for (const symbol of symbols) {
+    if (settings.dataProvider === 'twelvedata' && settings.twelveDataApiKey) {
+      try {
+        return await fetchTwelveDataChart(symbol, settings.twelveDataApiKey);
+      } catch (error) {
+        errors.push(`${symbol}: ${error.message}`);
+        if (!settings.yahooFallback) continue;
+      }
+    }
     try {
-      return await fetchTwelveDataChart(symbol, settings.twelveDataApiKey);
+      return await fetchYahooChart(symbol);
     } catch (error) {
-      if (!settings.yahooFallback) throw error;
+      errors.push(`${symbol}: ${error.message}`);
     }
   }
-  return fetchYahooChart(symbol);
+  throw new Error(errors.join(' | ') || 'Aucune source de cours disponible');
+}
+
+function quoteSymbols(position) {
+  const raw = [position.yahooTicker, position.ticker, position.isin]
+    .map(value => String(value || '').trim())
+    .filter(Boolean);
+  const shouldTryParis = String(position.isin || '').toUpperCase().startsWith('FR')
+    || (position.currency === 'EUR' && ['ETF', 'Actions'].includes(position.assetClass));
+  const symbols = [];
+  raw.forEach(symbol => {
+    if (shouldTryParis && !symbol.includes('.') && !/^[A-Z]{2}\d/i.test(symbol)) symbols.push(`${symbol}.PA`);
+    symbols.push(symbol);
+  });
+  return [...new Set(symbols)];
 }
 
 export function calculateATR(highs = [], lows = [], closes = [], period = 14) {
@@ -491,25 +516,41 @@ function clamp(value, min, max) {
 export async function refreshQuotes(onProgress = () => {}) {
   const current = getData();
   const nextPortfolios = [];
+  const stats = { total: 0, updated: 0, failed: 0, failures: [] };
   for (const portfolio of getPortfolios()) {
     const positions = [];
     for (const position of portfolio.positions) {
+      stats.total += 1;
       try {
         if (!position.yahooTicker && !position.ticker) throw new Error('Ticker absent');
         const chart = normalizeChartScale(await fetchMarketChart(position), position);
-        const nextPosition = { ...position, currentPrice: round3(chart.price), history: chart, lastUpdate: new Date().toISOString() };
+        const nextPosition = {
+          ...position,
+          yahooTicker: chart.symbol || position.yahooTicker || position.ticker,
+          currentPrice: round3(chart.price),
+          history: chart,
+          lastUpdate: new Date().toISOString(),
+          lastQuoteSource: chart.source || 'Source marche',
+          lastQuoteSymbol: chart.symbol || position.yahooTicker || position.ticker,
+          lastQuoteStatus: 'ok',
+          lastQuoteError: ''
+        };
         const stop = suggestedStop(nextPosition, portfolio.profileId);
         positions.push({ ...nextPosition, suggestedStop: round3(stop.stop), atr14: stop.atr ? round3(stop.atr) : null });
-        onProgress(position.ticker, true);
-      } catch {
-        positions.push({ ...position, lastUpdate: new Date().toISOString() });
-        onProgress(position.ticker, false);
+        stats.updated += 1;
+        onProgress(position.ticker, true, null);
+      } catch (error) {
+        const message = error.message || 'Cours indisponible';
+        positions.push({ ...position, lastQuoteStatus: 'error', lastQuoteError: message });
+        stats.failed += 1;
+        stats.failures.push({ ticker: position.ticker || position.name, message });
+        onProgress(position.ticker, false, message);
       }
     }
     nextPortfolios.push({ ...portfolio, positions });
   }
   saveData({ ...current, portfolios: nextPortfolios });
-  return totals(nextPortfolios);
+  return { ...totals(nextPortfolios), refreshStats: stats };
 }
 
 function normalizeChartScale(chart, position) {

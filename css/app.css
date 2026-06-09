@@ -219,7 +219,8 @@ main#app-content { width: min(1280px, 100%); margin: 0 auto; padding: 24px 16px 
 .file-input-cover { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.001; cursor: pointer; font-size: 100px; }
 .table-list { display: grid; gap: 10px; }
 .position-row { display: grid; gap: 12px; padding: 14px; }
-@media (min-width: 900px) { .position-row { grid-template-columns: minmax(180px, 1.5fr) repeat(5, minmax(96px, 1fr)) auto; align-items: center; } }
+.position-row em { display: block; margin-top: 3px; font-size: .72rem; font-style: normal; font-weight: 750; line-height: 1.25; }
+@media (min-width: 900px) { .position-row { grid-template-columns: minmax(180px, 1.5fr) repeat(6, minmax(86px, 1fr)) auto; align-items: center; } }
 .situation-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
 .situation-tile { border-left: 4px solid #64748b; border-radius: 8px; padding: 12px; background: rgba(4,22,39,.05); }
 .situation-tile.initial { border-color: #2563eb; }

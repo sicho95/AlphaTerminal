@@ -217,9 +217,11 @@
       const value = position.qty * position.currentPrice;
       const perf = position.pru ? (position.currentPrice - position.pru) / position.pru * 100 : 0;
       const stop = suggestedStop(position);
+      const quoteMeta = quoteStatus(position);
       return `<div class="mini-card position-row">
         <div><strong>${position.name}</strong><span>${position.ticker} · ${position.isin || 'ISIN absent'} · ${position.accountName}</span></div>
         <div><span>Valeur</span><strong>${money(value)}</strong></div>
+        <div><span>Cours</span><strong>${decimal(position.currentPrice)} €</strong><em class="${quoteMeta.kind}">${quoteMeta.label}</em></div>
         <div><span>Qté / PRU</span><strong>${decimal(position.qty)} · ${decimal(position.pru)}</strong></div>
         <div><span>Perf</span><strong class="${perf < 0 ? 'text-error' : 'text-secondary'}">${pct(perf)}</strong></div>
         <div><span>Stop actuel</span><strong>${money(position.stopLevel)}</strong></div>
@@ -235,6 +237,17 @@
       const [portfolioId, positionId] = button.dataset.deletePosition.split(':');
       if (confirm('Supprimer cette position ?')) { deletePosition(portfolioId, positionId); renderAll(); }
     });
+  }
+
+  function quoteStatus(position) {
+    if (position.lastQuoteStatus === 'error') {
+      return { kind: 'text-error', label: `Echec MAJ · ${position.lastQuoteError || 'source indisponible'}` };
+    }
+    if (!position.lastUpdate) return { kind: 'text-muted', label: 'Cours importé · non actualisé' };
+    const date = new Date(position.lastUpdate);
+    const formatted = Number.isNaN(date.getTime()) ? position.lastUpdate : date.toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+    const source = [position.lastQuoteSource, position.lastQuoteSymbol].filter(Boolean).join(' ');
+    return { kind: 'text-muted', label: `${source || 'Cours actualisé'} · ${formatted}` };
   }
 
   function editPortfolio(id) {

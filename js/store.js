@@ -1,6 +1,6 @@
 export const SCHEMA_VERSION = 2;
 export const PROFILE_DEFAULTS_VERSION = 3;
-export const APP_VERSION = '0.9.4';
+export const APP_VERSION = '0.9.5';
 
 export const KEYS = {
   data: 'alphaTerm_data',
@@ -106,6 +106,10 @@ function normalizePortfolio(portfolio) {
       stopLevel: round3(parseLocaleNumber(position.stopLevel)),
       atrMultiplier: position.atrMultiplier ? round3(parseLocaleNumber(position.atrMultiplier)) : undefined,
       lastUpdate: position.lastUpdate || null,
+      lastQuoteSource: position.lastQuoteSource || '',
+      lastQuoteSymbol: position.lastQuoteSymbol || '',
+      lastQuoteStatus: position.lastQuoteStatus || '',
+      lastQuoteError: position.lastQuoteError || '',
       history: position.history || null
     })) : []
   };
