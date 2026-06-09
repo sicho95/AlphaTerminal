@@ -38,13 +38,13 @@
           <div class="field"><label>Couleur</label><input name="color" type="color" value="#2563eb"></div>
         </div>
         <div class="field"><label>Profil portefeuille</label><select name="profileId"></select></div>
-        <div class="field"><label>Versements actuels</label><input name="versements" type="number" step="0.01" value="0"></div>
-        <div class="field"><label>Especes actuelles</label><input name="currentCash" type="number" step="0.01" value="0"></div>
+        <div class="field"><label>Versements actuels</label><input name="versements" inputmode="decimal" value="0"></div>
+        <div class="field"><label>Especes actuelles</label><input name="currentCash" inputmode="decimal" value="0"></div>
         <div class="form-grid two">
           <div class="field"><label>Date initiale</label><input name="initialDate" placeholder="29/12/2025"></div>
-          <div class="field"><label>Situation initiale</label><input name="initialTotal" type="number" step="0.01" value="0"></div>
+          <div class="field"><label>Situation initiale</label><input name="initialTotal" inputmode="decimal" value="0"></div>
           <div class="field"><label>Date objectif</label><input name="targetDate" placeholder="31/08/2026"></div>
-          <div class="field"><label>Valeur objectif</label><input name="targetValue" type="number" step="0.01" value="0"></div>
+          <div class="field"><label>Valeur objectif</label><input name="targetValue" inputmode="decimal" value="0"></div>
         </div>
         <button class="primary-btn" type="submit"><span class="material-symbols-outlined">save</span>Sauver portefeuille</button>
       </form>
@@ -71,11 +71,11 @@
       <div class="field"><label>Nom</label><input name="name" required></div>
       <div class="field"><label>Classe actif</label><select name="assetClass"><option>Actions</option><option>ETF</option><option>Obligations</option><option>Liquidités</option><option>Crypto</option></select></div>
       <div class="field"><label>Secteur</label><input name="sector" value="World"></div>
-      <div class="field"><label>Quantité</label><input name="qty" type="number" step="0.001" required></div>
-      <div class="field"><label>PRU</label><input name="pru" type="number" step="0.001" required></div>
-      <div class="field"><label>Cours actuel</label><input name="currentPrice" type="number" step="0.001" required></div>
-      <div class="field"><label>Stop loss</label><input name="stopLevel" type="number" step="0.001"></div>
-      <div class="field"><label>Override ATR</label><input name="atrMultiplier" type="number" step="0.001" placeholder="Vide = profil"></div>
+      <div class="field"><label>Quantité</label><input name="qty" inputmode="decimal" required></div>
+      <div class="field"><label>PRU</label><input name="pru" inputmode="decimal" required></div>
+      <div class="field"><label>Cours actuel</label><input name="currentPrice" inputmode="decimal" required></div>
+      <div class="field"><label>Stop loss</label><input name="stopLevel" inputmode="decimal"></div>
+      <div class="field"><label>Override ATR</label><input name="atrMultiplier" inputmode="decimal" placeholder="Vide = profil"></div>
       </div>
     </div>
     <div class="modal-actions action-row mt-4">
@@ -86,7 +86,7 @@
 </div>
 
 <script type="module">
-  import { getOwners, getPortfolios, getVisiblePortfolios, flattenPositions, money, pct, decimal, round3, addOwner, upsertPortfolio, deletePortfolio, upsertPosition, deletePosition, exportBackup, importBackup, getSettings, state } from './js/store.js';
+  import { getOwners, getPortfolios, getVisiblePortfolios, flattenPositions, money, pct, decimal, round3, parseLocaleNumber, addOwner, upsertPortfolio, deletePortfolio, upsertPosition, deletePosition, exportBackup, importBackup, getSettings, state } from './js/store.js';
   import { suggestedStop } from './js/data.js';
 
   function initInventaire() {
@@ -112,10 +112,10 @@
         const existing = getPortfolios().find(p => p.id === data.id);
         upsertPortfolio({
           ...data,
-          versements: Number(data.versements || 0),
-          currentCash: Number(data.currentCash || 0),
-          initialSituation: { ...(existing?.initialSituation || {}), date: data.initialDate, total: Number(data.initialTotal || 0) },
-          targetSituation: { ...(existing?.targetSituation || {}), date: data.targetDate, value: Number(data.targetValue || 0) },
+          versements: parseLocaleNumber(data.versements),
+          currentCash: parseLocaleNumber(data.currentCash),
+          initialSituation: { ...(existing?.initialSituation || {}), date: data.initialDate, total: parseLocaleNumber(data.initialTotal) },
+          targetSituation: { ...(existing?.targetSituation || {}), date: data.targetDate, value: parseLocaleNumber(data.targetValue) },
           positions: existing?.positions || [],
           deposits: existing?.deposits || []
         });
@@ -125,7 +125,7 @@
     document.getElementById('positionForm').onsubmit = event => {
       event.preventDefault();
       const data = Object.fromEntries(new FormData(event.target));
-      const qty = round3(Number(data.qty || 0));
+      const qty = round3(parseLocaleNumber(data.qty));
       if (!data.id && qty <= 0) {
         closePosition();
         return;
@@ -145,10 +145,10 @@
         assetClass: data.assetClass,
         sector: data.sector,
         qty,
-        pru: round3(Number(data.pru || 0)),
-        currentPrice: round3(Number(data.currentPrice || 0)),
-        stopLevel: round3(Number(data.stopLevel || 0)),
-        atrMultiplier: data.atrMultiplier ? round3(Number(data.atrMultiplier)) : undefined
+        pru: round3(parseLocaleNumber(data.pru)),
+        currentPrice: round3(parseLocaleNumber(data.currentPrice)),
+        stopLevel: round3(parseLocaleNumber(data.stopLevel)),
+        atrMultiplier: data.atrMultiplier ? round3(parseLocaleNumber(data.atrMultiplier)) : undefined
       });
       closePosition();
       renderAll();

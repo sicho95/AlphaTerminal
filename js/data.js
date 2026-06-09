@@ -1,4 +1,4 @@
-import { getPortfolios, saveData, getData, totals, getSettings, DEFAULT_INVESTOR_PROFILES } from './store.js';
+import { getPortfolios, saveData, getData, totals, getSettings, DEFAULT_INVESTOR_PROFILES, parseLocaleNumber, round3 } from './store.js';
 
 export const DEFAULT_DATA = {
   schemaVersion: 2,
@@ -31,9 +31,9 @@ export async function fetchTwelveDataChart(ticker, apiKey) {
   if (json.status === 'error') throw new Error(json.message || `Twelve Data erreur pour ${ticker}`);
   const values = Array.isArray(json.values) ? json.values.slice().reverse() : [];
   if (!values.length) throw new Error(`Aucune donnee Twelve Data pour ${ticker}`);
-  const closes = values.map(row => Number(row.close)).filter(Number.isFinite);
-  const highs = values.map(row => Number(row.high)).filter(Number.isFinite);
-  const lows = values.map(row => Number(row.low)).filter(Number.isFinite);
+  const closes = values.map(row => parseLocaleNumber(row.close)).filter(isPositiveNumber);
+  const highs = values.map(row => parseLocaleNumber(row.high)).filter(isPositiveNumber);
+  const lows = values.map(row => parseLocaleNumber(row.low)).filter(isPositiveNumber);
   const price = closes.at(-1);
   return { closes, highs, lows, price };
 }
@@ -47,10 +47,10 @@ export async function fetchYahooChart(ticker) {
   if (!result) throw new Error(`Reponse Yahoo invalide pour ${ticker}`);
   const quote = result.indicators.quote[0];
   return {
-    closes: quote.close.filter(Number.isFinite),
-    highs: quote.high.filter(Number.isFinite),
-    lows: quote.low.filter(Number.isFinite),
-    price: result.meta.regularMarketPrice || result.meta.previousClose
+    closes: quote.close.map(parseLocaleNumber).filter(isPositiveNumber),
+    highs: quote.high.map(parseLocaleNumber).filter(isPositiveNumber),
+    lows: quote.low.map(parseLocaleNumber).filter(isPositiveNumber),
+    price: parseLocaleNumber(result.meta.regularMarketPrice || result.meta.previousClose)
   };
 }
 
@@ -94,10 +94,17 @@ export async function fetchMacroNews() {
   const settings = getSettings();
   const provider = settings.macroProvider || 'static';
   const query = settings.macroQuery || 'markets OR inflation OR geopolitics';
-  if (provider === 'gdelt') return fetchGdeltNews(query);
-  if (provider === 'marketaux' && settings.marketauxApiKey) return fetchMarketauxNews(query, settings.marketauxApiKey);
-  if (provider === 'finnhub' && settings.finnhubApiKey) return fetchFinnhubNews(settings.finnhubApiKey);
-  return MACRO_EVENTS.map(item => ({ ...item, source: 'Configuration statique offline' }));
+  try {
+    if (provider === 'gdelt') return await fetchGdeltNews(query);
+    if (provider === 'marketaux' && settings.marketauxApiKey) return await fetchMarketauxNews(query, settings.marketauxApiKey);
+    if (provider === 'finnhub' && settings.finnhubApiKey) return await fetchFinnhubNews(settings.finnhubApiKey);
+  } catch {
+  }
+  return staticMacroEvents(provider === 'static' ? 'Configuration statique offline' : `Fallback offline (${provider})`);
+}
+
+function staticMacroEvents(source) {
+  return MACRO_EVENTS.map(item => ({ ...item, source }));
 }
 
 async function fetchGdeltNews(query) {
@@ -170,10 +177,10 @@ export async function refreshQuotes(onProgress = () => {}) {
     for (const position of portfolio.positions) {
       try {
         if (!position.yahooTicker && !position.ticker) throw new Error('Ticker absent');
-        const chart = await fetchMarketChart(position);
-        const nextPosition = { ...position, currentPrice: Number(chart.price.toFixed(2)), history: chart, lastUpdate: new Date().toISOString() };
+        const chart = normalizeChartScale(await fetchMarketChart(position), position);
+        const nextPosition = { ...position, currentPrice: round3(chart.price), history: chart, lastUpdate: new Date().toISOString() };
         const stop = suggestedStop(nextPosition, portfolio.profileId);
-        positions.push({ ...nextPosition, suggestedStop: Number(stop.stop.toFixed(2)), atr14: stop.atr ? Number(stop.atr.toFixed(4)) : null });
+        positions.push({ ...nextPosition, suggestedStop: round3(stop.stop), atr14: stop.atr ? round3(stop.atr) : null });
         onProgress(position.ticker, true);
       } catch {
         positions.push({ ...position, lastUpdate: new Date().toISOString() });
@@ -184,4 +191,34 @@ export async function refreshQuotes(onProgress = () => {}) {
   }
   saveData({ ...current, portfolios: nextPortfolios });
   return totals(nextPortfolios);
+}
+
+function normalizeChartScale(chart, position) {
+  const reference = [position.currentPrice, position.pru].map(parseLocaleNumber).find(value => value > 0);
+  const price = normalizeQuoteValue(chart.price, reference);
+  if (!reference) return { ...chart, price };
+  const factor = price && chart.price ? price / parseLocaleNumber(chart.price) : 1;
+  return {
+    ...chart,
+    price,
+    closes: scaleSeries(chart.closes, factor),
+    highs: scaleSeries(chart.highs, factor),
+    lows: scaleSeries(chart.lows, factor)
+  };
+}
+
+function normalizeQuoteValue(value, reference = 0) {
+  const price = parseLocaleNumber(value);
+  if (!price || !reference) return price;
+  const candidates = [price, price / 10, price / 100, price / 1000, price / 10000, price * 10, price * 100, price * 1000]
+    .filter(candidate => Number.isFinite(candidate) && candidate > 0);
+  return candidates.sort((a, b) => Math.abs(Math.log(a / reference)) - Math.abs(Math.log(b / reference)))[0] || price;
+}
+
+function scaleSeries(values = [], factor = 1) {
+  return values.map(value => round3(parseLocaleNumber(value) * factor)).filter(isPositiveNumber);
+}
+
+function isPositiveNumber(value) {
+  return Number.isFinite(value) && value > 0;
 }

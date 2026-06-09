@@ -1,6 +1,6 @@
 export const SCHEMA_VERSION = 2;
 export const PROFILE_DEFAULTS_VERSION = 3;
-export const APP_VERSION = '0.9.0';
+export const APP_VERSION = '0.9.1';
 
 export const KEYS = {
   data: 'alphaTerm_data',
@@ -83,9 +83,9 @@ function normalizePortfolio(portfolio) {
     type: portfolio.type || 'CTO',
     profileId: portfolio.profileId || portfolio.investorProfile || 'equilibre',
     color: portfolio.color || '#2563eb',
-    versements: parseNumber(portfolio.versements),
+    versements: parseLocaleNumber(portfolio.versements),
     deposits: Array.isArray(portfolio.deposits) ? portfolio.deposits : [],
-    currentCash: parseNumber(portfolio.currentCash || portfolio.cash),
+    currentCash: parseLocaleNumber(portfolio.currentCash || portfolio.cash),
     initialSituation: normalizeSituation(portfolio.initialSituation || portfolio.initial),
     targetSituation: normalizeTargetSituation(portfolio.targetSituation || portfolio.cible || portfolio.target),
     positions: Array.isArray(portfolio.positions) ? portfolio.positions.map(position => ({
@@ -97,11 +97,11 @@ function normalizePortfolio(portfolio) {
       assetClass: position.assetClass || position.type || 'Actions',
       sector: position.sector || 'World',
       currency: position.currency || 'EUR',
-      qty: round3(parseNumber(position.qty)),
-      pru: round3(parseNumber(position.pru)),
-      currentPrice: round3(parseNumber(position.currentPrice || position.pru)),
-      stopLevel: round3(parseNumber(position.stopLevel)),
-      atrMultiplier: position.atrMultiplier ? round3(parseNumber(position.atrMultiplier)) : undefined,
+      qty: round3(parseLocaleNumber(position.qty)),
+      pru: round3(parseLocaleNumber(position.pru)),
+      currentPrice: round3(parseLocaleNumber(position.currentPrice || position.pru)),
+      stopLevel: round3(parseLocaleNumber(position.stopLevel)),
+      atrMultiplier: position.atrMultiplier ? round3(parseLocaleNumber(position.atrMultiplier)) : undefined,
       lastUpdate: position.lastUpdate || null,
       history: position.history || null
     })) : []
@@ -109,12 +109,28 @@ function normalizePortfolio(portfolio) {
 }
 
 export function round3(value) {
-  return Math.round((Number(value) || 0) * 1000) / 1000;
+  return Math.round(parseLocaleNumber(value) * 1000) / 1000;
 }
 
-function parseNumber(value) {
+export function parseLocaleNumber(value) {
   if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
-  return Number(String(value || '0').replace(/[\s\u202f\u00a0€%]/g, '').replace(',', '.')) || 0;
+  const raw = String(value ?? '').trim();
+  if (!raw) return 0;
+  const compact = raw.replace(/[\s\u202f\u00a0€%']/g, '').replace(/[^\d,.-]/g, '');
+  const comma = compact.lastIndexOf(',');
+  const dot = compact.lastIndexOf('.');
+  let normalized = compact;
+
+  if (comma !== -1 && dot !== -1) {
+    const decimalSeparator = comma > dot ? ',' : '.';
+    const thousandsSeparator = decimalSeparator === ',' ? '.' : ',';
+    normalized = compact.split(thousandsSeparator).join('').replace(decimalSeparator, '.');
+  } else if (comma !== -1) {
+    normalized = compact.replace(',', '.');
+  }
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 export function decimal(value, digits = 3) {
@@ -127,18 +143,18 @@ export function decimal(value, digits = 3) {
 function normalizeSituation(situation = {}) {
   return {
     date: situation.date || '',
-    total: parseNumber(situation.total),
-    titres: parseNumber(situation.titres),
-    especes: parseNumber(situation.especes),
-    apportAnnuel: parseNumber(situation.apportAnnuel)
+    total: parseLocaleNumber(situation.total),
+    titres: parseLocaleNumber(situation.titres),
+    especes: parseLocaleNumber(situation.especes),
+    apportAnnuel: parseLocaleNumber(situation.apportAnnuel)
   };
 }
 
 function normalizeTargetSituation(target = {}) {
   return {
     date: target.date || target.targetDate || '',
-    value: parseNumber(target.value || target.valeurCible || target.targetValue),
-    returnPct: parseNumber(target.returnPct || target.rendementPct)
+    value: parseLocaleNumber(target.value || target.valeurCible || target.targetValue),
+    returnPct: parseLocaleNumber(target.returnPct || target.rendementPct)
   };
 }
 

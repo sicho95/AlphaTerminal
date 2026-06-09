@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'alphaterminal-v9';
+const CACHE_VERSION = 'alphaterminal-v10';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DATA_CACHE = `${CACHE_VERSION}-data`;
 
