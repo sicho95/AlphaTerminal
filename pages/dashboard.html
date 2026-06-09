@@ -8,7 +8,6 @@
     <div class="action-row">
       <span id="offlinePill" class="status-pill neutral">Cache local</span>
       <button id="printDashboard" class="ghost-btn" type="button"><span class="material-symbols-outlined">print</span>Rapport</button>
-      <button id="refreshPrices" class="primary-btn" type="button"><span class="material-symbols-outlined">sync</span>Actualiser</button>
     </div>
   </div>
 
@@ -67,8 +66,6 @@
 
 <script type="module">
   import { getVisiblePortfolios, totals, money, pct, getScopeLabel, setSelectedScope, getSettings } from './js/store.js';
-  import { refreshQuotes } from './js/data.js';
-  import { NotifService } from './js/notifications.js';
 
   function initDashboard() {
     const portfolios = getVisiblePortfolios();
@@ -97,27 +94,6 @@
     renderAlerts(total.positions, peaPercent);
     renderObjectives(portfolios, total);
 
-    document.getElementById('refreshPrices').onclick = async event => {
-      const button = event.currentTarget;
-      button.disabled = true;
-      button.classList.add('is-loading');
-      try {
-        const result = await refreshQuotes();
-        const stats = result.refreshStats || { updated: 0, failed: 0, total: 0, failures: [] };
-        const failedTickers = stats.failures.slice(0, 4).map(item => item.ticker).join(', ');
-        if (stats.failed) {
-          NotifService.sendError('Actualisation partielle', `${stats.updated}/${stats.total} lignes mises a jour. Echecs: ${failedTickers || stats.failed}.`);
-        } else {
-          NotifService.push('Cours mis a jour', `${stats.updated}/${stats.total} lignes actualisees avec une source de marche.`);
-        }
-        initDashboard();
-      } catch {
-        NotifService.sendError('Actualisation partielle', 'La connexion ou la source de cours est indisponible. Les donnees cachees restent affichees.');
-      } finally {
-        button.disabled = false;
-        button.classList.remove('is-loading');
-      }
-    };
   }
 
   function renderDonut(portfolios) {

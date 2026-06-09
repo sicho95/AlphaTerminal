@@ -1,4 +1,4 @@
-import { getPortfolios, saveData, getData, totals, getSettings, DEFAULT_INVESTOR_PROFILES, readJSON, writeJSON, parseLocaleNumber, round3 } from './store.js';
+import { getPortfolios, saveData, getData, totals, getSettings, saveSettings, DEFAULT_INVESTOR_PROFILES, readJSON, writeJSON, parseLocaleNumber, round3 } from './store.js';
 
 export const DEFAULT_DATA = {
   schemaVersion: 2,
@@ -16,7 +16,7 @@ export const MACRO_EVENTS = [
 ];
 
 const yahooUrl = ticker => `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=1y&interval=1d`;
-const twelveUrl = (ticker, apiKey) => `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(ticker)}&interval=1day&outputsize=260&apikey=${encodeURIComponent(apiKey)}`;
+const yahooNewsUrl = query => `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&newsCount=8&quotesCount=0`;
 const MACRO_CACHE_KEY = 'alphaTerm_macroCache';
 const MACRO_CACHE_TTL = 30 * 60 * 1000;
 const GDELT_MIN_INTERVAL = 6000;
@@ -59,22 +59,6 @@ const proxied = url => {
   return proxy.includes('{url}') ? proxy.replace('{url}', encodeURIComponent(url)) : proxy + encodeURIComponent(url);
 };
 
-export async function fetchTwelveDataChart(ticker, apiKey) {
-  if (!ticker) throw new Error('Ticker manquant');
-  if (!apiKey) throw new Error('Cle Twelve Data absente');
-  const response = await fetch(twelveUrl(ticker, apiKey));
-  if (!response.ok) throw new Error(`Twelve Data indisponible pour ${ticker}`);
-  const json = await response.json();
-  if (json.status === 'error') throw new Error(json.message || `Twelve Data erreur pour ${ticker}`);
-  const values = Array.isArray(json.values) ? json.values.slice().reverse() : [];
-  if (!values.length) throw new Error(`Aucune donnee Twelve Data pour ${ticker}`);
-  const closes = values.map(row => parseLocaleNumber(row.close)).filter(isPositiveNumber);
-  const highs = values.map(row => parseLocaleNumber(row.high)).filter(isPositiveNumber);
-  const lows = values.map(row => parseLocaleNumber(row.low)).filter(isPositiveNumber);
-  const price = closes.at(-1);
-  return { closes, highs, lows, price, symbol: ticker, source: 'Twelve Data' };
-}
-
 export async function fetchYahooChart(ticker) {
   if (!ticker) throw new Error('Ticker Yahoo manquant');
   const response = await fetch(proxied(yahooUrl(ticker)));
@@ -94,18 +78,9 @@ export async function fetchYahooChart(ticker) {
 }
 
 export async function fetchMarketChart(position) {
-  const settings = getSettings();
   const symbols = quoteSymbols(position);
   const errors = [];
   for (const symbol of symbols) {
-    if (settings.dataProvider === 'twelvedata' && settings.twelveDataApiKey) {
-      try {
-        return await fetchTwelveDataChart(symbol, settings.twelveDataApiKey);
-      } catch (error) {
-        errors.push(`${symbol}: ${error.message}`);
-        if (!settings.yahooFallback) continue;
-      }
-    }
     try {
       return await fetchYahooChart(symbol);
     } catch (error) {
@@ -143,7 +118,7 @@ export function calculateATR(highs = [], lows = [], closes = [], period = 14) {
   return slice.reduce((sum, value) => sum + value, 0) / slice.length;
 }
 
-export function suggestedStop(position, profileKey = getSettings().investorProfile) {
+export function suggestedStop(position, profileKey = position.profileId || getSettings().investorProfile) {
   const settings = getSettings();
   const atr = calculateATR(position.history?.highs, position.history?.lows, position.history?.closes);
   const profile = settings.investorProfiles?.[profileKey];
@@ -180,6 +155,7 @@ export async function fetchMacroNews() {
     let events = [];
     if (provider === 'gdelt') events = await fetchGdeltNews(query);
     if (provider === 'oksurf') events = await fetchOkSurfNews();
+    if (provider === 'yahoo') events = await fetchYahooFinanceNews(query);
     if (provider === 'marketaux' && settings.marketauxApiKey) events = await fetchMarketauxNews(query, settings.marketauxApiKey);
     if (provider === 'finnhub' && settings.finnhubApiKey) events = await fetchFinnhubNews(settings.finnhubApiKey);
     if (events.length) {
@@ -374,6 +350,39 @@ async function fetchFinnhubNews(apiKey) {
   }, 'finnhub')));
 }
 
+export async function fetchYahooFinanceNews(query = 'markets economy inflation rates') {
+  const response = await fetch(proxied(yahooNewsUrl(query)));
+  if (!response.ok) throw new Error('Yahoo Finance news indisponible');
+  const json = await response.json();
+  return sortMacroEvents((json.news || []).slice(0, 8).map(article => enrichMacroEvent({
+    title: article.title || 'News Yahoo Finance',
+    summary: `${article.publisher || 'Yahoo Finance'} · Yahoo Finance`,
+    sentiment: 'Neutre',
+    tags: ['Finance'],
+    source: article.publisher || 'Yahoo Finance',
+    url: article.link,
+    impact: {},
+    provider: 'Yahoo Finance'
+  }, 'yahoo')));
+}
+
+export async function fetchPositionNews(position) {
+  const symbol = position.lastQuoteSymbol || position.yahooTicker || position.ticker || position.name;
+  const response = await fetch(proxied(yahooNewsUrl(symbol)));
+  if (!response.ok) return [];
+  const json = await response.json();
+  return (json.news || []).slice(0, 3).map(article => enrichMacroEvent({
+    title: article.title || 'Actualite titre',
+    summary: `${article.publisher || 'Yahoo Finance'} · ${position.ticker}`,
+    sentiment: 'Neutre',
+    tags: ['Titre', position.ticker],
+    source: article.publisher || 'Yahoo Finance',
+    url: article.link,
+    impact: {},
+    provider: 'Yahoo Finance'
+  }, 'yahoo'));
+}
+
 function toneToSentiment(tone) {
   const value = Number(tone || 0);
   if (value > 1.5) return 'Positif';
@@ -550,6 +559,7 @@ export async function refreshQuotes(onProgress = () => {}) {
     nextPortfolios.push({ ...portfolio, positions });
   }
   saveData({ ...current, portfolios: nextPortfolios });
+  saveSettings({ lastQuotesRefreshAt: new Date().toISOString() });
   return { ...totals(nextPortfolios), refreshStats: stats };
 }
 

@@ -1,5 +1,5 @@
-import { DEFAULT_DATA } from './data.js';
-import { initStore, state, subscribe, getOwners, getPortfolios, setSelectedScope, getScopeLabel, getSettings, saveSettings, markAlertsRead } from './store.js';
+import { DEFAULT_DATA, refreshQuotes } from './data.js';
+import { initStore, state, subscribe, getOwners, getPortfolios, setSelectedScope, getScopeLabel, getSettings, saveSettings, markAlertsRead, clearAlerts } from './store.js';
 import { NotifService } from './notifications.js';
 
 const routes = new Set(['dashboard', 'analyse', 'signaux', 'inventaire', 'parametres']);
@@ -24,6 +24,7 @@ const App = {
     window.addEventListener('online', () => this.renderOnlineState());
     window.addEventListener('offline', () => this.renderOnlineState());
     this.router();
+    this.scheduleAutoRefresh();
 
     if ('serviceWorker' in navigator) {
       try {
@@ -75,6 +76,45 @@ const App = {
       setTimeout(() => panel.classList.add('hidden'), 220);
       markAlertsRead();
     });
+
+    document.getElementById('notification-clear')?.addEventListener('click', () => clearAlerts());
+    document.getElementById('global-refresh')?.addEventListener('click', event => this.refreshAllQuotes(event.currentTarget, true));
+  },
+
+  async refreshAllQuotes(button = null, userTriggered = false) {
+    if (this.refreshingQuotes) return;
+    this.refreshingQuotes = true;
+    button?.classList.add('is-loading');
+    if (button) button.disabled = true;
+    try {
+      const result = await refreshQuotes();
+      const stats = result.refreshStats || { updated: 0, failed: 0, total: 0, failures: [] };
+      if (stats.failed) {
+        const failedTickers = stats.failures.slice(0, 4).map(item => item.ticker).join(', ');
+        NotifService.sendError('Actualisation partielle', `${stats.updated}/${stats.total} lignes mises a jour. Echecs: ${failedTickers || stats.failed}.`);
+      } else if (userTriggered) {
+        NotifService.push('Cours mis a jour', `${stats.updated}/${stats.total} lignes actualisees avec Yahoo Finance.`);
+      }
+      this.router();
+    } catch {
+      NotifService.sendError('Actualisation impossible', 'Yahoo Finance ou le proxy de cours est indisponible.');
+    } finally {
+      this.refreshingQuotes = false;
+      button?.classList.remove('is-loading');
+      if (button) button.disabled = false;
+    }
+  },
+
+  scheduleAutoRefresh() {
+    const run = () => {
+      const settings = getSettings();
+      const minutes = Number(settings.autoRefreshMinutes || 10);
+      if (!minutes || minutes < 1) return;
+      const last = settings.lastQuotesRefreshAt ? new Date(settings.lastQuotesRefreshAt).getTime() : 0;
+      if (!last || Date.now() - last > minutes * 60 * 1000) this.refreshAllQuotes(null, false);
+    };
+    run();
+    setInterval(run, 60 * 1000);
   },
 
   async router() {

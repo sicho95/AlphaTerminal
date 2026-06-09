@@ -12,7 +12,7 @@
 </section>
 
 <script type="module">
-  import { flattenPositions, getVisiblePortfolios, getSettings, money } from './js/store.js';
+  import { flattenPositions, getVisiblePortfolios, getSettings, money, decimal } from './js/store.js';
   import { fetchMacroNews, suggestedStop } from './js/data.js';
 
   async function initSignaux() {
@@ -27,7 +27,7 @@
   function renderSignal(position) {
     const closes = position.history?.closes || [];
     const rsi = calculateRSI(closes);
-    const stop = suggestedStop(position);
+    const stop = suggestedStop(position, position.profileId);
     const distance = position.stopLevel ? (position.currentPrice - position.stopLevel) / position.currentPrice * 100 : null;
     const signal = signalFromRsi(rsi);
     return `<article class="glass-panel md:col-span-6">
@@ -37,6 +37,7 @@
       </div>
       <div class="metric-strip">
         <div><span>RSI14</span><strong>${rsi ?? '-'}</strong></div>
+        <div><span>Cours</span><strong>${decimal(position.currentPrice)} €</strong></div>
         <div><span>Signal</span><strong>${signal.detail}</strong></div>
         <div><span>Stop actuel</span><strong>${money(position.stopLevel)}</strong></div>
         <div><span>Stop ATR</span><strong>${stop.atr ? money(stop.stop) : '-'}</strong></div>

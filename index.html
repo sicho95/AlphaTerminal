@@ -29,6 +29,7 @@
         </button>
         <div id="scope-menu" class="scope-menu hidden" role="tree" aria-label="Arborescence portefeuilles"></div>
       </div>
+      <button id="global-refresh" class="icon-btn" type="button" aria-label="Actualiser les cours"><span class="material-symbols-outlined">sync</span></button>
       <button id="dark-toggle" class="icon-btn" type="button" aria-label="Basculer le mode sombre"><span class="material-symbols-outlined">dark_mode</span></button>
       <button id="notification-toggle" class="icon-btn relative" type="button" aria-label="Ouvrir le centre de notifications">
         <span class="material-symbols-outlined">notifications</span><span id="alert-badge" class="badge-dot hidden">0</span>
@@ -46,7 +47,7 @@
     </div>
   </nav>
   <aside id="notification-panel" class="fixed bottom-0 right-0 top-0 z-50 hidden w-full max-w-md translate-x-full border-l border-outline-variant bg-white p-5 shadow-terminal transition-transform dark:border-slate-700 dark:bg-slate-950" aria-label="Centre de notifications">
-    <div class="mb-4 flex items-center justify-between"><h2 class="headline-md">Notifications</h2><button id="notification-close" class="icon-btn" aria-label="Fermer les notifications"><span class="material-symbols-outlined">close</span></button></div>
+    <div class="mb-4 flex items-center justify-between"><h2 class="headline-md">Notifications</h2><div class="action-row"><button id="notification-clear" class="icon-btn" aria-label="Effacer les notifications"><span class="material-symbols-outlined">delete_sweep</span></button><button id="notification-close" class="icon-btn" aria-label="Fermer les notifications"><span class="material-symbols-outlined">close</span></button></div></div>
     <div id="notification-list" class="space-y-3"></div>
   </aside>
   <script type="module" src="./js/app.js"></script>

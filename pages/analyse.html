@@ -36,12 +36,16 @@
       <div class="section-title"><span class="material-symbols-outlined">format_list_bulleted</span>Lignes detenues</div>
       <div id="holdingsList" class="holdings-table"></div>
     </article>
+    <article class="glass-panel md:col-span-12 no-print">
+      <div class="section-title"><span class="material-symbols-outlined">newspaper</span>News titres Yahoo Finance</div>
+      <div id="positionNews" class="bento-grid"><div class="text-muted md:col-span-12">Chargement des actualites titres...</div></div>
+    </article>
   </div>
 </section>
 
 <script type="module">
   import { getVisiblePortfolios, totals, getSettings, money, pct, decimal } from './js/store.js';
-  import { suggestedStop } from './js/data.js';
+  import { suggestedStop, fetchPositionNews } from './js/data.js';
 
   function initAnalyse() {
     const portfolios = getVisiblePortfolios();
@@ -67,6 +71,7 @@
     renderRebalance(allocation.risk, weighted.target, total.value, profile.etf);
     renderStops(total.positions);
     renderHoldings(total.positions);
+    renderPositionNews(total.positions);
   }
 
   function currentAllocation(positions, value, cash = 0) {
@@ -146,6 +151,30 @@
         </div>`;
       }).join('')}
     ` : `<p class="text-muted">Aucune ligne detenue sur ce perimetre.</p>`;
+  }
+
+  async function renderPositionNews(positions) {
+    const target = document.getElementById('positionNews');
+    const candidates = positions.filter(position => Number(position.qty) > 0).slice(0, 6);
+    try {
+      const groups = await Promise.all(candidates.map(fetchPositionNews));
+      const news = groups.flat().slice(0, 8);
+      target.innerHTML = news.length ? news.map(event => `
+        <a class="mini-card md:col-span-3 macro-card ${sentimentClass(event.sentiment)}" href="${event.url}" target="_blank" rel="noreferrer">
+          <div class="macro-copy"><strong>${event.title}</strong><span>${event.summary || event.source || ''}</span><em>${event.analysisLabel || 'Yahoo Finance'}</em></div>
+          <span class="signal-badge ${sentimentClass(event.sentiment)}">${event.sentiment || 'Neutre'}</span>
+        </a>
+      `).join('') : `<p class="text-muted md:col-span-12">Aucune actualite Yahoo Finance recente pour ces lignes.</p>`;
+    } catch {
+      target.innerHTML = `<p class="text-muted md:col-span-12">News titres indisponibles.</p>`;
+    }
+  }
+
+  function sentimentClass(sentiment) {
+    const value = String(sentiment || '').toLowerCase();
+    if (value.includes('neg')) return 'sell';
+    if (value.includes('pos')) return 'watch';
+    return 'neutral';
   }
 
   function weightedProfileTarget(portfolios, totalValue, profiles, fallbackProfile) {

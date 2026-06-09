@@ -25,31 +25,13 @@
 
     <aside class="glass-panel md:col-span-4">
       <div class="section-title"><span class="material-symbols-outlined">account_tree</span>Structure</div>
+      <div id="importStatus" class="mini-card hidden"></div>
+      <div class="action-row mt-4"><button id="addPortfolio" class="primary-btn" type="button"><span class="material-symbols-outlined">add_business</span>Portefeuille</button></div>
+      <div id="portfolioList" class="list-stack mt-4"></div>
       <form id="ownerForm" class="form-grid">
         <div class="field"><label>Nouveau propriétaire</label><input name="name" placeholder="Jean, Damien..."></div>
         <button class="ghost-btn" type="submit"><span class="material-symbols-outlined">person_add</span>Ajouter</button>
       </form>
-      <form id="portfolioForm" class="form-grid mt-4">
-        <input type="hidden" name="id">
-        <div class="field"><label>Propriétaire</label><select name="ownerId"></select></div>
-        <div class="field"><label>Nom portefeuille</label><input name="name" placeholder="Damien PEA"></div>
-        <div class="form-grid two">
-          <div class="field"><label>Type</label><select name="type"><option>PEA</option><option>CTO</option><option>Assurance-vie</option><option>Autre</option></select></div>
-          <div class="field"><label>Couleur</label><input name="color" type="color" value="#2563eb"></div>
-        </div>
-        <div class="field"><label>Profil portefeuille</label><select name="profileId"></select></div>
-        <div class="field"><label>Versements actuels</label><input name="versements" inputmode="decimal" value="0"></div>
-        <div class="field"><label>Especes actuelles</label><input name="currentCash" inputmode="decimal" value="0"></div>
-        <div class="form-grid two">
-          <div class="field"><label>Date initiale</label><input name="initialDate" placeholder="29/12/2025"></div>
-          <div class="field"><label>Situation initiale</label><input name="initialTotal" inputmode="decimal" value="0"></div>
-          <div class="field"><label>Date objectif</label><input name="targetDate" placeholder="31/08/2026"></div>
-          <div class="field"><label>Valeur objectif</label><input name="targetValue" inputmode="decimal" value="0"></div>
-        </div>
-        <button class="primary-btn" type="submit"><span class="material-symbols-outlined">save</span>Sauver portefeuille</button>
-      </form>
-      <div id="importStatus" class="mini-card hidden"></div>
-      <div id="portfolioList" class="list-stack mt-4"></div>
     </aside>
 
   </div>
@@ -85,6 +67,35 @@
   </form>
 </div>
 
+<div id="portfolioModal" class="modal-backdrop hidden">
+  <form id="portfolioForm" class="glass-panel modal-sheet">
+    <div class="modal-head">
+      <div class="section-title"><span class="material-symbols-outlined">account_balance</span><span id="portfolioTitle">Portefeuille</span></div>
+      <button id="closePortfolioModalTop" class="icon-btn" type="button" aria-label="Fermer"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <input type="hidden" name="id">
+    <div class="modal-scroll">
+      <div class="form-grid two">
+        <div class="field"><label>Propriétaire</label><select name="ownerId"></select></div>
+        <div class="field"><label>Nom portefeuille</label><input name="name" placeholder="Damien PEA"></div>
+        <div class="field"><label>Type</label><select name="type"><option>PEA</option><option>CTO</option><option>Assurance-vie</option><option>Autre</option></select></div>
+        <div class="field"><label>Couleur</label><input name="color" type="color" value="#2563eb"></div>
+        <div class="field"><label>Profil portefeuille</label><select name="profileId"></select></div>
+        <div class="field"><label>Versements actuels</label><input name="versements" inputmode="decimal" value="0"></div>
+        <div class="field"><label>Especes actuelles</label><input name="currentCash" inputmode="decimal" value="0"></div>
+        <div class="field"><label>Date initiale</label><input name="initialDate" placeholder="29/12/2025"></div>
+        <div class="field"><label>Situation initiale</label><input name="initialTotal" inputmode="decimal" value="0"></div>
+        <div class="field"><label>Date objectif</label><input name="targetDate" placeholder="31/08/2026"></div>
+        <div class="field"><label>Valeur objectif</label><input name="targetValue" inputmode="decimal" value="0"></div>
+      </div>
+    </div>
+    <div class="modal-actions action-row mt-4">
+      <button class="primary-btn" type="submit"><span class="material-symbols-outlined">save</span>Sauver</button>
+      <button id="closePortfolioModal" class="ghost-btn" type="button"><span class="material-symbols-outlined">arrow_back</span>Retour</button>
+    </div>
+  </form>
+</div>
+
 <script type="module">
   import { getOwners, getPortfolios, getVisiblePortfolios, flattenPositions, money, pct, decimal, round3, parseLocaleNumber, addOwner, upsertPortfolio, deletePortfolio, upsertPosition, deletePosition, exportBackup, importBackup, getSettings, state } from './js/store.js';
   import { suggestedStop } from './js/data.js';
@@ -99,8 +110,11 @@
     document.getElementById('assetFilter').addEventListener('change', renderPositions);
     document.getElementById('sortFilter').addEventListener('change', renderPositions);
     document.getElementById('addPosition').onclick = () => openPosition();
+    document.getElementById('addPortfolio').onclick = () => openPortfolio();
     document.getElementById('closePositionModal').onclick = closePosition;
     document.getElementById('closePositionModalTop').onclick = closePosition;
+    document.getElementById('closePortfolioModal').onclick = closePortfolio;
+    document.getElementById('closePortfolioModalTop').onclick = closePortfolio;
     document.getElementById('ownerForm').onsubmit = event => {
       event.preventDefault();
       try { addOwner(Object.fromEntries(new FormData(event.target))); event.target.reset(); renderAll(); } catch (error) { alert(error.message); }
@@ -119,7 +133,7 @@
           positions: existing?.positions || [],
           deposits: existing?.deposits || []
         });
-        event.target.reset(); renderAll();
+        closePortfolio(); event.target.reset(); renderAll();
       } catch (error) { alert(error.message); }
     };
     document.getElementById('positionForm').onsubmit = event => {
@@ -195,8 +209,14 @@
       const profile = getSettings().investorProfiles?.[portfolio.profileId || 'equilibre'];
       return `<div class="mini-card"><div><strong>${portfolio.name}</strong><span>${owner?.name || ''} · ${portfolio.type} · ${profile?.label || 'Profil'} · verse ${money(portfolio.versements)} · especes ${money(portfolio.currentCash)}</span></div><div class="action-row"><button class="ghost-btn" data-edit-portfolio="${portfolio.id}">Editer</button><button class="ghost-btn" data-delete-portfolio="${portfolio.id}">Suppr.</button></div></div>`;
     }).join('') : `<div class="empty-state compact">Aucun portefeuille.</div>`;
-    document.querySelectorAll('[data-edit-portfolio]').forEach(button => button.onclick = () => editPortfolio(button.dataset.editPortfolio));
-    document.querySelectorAll('[data-delete-portfolio]').forEach(button => button.onclick = () => { if (confirm('Supprimer ce portefeuille et ses positions ?')) { deletePortfolio(button.dataset.deletePortfolio); renderAll(); } });
+    document.querySelectorAll('[data-edit-portfolio]').forEach(button => button.onclick = () => openPortfolio(button.dataset.editPortfolio));
+    document.querySelectorAll('[data-delete-portfolio]').forEach(button => button.onclick = () => {
+      const portfolio = getPortfolios().find(item => item.id === button.dataset.deletePortfolio);
+      if (!confirm(`Supprimer le portefeuille "${portfolio?.name || ''}" et toutes ses lignes ?`)) return;
+      if (!confirm('Confirmation definitive : cette suppression est immediate. Continuer ?')) return;
+      deletePortfolio(button.dataset.deletePortfolio);
+      renderAll();
+    });
   }
 
   function renderPositions() {
@@ -250,21 +270,33 @@
     return { kind: 'text-muted', label: `${source || 'Cours actualisé'} · ${formatted}` };
   }
 
-  function editPortfolio(id) {
+  function openPortfolio(id = null) {
     const portfolio = getPortfolios().find(item => item.id === id);
     const form = document.getElementById('portfolioForm');
-    form.id.value = portfolio.id;
-    form.ownerId.value = portfolio.ownerId;
-    form.name.value = portfolio.name;
-    form.type.value = portfolio.type;
-    form.profileId.value = portfolio.profileId || 'equilibre';
-    form.color.value = portfolio.color || '#2563eb';
-    form.versements.value = portfolio.versements || 0;
-    form.currentCash.value = portfolio.currentCash || 0;
-    form.initialDate.value = portfolio.initialSituation?.date || '';
-    form.initialTotal.value = portfolio.initialSituation?.total || 0;
-    form.targetDate.value = portfolio.targetSituation?.date || '';
-    form.targetValue.value = portfolio.targetSituation?.value || 0;
+    form.reset();
+    renderOwners();
+    if (portfolio) {
+      form.id.value = portfolio.id;
+      form.ownerId.value = portfolio.ownerId;
+      form.name.value = portfolio.name;
+      form.type.value = portfolio.type;
+      form.profileId.value = portfolio.profileId || 'equilibre';
+      form.color.value = portfolio.color || '#2563eb';
+      form.versements.value = portfolio.versements || 0;
+      form.currentCash.value = portfolio.currentCash || 0;
+      form.initialDate.value = portfolio.initialSituation?.date || '';
+      form.initialTotal.value = portfolio.initialSituation?.total || 0;
+      form.targetDate.value = portfolio.targetSituation?.date || '';
+      form.targetValue.value = portfolio.targetSituation?.value || 0;
+    }
+    document.getElementById('portfolioTitle').textContent = portfolio ? 'Editer portefeuille' : 'Ajouter portefeuille';
+    document.getElementById('portfolioModal').classList.remove('hidden');
+    document.body.classList.add('modal-open');
+  }
+
+  function closePortfolio() {
+    document.getElementById('portfolioModal').classList.add('hidden');
+    document.body.classList.remove('modal-open');
   }
 
   function renderProfileOptions(select) {
@@ -284,7 +316,7 @@
       return;
     }
     box.classList.remove('hidden');
-    box.innerHTML = `<div><strong>Jeu charge</strong><span>${owners} proprietaires · ${portfolios} portefeuilles · ${positions} lignes detenues</span></div>`;
+    box.innerHTML = `<div><strong>Données Chargées</strong><span>${owners} proprietaires · ${portfolios} portefeuilles · ${positions} lignes detenues</span></div>`;
   }
 
   function openPosition(portfolioId, positionId) {

@@ -12,13 +12,12 @@
     <article class="glass-panel md:col-span-12">
       <div class="section-title"><span class="material-symbols-outlined">tune</span>Données techniques</div>
       <form id="settingsForm" class="form-grid three">
-        <div class="field"><label>Fournisseur cours</label><select name="dataProvider"><option value="twelvedata">Twelve Data</option><option value="yahoo">Yahoo fallback</option></select></div>
-        <div class="field"><label>Cle Twelve Data locale</label><input name="twelveDataApiKey" type="password" autocomplete="off" placeholder="Non commitee dans le repo"></div>
+        <div class="field"><label>Fournisseur cours</label><input value="Yahoo Finance" disabled></div>
+        <div class="field"><label>Actualisation auto (min)</label><input name="autoRefreshMinutes" inputmode="numeric" value="10"></div>
         <div class="field"><label>Proxy CORS</label><input name="corsProxy" placeholder="https://proxy.example/?url= ou .../{url}"></div>
         <div class="field"><label>Plafond PEA</label><input name="peaLimit" inputmode="decimal"></div>
         <div class="field"><label>Profil par défaut</label><select name="investorProfile"><option value="prudent">Prudent</option><option value="equilibre">Equilibre</option><option value="dynamique">Dynamique</option><option value="offensif">Offensif</option><option value="dca">DCA</option></select></div>
-        <div class="field"><label>Fallback Yahoo</label><select name="yahooFallback"><option value="true">Oui</option><option value="false">Non</option></select></div>
-        <div class="field"><label>Source macro/news</label><select name="macroProvider"><option value="static">Offline statique</option><option value="gdelt">GDELT mondial</option><option value="oksurf">OKSURF sans cle</option><option value="marketaux">Marketaux finance</option><option value="finnhub">Finnhub finance</option></select></div>
+        <div class="field"><label>Source macro/news</label><select name="macroProvider"><option value="static">Offline statique</option><option value="gdelt">GDELT mondial</option><option value="oksurf">OKSURF sans cle</option><option value="yahoo">Yahoo Finance</option><option value="marketaux">Marketaux finance</option><option value="finnhub">Finnhub finance</option></select></div>
         <div class="field"><label>Requête macro</label><input name="macroQuery" placeholder="inflation OR energy OR geopolitics"></div>
         <div class="field"><label>Clé Marketaux</label><input name="marketauxApiKey" type="password" autocomplete="off"></div>
         <div class="field"><label>Clé Finnhub</label><input name="finnhubApiKey" type="password" autocomplete="off"></div>
@@ -43,12 +42,13 @@
       event.preventDefault();
       const data = Object.fromEntries(new FormData(event.target));
       saveSettings({
-        dataProvider: data.dataProvider,
-        twelveDataApiKey: data.twelveDataApiKey,
+        dataProvider: 'yahoo',
+        twelveDataApiKey: '',
         corsProxy: data.corsProxy,
+        autoRefreshMinutes: Math.max(1, parseLocaleNumber(data.autoRefreshMinutes) || 10),
         peaLimit: parseLocaleNumber(data.peaLimit) || 150000,
         investorProfile: data.investorProfile,
-        yahooFallback: data.yahooFallback === 'true',
+        yahooFallback: true,
         macroProvider: data.macroProvider,
         macroQuery: data.macroQuery,
         marketauxApiKey: data.marketauxApiKey,
@@ -63,12 +63,10 @@
   function renderSettings() {
     const settings = getSettings();
     const form = document.getElementById('settingsForm');
-    form.dataProvider.value = settings.dataProvider;
-    form.twelveDataApiKey.value = settings.twelveDataApiKey || '';
+    form.autoRefreshMinutes.value = settings.autoRefreshMinutes || 10;
     form.corsProxy.value = settings.corsProxy || '';
     form.peaLimit.value = settings.peaLimit || 150000;
     form.investorProfile.value = settings.investorProfile || 'equilibre';
-    form.yahooFallback.value = String(settings.yahooFallback !== false);
     form.macroProvider.value = settings.macroProvider || 'static';
     form.macroQuery.value = settings.macroQuery || '';
     form.marketauxApiKey.value = settings.marketauxApiKey || '';

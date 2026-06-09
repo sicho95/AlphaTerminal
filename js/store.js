@@ -1,6 +1,6 @@
 export const SCHEMA_VERSION = 2;
 export const PROFILE_DEFAULTS_VERSION = 3;
-export const APP_VERSION = '0.9.5';
+export const APP_VERSION = '0.9.6';
 
 export const KEYS = {
   data: 'alphaTerm_data',
@@ -28,10 +28,12 @@ const defaultSettings = {
   importMode: 'replace',
   currency: 'EUR',
   peaLimit: 150000,
-  dataProvider: 'twelvedata',
+  dataProvider: 'yahoo',
   twelveDataApiKey: '',
   corsProxy: 'https://proxy.sicho95.workers.dev?url=',
   yahooFallback: true,
+  autoRefreshMinutes: 10,
+  lastQuotesRefreshAt: '',
   macroProvider: 'static',
   marketauxApiKey: '',
   finnhubApiKey: '',
@@ -424,6 +426,12 @@ export function addAlert(alert) {
 
 export function markAlertsRead() {
   state.alerts = state.alerts.map(alert => ({ ...alert, read: true }));
+  writeJSON(KEYS.alerts, state.alerts);
+  emit();
+}
+
+export function clearAlerts() {
+  state.alerts = [];
   writeJSON(KEYS.alerts, state.alerts);
   emit();
 }
