@@ -132,3 +132,12 @@ La sortie réelle `tailscale serve status` du NAS confirme **Funnel on** sur `ht
 La version exacte du client Tailscale QNAP doit être vérifiée via `<CHEMIN_BINAIRE_TAILSCALE> version` avant d'utiliser les syntaxes CLI récentes `--bg --https=8443`; les commandes Serve ont changé en 1.52. Tailscale 8443 serait une nouvelle entrée **Serve privée**, à envisager si elle est libre et si tous les appareils ont Tailscale. **Ne pas ajouter /alpha à Funnel public avant audit de sécurité et essais d'authentification.**
 
 Sur ce QNAP, `docker compose version` = 2.29.1-qnap2, mais `git --version` échoue (commande absente du PATH). Le script de déploiement exige Git sur le NAS : installer/repérer Git (Entware/QGit) ou utiliser un conteneur utilitaire isolé avant l'automatisation. La présence du répertoire téléchargé ne signifie pas que le worker est déployé. `main` GitHub est encore en 1.0.0 ; le script de déploiement ne doit pas être activé tant que `main` ne contient pas la version testée.
+
+
+### Option ultérieure — même domaine, chemin `/alphaterm` (à ne pas activer maintenant)
+
+L'utilisateur souhaite éventuellement utiliser `https://nas-damien.tailfb6907.ts.net/alphaterm` comme URL API, à côté de `/git`, `/livres`, `/agent` et `/portainer`. Le backend continue d'écouter **exclusivement `127.0.0.1:18878`**, le reverse proxy Tailscale ajoute seulement le chemin public `/alphaterm` vers ce port. La version PWA reste sur GitHub Pages : on ne déplace pas la PWA elle-même.
+
+**Important : le port HTTPS 443 du NAS est aujourd'hui en Tailscale Funnel public**. Monter `/alphaterm` sur ce port publierait l'API vers Internet. Exiger l'authentification par appareil, limites de taux, tests d'appairage/revocation, gestion des secrets, et ne pas publier sans recette. Tester la réécriture du préfixe `/alphaterm` par Tailscale avant d'inscrire l'URL dans la PWA. Selon le proxy, les routes `/api/v1/...` de FastAPI doivent recevoir les requêtes sans le préfixe ; les URLs générées et redirections doivent rester cohérentes. Vérifier le support CLI `--set-path` de la version QPKG avant toute commande. Ne jamais utiliser `tailscale serve reset`, ne jamais écraser les routes existantes.
+
+Pour les premières recettes, préférer **un HTTPS Serve privé distinct** sur un port disponible, après vérification `tailscale serve status` et de la version du CLI. Le chemin public `/alphaterm` sera une décision d'activation de production séparée.
