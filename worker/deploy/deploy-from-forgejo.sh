@@ -26,7 +26,15 @@ set +a
 [[ "$AT_HOST_DATA_DIR" = /* ]] || { echo 'AT_HOST_DATA_DIR doit être absolu';exit 1; }
 [[ "$AT_HOST_DATA_DIR" != "$root/releases"* ]] || { echo 'Données persistantes interdites dans releases/'; exit 1; }
 [[ -d "$AT_HOST_DATA_DIR" ]] || { echo "Créer le dossier de données : $AT_HOST_DATA_DIR, puis chown 10001:10001";exit 1; }
-command -v git >/dev/null;command -v docker >/dev/null;command -v curl >/dev/null;command -v tar >/dev/null
+command -v docker >/dev/null;command -v curl >/dev/null;command -v tar >/dev/null
+# Sur QNAP, git peut être fourni par un conteneur éphémère Alpine Git, SANS toucher Forgejo.
+# Le wrapper root/bin/git reprend les chemins absolus du NAS dans un bind mount Docker.
+if ! command -v git >/dev/null 2>&1; then
+  [[ -x "$root/bin/git" ]] || { echo "Git absent. Installer le wrapper $root/bin/git depuis worker/deploy/git-docker-shim.sh";exit 1; }
+  export PATH="$root/bin:$PATH"
+fi
+: "${AT_DEPLOY_BRANCH:=main}"
+[[ "$AT_DEPLOY_BRANCH" =~ ^[a-zA-Z0-9][a-zA-Z0-9._/-]*$ && "$AT_DEPLOY_BRANCH" != *..* ]] || { echo 'Nom de branche invalide';exit 1; }
 bare="$root/source.git"
 if [[ ! -d "$bare" ]]; then
   git init --bare -q "$bare"
@@ -35,8 +43,8 @@ else
   origin=$(git --git-dir="$bare" remote get-url origin)
   [[ "$origin" == "$AT_FORGEJO_GIT_URL" ]] || { echo 'Origine Git a changé : refus de déployer';exit 1; }
 fi
-# MAIN UNIQUEMENT : les branches candidates ne déclenchent jamais le déploiement.
-git --git-dir="$bare" fetch -q --depth=2 origin refs/heads/main
+# Branche main par défaut, candidate SEULEMENT sur demande explicite en exécution manuelle.
+git --git-dir="$bare" fetch -q --depth=2 origin "refs/heads/$AT_DEPLOY_BRANCH"
 sha=$(git --git-dir="$bare" rev-parse FETCH_HEAD)
 tree=$(git --git-dir="$bare" rev-parse "${sha}:worker")
 if [[ -f "$root/current-worker.tree" ]] && [[ "$(cat "$root/current-worker.tree")" == "$tree" ]]; then
@@ -80,4 +88,4 @@ if [[ "$ok" != 1 ]]; then
 fi
 printf '%s\n' "$sha" > "$root/current-release"
 printf '%s\n' "$tree" > "$root/current-worker.tree"
-echo "Déploiement AlphaTerminal Worker OK : $sha ; SQLite + VAPID restent dans $AT_HOST_DATA_DIR"
+echo "Déploiement AlphaTerminal Worker OK : $sha (branche $AT_DEPLOY_BRANCH) ; SQLite + VAPID restent dans $AT_HOST_DATA_DIR"

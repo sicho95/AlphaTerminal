@@ -141,3 +141,12 @@ L'utilisateur souhaite éventuellement utiliser `https://nas-damien.tailfb6907.t
 **Important : le port HTTPS 443 du NAS est aujourd'hui en Tailscale Funnel public**. Monter `/alphaterm` sur ce port publierait l'API vers Internet. Exiger l'authentification par appareil, limites de taux, tests d'appairage/revocation, gestion des secrets, et ne pas publier sans recette. Tester la réécriture du préfixe `/alphaterm` par Tailscale avant d'inscrire l'URL dans la PWA. Selon le proxy, les routes `/api/v1/...` de FastAPI doivent recevoir les requêtes sans le préfixe ; les URLs générées et redirections doivent rester cohérentes. Vérifier le support CLI `--set-path` de la version QPKG avant toute commande. Ne jamais utiliser `tailscale serve reset`, ne jamais écraser les routes existantes.
 
 Pour les premières recettes, préférer **un HTTPS Serve privé distinct** sur un port disponible, après vérification `tailscale serve status` et de la version du CLI. Le chemin public `/alphaterm` sera une décision d'activation de production séparée.
+
+
+### QNAP sans Git système : conteneur Git éphémère
+
+`git` n'est pas installé sur l'hôte mais existe dans le conteneur Forgejo ; **ne pas réutiliser/modifier le conteneur Forgejo**. La branche candidate contient `worker/deploy/git-docker-shim.sh`, qui appelle `alpine/git:2.49.1` (image environ 34 Mo compressée pour amd64), monte uniquement le dossier AlphaTerminal du NAS au même chemin absolu et s'arrête après chaque commande. Le script principal découvre ce wrapper dans `$AT_DEPLOY_HOME/bin/git` si aucun `git` hôte n'existe.
+
+Une connexion SSH au miroir privé nécessite une clé **en lecture seule sur le dépôt AlphaTerminal**, stockée dans `$AT_DEPLOY_HOME/config/git-ssh`, avec `id_ed25519` et `known_hosts` (droits corrects), montés en lecture seule dans le conteneur Git. Ne jamais placer cette clé dans GitHub ni dans l'image Docker. Vérifier le port SSH exact via l'URL clonage SSH affichée par Forgejo et confirmer l'empreinte de l'hôte ; ne pas désactiver `StrictHostKeyChecking`.
+
+Pour une recette **manuelle** de la branche `feature/worker-v1.1.0`, définir `AT_DEPLOY_BRANCH=feature/worker-v1.1.0`. Le comportement par défaut du script reste **`main` uniquement** ; ne pas définir `AT_DEPLOY_BRANCH` dans la tâche automatique. Tant que le worker n'est pas sur `main`, le déploiement périodique doit rester désactivé.
