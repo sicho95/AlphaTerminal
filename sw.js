@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'alphaterminal-v19';
+const CACHE_VERSION = 'alphaterminal-v20';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DATA_CACHE = `${CACHE_VERSION}-data`;
 
@@ -15,6 +15,8 @@ const STATIC_ASSETS = [
   './js/notifications.js',
   './js/market-alerts.js',
   './js/push-sync.js',
+  './js/sync-client.js',
+  './js/sync-ui.js',
   './pages/dashboard.html',
   './pages/analyse.html',
   './pages/signaux.html',
@@ -66,7 +68,8 @@ self.addEventListener('push', event => {
       severity: String(payload.severity || 'info'),
       type: String(payload.type || 'remote'),
       timestamp: payload.timestamp || new Date().toISOString(),
-      read: false
+      read: false,
+      url: typeof payload.url === 'string' && /^https:\/\//.test(payload.url) ? payload.url : ''
     };
     try { await savePendingPush(alert); } catch (error) { console.warn('Push storage unavailable', error); }
     const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });

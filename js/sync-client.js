@@ -1,0 +1,179 @@
+/** NAS Sync 1.1: opt-in. Local storage is always writable; no data leaves the PWA before pairing. */
+import { exportBackup, getData, getSettings, saveSettings, saveData, addAlert, state } from './store.js';
+
+const SESSION='alphaTerm_workerSession';
+const PENDING='alphaTerm_syncPending';
+const REVS='alphaTerm_syncRevisions';
+const EXCLUDE=new Set(['marketauxApiKey','finnhubApiKey','twelveDataApiKey','lastQuotesRefreshAt','workerUrl','workerToken']);
+const QUOTE_FIELDS=new Set(['currentPrice','history','lastUpdate','lastQuoteSource','lastQuoteSymbol','lastQuoteStatus','lastQuoteError','suggestedStop','atr14']);
+const getJson=(key,fallback)=>{try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch {return fallback;}};
+const putJson=(key,obj)=>localStorage.setItem(key,JSON.stringify(obj));
+const cleanSettings=(settings)=>Object.fromEntries(Object.entries(settings||{}).filter(([key])=>!EXCLUDE.has(key)));
+export const stableData=(data)=>({schemaVersion:data.schemaVersion||2,
+  owners:data.owners||[], portfolios:(data.portfolios||[]).map(p=>({...p,positions:(p.positions||[]).map(pos=>Object.fromEntries(
+    Object.entries(pos).filter(([key])=>!QUOTE_FIELDS.has(key))))}))});
+const eq=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+
+export const SyncClient={
+  applying:false,working:false,timer:null,ready:false,session:null,revs:{settings_rev:0,data_rev:0},
+  pending:{},lastStable:null,status:'Mode local',listeners:new Set(),
+  onChange(fn){this.listeners.add(fn);return()=>this.listeners.delete(fn);},
+  report(message){this.status=message;this.listeners.forEach(fn=>fn(message));},
+  async request(path,{method='GET',body,publicRequest=false}={}){
+    const url=this.session?.url;
+    if(!url)throw Error('URL du NAS manquante');
+    const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),12000);
+    try {
+      const resp=await fetch(`${url}/api/v1/${path}`,{method,headers:{'Content-Type':'application/json',
+        ...(!publicRequest&&this.session.token?{'Authorization':`Bearer ${this.session.token}`}:{})},
+        ...(body!==undefined?{body:JSON.stringify(body)}:{}),signal:controller.signal,cache:'no-store'});
+      const result=await resp.json().catch(()=>({}));
+      if(!resp.ok){const error=new Error(typeof result.detail==='string'?result.detail:JSON.stringify(result.detail||result));error.status=resp.status;throw error;}
+      return result;
+    } finally {clearTimeout(timeout);}
+  },
+  async init(){
+    this.session=getJson(SESSION,null);this.revs=getJson(REVS,{settings_rev:0,data_rev:0});
+    this.pending=getJson(PENDING,{});
+    this.lastStable=stableData(getData());
+    this.ready=true;
+    document.addEventListener('alphaterminal:storechange',event=>this.onLocalChange(event.detail));
+    if(this.session?.token){this.report('Profil NAS associé · synchronisation en cours');this.schedule(300);}
+    window.addEventListener('online',()=>this.schedule(400));
+    window.addEventListener('focus',()=>this.schedule(400));
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)this.schedule(400);});
+    setInterval(()=>{if(!document.hidden)this.schedule(150)},60000);
+  },
+  onLocalChange(change){
+    if(!this.ready||this.applying||!this.session?.token)return;
+    if(change.kind==='settings'){
+      const patch=cleanSettings(change.patch);
+      if(Object.keys(patch).length)this.pending.settings_patch={...(this.pending.settings_patch||{}),...patch};
+    }
+    if(change.kind==='data'){
+      const stable=stableData(getData());
+      if(!eq(stable,this.lastStable)){
+        this.pending.data=stable;this.lastStable=stable;
+      }
+    }
+    putJson(PENDING,this.pending);
+    this.schedule(350);
+  },
+  schedule(ms=500){clearTimeout(this.timer);if(this.session?.token)this.timer=setTimeout(()=>this.flush(),ms);},
+  async flush(){
+    if(this.working||!this.session?.token||!navigator.onLine)return;
+    this.working=true;
+    try{
+      const outbound=JSON.parse(JSON.stringify(this.pending));
+      if(Object.keys(outbound).length){
+        const changes={};
+        if(outbound.settings_patch){changes.settings_patch=outbound.settings_patch;changes.settings_base_rev=this.revs.settings_rev;}
+        if(outbound.data){changes.data=outbound.data;changes.data_base_rev=this.revs.data_rev;}
+        const next=await this.request('sync/changes',{method:'POST',body:changes});
+        this.revs={settings_rev:next.settings_rev,data_rev:next.data_rev};putJson(REVS,this.revs);
+        // Keep edits that happened while the request was in flight.
+        for(const kind of ['settings_patch','data']){
+          if(outbound[kind] && eq(outbound[kind],this.pending[kind]))delete this.pending[kind];
+        }
+        putJson(PENDING,this.pending);
+        this.report('Modifications sauvegardées sur le NAS');
+      }
+      if(!Object.keys(this.pending).length){
+        const remote=await this.request('sync/state');
+        await this.applyRemote(remote);
+        await this.syncAlerts();
+      }
+    }catch(error){
+      if(error.status===409)this.report(`Conflit de synchronisation : ${error.message}. Choisir une version dans Paramètres.`);
+      else this.report(`Synchronisation différée : ${error.message}`);
+    }finally{this.working=false;if(Object.keys(this.pending).length&&!this.status.startsWith('Conflit'))this.schedule(15000);}
+  },
+  async applyRemote(remote){
+    if(Object.keys(this.pending).length)return;
+    this.applying=true;
+    try{
+      if(remote.settings_rev>this.revs.settings_rev){
+        saveSettings(cleanSettings(remote.settings));
+      }
+      if(remote.data_rev>this.revs.data_rev){
+        const existing=new Map((getData().portfolios||[]).flatMap(p=>(p.positions||[]).map(pos=>[`${p.id}:${pos.id}`,pos])));
+        const next={...remote.data,portfolios:(remote.data.portfolios||[]).map(p=>({...p,
+          positions:(p.positions||[]).map(pos=>{
+            const old=existing.get(`${p.id}:${pos.id}`);
+            return old?{...pos,...Object.fromEntries(Object.entries(old).filter(([k])=>QUOTE_FIELDS.has(k)))}:pos;
+          })}))};
+        saveData(next);
+        this.lastStable=stableData(getData());
+      }
+      this.revs={settings_rev:remote.settings_rev,data_rev:remote.data_rev};putJson(REVS,this.revs);
+      this.report('Profil synchronisé');
+    }finally{this.applying=false;}
+  },
+  async syncAlerts(){
+    const result=await this.request('alerts');
+    for(const alert of result.alerts||[])if(!state.alerts.some(a=>a.id===alert.id))addAlert(alert);
+  },
+  setUrl(url){
+    const parsed=new URL(url);
+    if(parsed.protocol!=='https:'&&!['localhost','127.0.0.1'].includes(parsed.hostname))throw Error('HTTPS obligatoire pour le NAS');
+    if(parsed.username||parsed.password||parsed.search||parsed.hash)throw Error('URL serveur non valide');
+    this.session={url:parsed.origin+(parsed.pathname==='/'?'':parsed.pathname.replace(/\/$/,''))};
+  },
+  async newProfile(url,code,profileName,deviceName){
+    this.setUrl(url);
+    const creds=await this.request('setup/add-profile',{method:'POST',body:{code,profile_name:profileName,device_name:deviceName},publicRequest:true});
+    this.session={...this.session,...creds};putJson(SESSION,this.session);
+    this.revs={settings_rev:0,data_rev:0};putJson(REVS,this.revs);
+    this.pending={settings_patch:cleanSettings(getSettings()),data:stableData(getData())};putJson(PENDING,this.pending);
+    await this.flush();return creds;
+  },
+  async startPair(url,deviceName){
+    this.setUrl(url);
+    const pending=await this.request('pair/start',{method:'POST',body:{device_name:deviceName},publicRequest:true});
+    sessionStorage.setItem('alphaTerm_pairPending',JSON.stringify({url:this.session.url,...pending}));
+    return pending;
+  },
+  async approve(code){return this.request('pair/approve',{method:'POST',body:{code}});},
+  async claim(){
+    const pair=JSON.parse(sessionStorage.getItem('alphaTerm_pairPending')||'null');
+    if(!pair)throw Error('Aucun appairage en attente');
+    this.session={url:pair.url};
+    if(getData().portfolios?.length && !confirm('Ce téléphone possède déjà des portefeuilles. As-tu exporté une sauvegarde JSON et veux-tu restaurer le profil NAS à la place ?')){
+      return {status:'declined'};
+    }
+    const result=await this.request('pair/claim',{method:'POST',publicRequest:true,
+      body:{request_id:pair.request_id,claim_secret:pair.claim_secret}});
+    if(result.status!=='ready')return result;
+    this.session={url:pair.url,...result};putJson(SESSION,this.session);
+    this.revs={settings_rev:0,data_rev:0};this.pending={};putJson(REVS,this.revs);putJson(PENDING,{});
+    sessionStorage.removeItem('alphaTerm_pairPending');
+    await this.flush();return result;
+  },
+  async resolve(useLocal){
+    const server=await this.request('sync/state');
+    if(useLocal){
+      if(!confirm('Forcer les modifications locales sur le NAS ? Cela remplacera la version distante des champs concernés.'))return;
+      this.revs={settings_rev:server.settings_rev,data_rev:server.data_rev};putJson(REVS,this.revs);
+      await this.flush();
+    }else{
+      if(!confirm('Abandonner les modifications locales non synchronisées et restaurer celles du NAS ?'))return;
+      this.pending={};putJson(PENDING,{});
+      this.revs={settings_rev:0,data_rev:0};putJson(REVS,this.revs);
+      await this.applyRemote(server);
+    }
+  },
+  async enablePush(){
+    if(!this.session?.token)throw Error('Associer le NAS avant les Web Push');
+    if(!('serviceWorker' in navigator)||!('PushManager' in window))throw Error('Web Push non disponible sur cet appareil');
+    if(Notification.permission!=='granted'){
+      const perm=await Notification.requestPermission();if(perm!=='granted')throw Error('Notifications refusées');
+    }
+    const {publicKey}=await this.request('push/key');
+    const padded=publicKey+'='.repeat((4-publicKey.length%4)%4);
+    const binary=Uint8Array.from(atob(padded.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
+    const registration=await navigator.serviceWorker.ready;
+    let sub=await registration.pushManager.getSubscription();
+    if(!sub)sub=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:binary});
+    return this.request('push/subscribe',{method:'POST',body:{subscription:sub.toJSON()}});
+  }
+};

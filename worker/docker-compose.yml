@@ -1,0 +1,27 @@
+services:
+  alphaterminal-worker:
+    build: .
+    container_name: alphaterminal-worker
+    restart: unless-stopped
+    environment:
+      AT_DATA_DIR: /data
+      AT_BOOTSTRAP_CODE: ${AT_BOOTSTRAP_CODE:?Ajouter un code secret dans .env}
+      AT_CORS_ORIGIN: https://sicho95.github.io
+      AT_QUOTES_INTERVAL: 600
+      AT_NEWS_INTERVAL: 1800
+      AT_NEWS_ENABLED: "true"
+      AT_VAPID_SUBJECT: ${AT_VAPID_SUBJECT:?Ajouter mailto:adresse contact dans .env}
+      AT_QUOTES_ENABLED: "true"
+    ports:
+      - "127.0.0.1:8787:8080"
+    volumes:
+      - ${AT_HOST_DATA_DIR:?Configurer AT_HOST_DATA_DIR (chemin absolu NAS)}:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 192m
+    pids_limit: 64

@@ -1,3 +1,9 @@
+## [1.1.0] — 2026-10-26 (développement, pas encore publié)
+- Worker Python SQLite/FastAPI : profils, appareils, synchronisation bidirectionnelle avec conflits, alertes stops et news filtrées, Web Push VAPID.
+- Interface PWA d'appairage, import profil, sync automatique, sans casser les données 1.0.0.
+- Retrait des fournisseurs Marketaux et Finnhub avec clé, maintien Yahoo et OKSURF local.
+- Documentation d'architecture, déploiement, tests, sécurité.
+
 # Versions
 
 ## 1.0.0 — Consolidation préparée, 26 octobre 2026
@@ -18,3 +24,9 @@
 - Tests de bout en bout navigateur, déploiement GitHub Pages et test iPhone réels : **non réalisés**.
 - Web Push distant impossible avant implémentation NAS / VAPID / abonnements.
 - AlphaTerminal2 non supprimé à la livraison du paquet : suppression seulement après déploiement et contrôle sur l'iPhone.
+
+
+### Préparation déploiement Forgejo / QNAP (non activée)
+- Miroir GitHub → Forgejo limité à **AlphaTerminal**, avec refus si le dépôt Forgejo cible existe déjà.
+- Déploiement par tâche NAS dédiée, limité à `worker/` depuis `main` et à un unique projet Compose `alphaterminal`; sauvegardes de profils, SQLite et clés Web Push hors du dépôt.
+- Documentation Tailscale Serve HTTPS sur port libre, sans modifier les routes des autres conteneurs.

@@ -161,8 +161,6 @@ export async function fetchMacroNews() {
     let events = [];
     if (provider === 'oksurf') events = await fetchOkSurfNews();
     if (provider === 'yahoo') events = await fetchYahooFinanceNews(query);
-    if (provider === 'marketaux' && settings.marketauxApiKey) events = await fetchMarketauxNews(query, settings.marketauxApiKey);
-    if (provider === 'finnhub' && settings.finnhubApiKey) events = await fetchFinnhubNews(settings.finnhubApiKey);
     if (events.length) {
       writeMacroCache(cacheKey, events);
       return events;
@@ -180,9 +178,7 @@ export async function fetchMacroFeeds(query = '', settings = getSettings()) {
   const use = source => mode === 'multi' || mode === source;
   const tasks = [
     { id: 'yahoo', label: 'Yahoo Finance', enabled: use('yahoo'), run: () => fetchYahooFinanceNews(query || settings.macroQuery) },
-    { id: 'oksurf', label: 'OKSURF', enabled: use('oksurf'), run: () => fetchOkSurfNews() },
-    { id: 'marketaux', label: 'Marketaux', enabled: use('marketaux') && Boolean(settings.marketauxApiKey), run: () => fetchMarketauxNews(query || settings.macroQuery, settings.marketauxApiKey) },
-    { id: 'finnhub', label: 'Finnhub', enabled: use('finnhub') && Boolean(settings.finnhubApiKey), run: () => fetchFinnhubNews(settings.finnhubApiKey) }
+    { id: 'oksurf', label: 'OKSURF', enabled: use('oksurf'), run: () => fetchOkSurfNews() }
   ].filter(task => task.enabled);
 
   const results = await Promise.all(tasks.map(async task => {
@@ -236,24 +232,6 @@ async function fetchJsonWithFallbacks(urls) {
   throw new Error(errors.join(' | ') || 'Source indisponible');
 }
 
-async function fetchMarketauxNews(query, apiKey) {
-  const url = `https://api.marketaux.com/v1/news/all?api_token=${encodeURIComponent(apiKey)}&search=${encodeURIComponent(query)}&language=en,fr&limit=8`;
-  const response = await fetch(url);
-  if (!response.ok) throw new Error('Marketaux indisponible');
-  const json = await response.json();
-  return sortMacroEvents((json.data || []).map(article => enrichMacroEvent({
-    title: article.title || 'News marche',
-    summary: article.description || article.snippet || '',
-    sentiment: scoreToSentiment(article.sentiment_score),
-    tags: (article.entities || []).slice(0, 3).map(entity => entity.symbol || entity.name).filter(Boolean),
-    source: article.source || 'Marketaux',
-    url: article.url,
-    impact: {},
-    provider: 'Marketaux',
-    providerScore: Number(article.sentiment_score || 0)
-  }, 'marketaux')));
-}
-
 async function fetchOkSurfNews() {
   const response = await fetch('https://ok.surf/api/v1/cors/news-section', {
     method: 'POST',
@@ -276,23 +254,6 @@ async function fetchOkSurfNews() {
       provider: 'OKSURF',
       section: article.section || ''
     }, 'oksurf')));
-}
-
-async function fetchFinnhubNews(apiKey) {
-  const url = `https://finnhub.io/api/v1/news?category=general&token=${encodeURIComponent(apiKey)}`;
-  const response = await fetch(url);
-  if (!response.ok) throw new Error('Finnhub indisponible');
-  const json = await response.json();
-  return sortMacroEvents((json || []).slice(0, 8).map(article => enrichMacroEvent({
-    title: article.headline || 'News marche',
-    summary: article.summary || '',
-    sentiment: 'Neutre',
-    tags: ['Finance'],
-    source: article.source || 'Finnhub',
-    url: article.url,
-    impact: {},
-    provider: 'Finnhub'
-  }, 'finnhub')));
 }
 
 export async function fetchYahooFinanceNews(query = 'markets economy inflation rates') {
@@ -415,10 +376,6 @@ function providerBias(provider, event) {
   if (key === 'gdelt') {
     const tone = Number(event.providerTone || 0);
     return { score: clamp(Math.round(tone / 1.5), -2, 2), impact: Math.abs(tone) > 3 ? 4 : 2 };
-  }
-  if (key === 'marketaux') {
-    const score = Number(event.providerScore || 0);
-    return { score: clamp(Math.round(score * 8), -2, 2), impact: Math.abs(score) > 0.35 ? 4 : 2 };
   }
   if (key === 'oksurf') {
     const section = normalizeMacroText(event.section || '');
