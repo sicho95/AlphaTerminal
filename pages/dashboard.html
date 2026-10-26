@@ -1,0 +1,238 @@
+<section class="page-stack">
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">AlphaTerminal</p>
+      <h1 class="headline-lg">Tableau de bord</h1>
+      <p id="scopeLabel" class="text-muted dark:text-slate-300">Tous les portefeuilles</p>
+    </div>
+    <div class="action-row">
+      <span id="offlinePill" class="status-pill neutral">Cache local</span>
+      <button id="printDashboard" class="ghost-btn" type="button"><span class="material-symbols-outlined">print</span>Rapport</button>
+    </div>
+  </div>
+
+  <div id="emptyDashboard" class="empty-state hidden">
+    <span class="material-symbols-outlined">account_balance_wallet</span>
+    <h2>Aucune donnee</h2>
+    <p>Importe un JSON de sauvegarde ou cree ton premier proprietaire et portefeuille depuis Inventaire.</p>
+    <a class="primary-btn" href="#/inventaire"><span class="material-symbols-outlined">settings</span>Configurer</a>
+  </div>
+
+  <div id="dashboardContent" class="bento-grid">
+    <article class="hero-card md:col-span-8">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <p class="eyebrow">Valeur nette</p>
+          <div id="totalValue" class="metric-xl">0 EUR</div>
+        </div>
+        <span id="totalPerf" class="trend-pill">0%</span>
+      </div>
+      <div class="metric-strip">
+        <div><span>Investi</span><strong id="totalInvested">0 EUR</strong></div>
+        <div><span>Plus-value</span><strong id="totalGain">0 EUR</strong></div>
+        <div><span>PEA verse</span><strong id="peaUsage">0 / 150k</strong></div>
+        <div><span>Portefeuilles</span><strong id="portfolioCount">0</strong></div>
+      </div>
+      <div class="progress-track"><div id="peaBar" class="progress-fill"></div></div>
+      <div id="portfolioGauges" class="portfolio-gauges"></div>
+    </article>
+
+    <article class="glass-panel md:col-span-4">
+      <div class="section-title"><span class="material-symbols-outlined">donut_small</span>Repartition</div>
+      <div id="allocationChart" class="donut"></div>
+    </article>
+
+    <article class="glass-panel md:col-span-7">
+      <div class="section-title"><span class="material-symbols-outlined">trending_up</span>Meilleures positions</div>
+      <div id="topPositions" class="list-stack"></div>
+    </article>
+
+    <article class="glass-panel md:col-span-5">
+      <div class="section-title"><span class="material-symbols-outlined">warning</span>Alertes contexte</div>
+      <div id="criticalAlerts" class="list-stack"></div>
+    </article>
+
+    <article class="glass-panel md:col-span-12 report-block">
+      <div class="section-title"><span class="material-symbols-outlined">flag</span>Trajectoire objectifs</div>
+      <div class="situation-grid">
+        <div class="situation-tile initial"><span>Situation initiale</span><strong id="initialSituation">0 EUR</strong><em id="initialDate">Date non renseignee</em></div>
+        <div class="situation-tile target"><span>Objectif</span><strong id="targetSituation">0 EUR</strong><em id="targetDate">Date non renseignee</em></div>
+        <div class="situation-tile current"><span>Situation actuelle</span><strong id="currentSituation">0 EUR</strong><em id="targetProgress">0% de l'objectif</em></div>
+      </div>
+      <div class="progress-track compact"><div id="targetBar" class="progress-fill"></div></div>
+      <div id="objectiveList" class="objective-list"></div>
+    </article>
+  </div>
+</section>
+
+<script type="module">
+  import { getVisiblePortfolios, totals, money, pct, getScopeLabel, setSelectedScope, getSettings } from './js/store.js';
+
+  function initDashboard() {
+    const portfolios = getVisiblePortfolios();
+    const total = totals(portfolios);
+    document.getElementById('scopeLabel').textContent = getScopeLabel();
+    document.getElementById('offlinePill').textContent = navigator.onLine ? 'En ligne' : 'Hors ligne - cache';
+    document.getElementById('emptyDashboard').classList.toggle('hidden', portfolios.length > 0);
+    document.getElementById('dashboardContent').classList.toggle('hidden', portfolios.length === 0);
+    document.getElementById('printDashboard').onclick = () => window.print();
+    if (!portfolios.length) return;
+
+    document.getElementById('totalValue').textContent = money(total.value);
+    document.getElementById('totalInvested').textContent = money(total.invested);
+    document.getElementById('totalGain').textContent = money(total.gain);
+    document.getElementById('portfolioCount').textContent = total.portfolioCount;
+    document.getElementById('totalPerf').textContent = pct(total.perf);
+    document.getElementById('totalPerf').className = `trend-pill ${total.perf < 0 ? 'negative' : 'positive'}`;
+
+    const peaLimit = getSettings().peaLimit || 150000;
+    const peaPortfolios = portfolios.filter(portfolio => portfolio.type === 'PEA');
+    const peaLimitTotal = peaLimit * peaPortfolios.length;
+    const peaPercent = peaLimitTotal ? Math.min(total.peaVersements / peaLimitTotal * 100, 100) : 0;
+    document.getElementById('peaUsage').textContent = peaLimitTotal ? `${money(total.peaVersements)} / ${money(peaLimitTotal)}` : 'Aucun PEA';
+    document.getElementById('peaBar').style.width = `${peaPercent}%`;
+    renderPortfolioGauges(portfolios, peaLimit);
+
+    renderDonut(portfolios);
+    renderTop(total.positions);
+    renderAlerts(portfolios, total.positions, peaLimit);
+    renderObjectives(portfolios, total);
+
+  }
+
+  function renderDonut(portfolios) {
+    document.querySelectorAll('#allocationLegend').forEach(element => element.remove());
+    const totalValue = portfolios.reduce((sum, p) => sum + p.positions.reduce((s, pos) => s + pos.qty * pos.currentPrice, 0) + Number(p.currentCash || 0), 0) || 1;
+    let cursor = 0;
+    const segments = portfolios.map(portfolio => {
+      const value = portfolio.positions.reduce((sum, pos) => sum + pos.qty * pos.currentPrice, 0) + Number(portfolio.currentCash || 0);
+      const start = cursor;
+      const size = value / totalValue * 360;
+      cursor += size;
+      return `${portfolio.color || '#2563eb'} ${start}deg ${cursor}deg`;
+    });
+    const chart = document.getElementById('allocationChart');
+    chart.style.background = 'transparent';
+    chart.innerHTML = `${renderDonutSvg(portfolios, totalValue)}<div>${money(totalValue)}</div>`;
+    chart.title = 'Cliquer une ligne pour filtrer';
+    chart.onclick = () => setSelectedScope('all');
+
+    const list = portfolios.map(portfolio => {
+      const value = portfolio.positions.reduce((sum, pos) => sum + pos.qty * pos.currentPrice, 0) + Number(portfolio.currentCash || 0);
+      return `<button class="legend-row" data-id="${portfolio.id}"><span style="background:${portfolio.color || '#2563eb'}"></span><strong>${portfolio.name}</strong><em>${money(value)}</em></button>`;
+    }).join('');
+    chart.insertAdjacentHTML('afterend', `<div id="allocationLegend" class="legend-stack">${list}</div>`);
+    chart.parentElement.querySelectorAll('.legend-row').forEach(row => {
+      row.onclick = () => setSelectedScope(`portfolio:${row.dataset.id}`);
+    });
+  }
+
+  function renderDonutSvg(portfolios, totalValue) {
+    let offset = 0;
+    const circles = portfolios.map(portfolio => {
+      const value = portfolio.positions.reduce((sum, pos) => sum + pos.qty * pos.currentPrice, 0) + Number(portfolio.currentCash || 0);
+      const share = totalValue ? value / totalValue * 100 : 0;
+      const circle = `<circle cx="50" cy="50" r="39" pathLength="100" fill="none" stroke="${portfolio.color || '#2563eb'}" stroke-width="18" stroke-dasharray="${share} ${100 - share}" stroke-dashoffset="${-offset}" />`;
+      offset += share;
+      return circle;
+    }).join('');
+    return `<svg class="donut-svg" viewBox="0 0 100 100" aria-hidden="true"><g transform="rotate(-90 50 50)">${circles}</g></svg>`;
+  }
+
+  function renderPortfolioGauges(portfolios, peaLimit) {
+    const target = document.getElementById('portfolioGauges');
+    if (!target) return;
+    target.innerHTML = portfolios.map(portfolio => {
+      const positionsValue = portfolio.positions.reduce((sum, position) => sum + position.qty * position.currentPrice, 0);
+      const current = positionsValue + Number(portfolio.currentCash || 0);
+      const targetValue = Number(portfolio.targetSituation?.value || 0);
+      const versements = Number(portfolio.versements || 0);
+      const isPea = portfolio.type === 'PEA';
+      const reference = isPea ? peaLimit : targetValue;
+      const ratio = reference ? Math.max(0, Math.min((isPea ? versements : current) / reference * 100, 100)) : 0;
+      const caption = isPea
+        ? `${money(versements)} / ${money(peaLimit)}`
+        : targetValue ? `${money(current)} / ${money(targetValue)}` : `${money(current)} · CTO sans plafond PEA`;
+      return `<div class="portfolio-gauge">
+        <div class="portfolio-gauge-head"><strong>${portfolio.name}</strong><span>${caption}</span></div>
+        <div class="progress-track compact"><div class="progress-fill" style="width:${ratio}%; background:${portfolio.color || '#2563eb'}"></div></div>
+      </div>`;
+    }).join('');
+  }
+
+  function renderTop(positions) {
+    const top = positions
+      .map(position => ({ ...position, perf: position.pru ? (position.currentPrice - position.pru) / position.pru * 100 : 0 }))
+      .sort((a, b) => b.perf - a.perf)
+      .slice(0, 5);
+    document.getElementById('topPositions').innerHTML = top.length ? top.map(position => `
+      <div class="mini-card">
+        <div><strong>${position.name}</strong><span>${position.ticker} · ${position.accountName}</span></div>
+        <div class="text-right"><strong>${money(position.qty * position.currentPrice)}</strong><span class="${position.perf < 0 ? 'text-error' : 'text-secondary'}">${pct(position.perf)}</span></div>
+      </div>
+    `).join('') : `<p class="text-muted">Aucune position dans ce perimetre.</p>`;
+  }
+
+  function renderAlerts(portfolios, positions, peaLimit) {
+    const alerts = positions.filter(position => position.stopLevel && position.currentPrice > position.stopLevel)
+      .map(position => ({ ...position, distance: (position.currentPrice - position.stopLevel) / position.currentPrice * 100 }))
+      .filter(position => position.distance < 3)
+      .slice(0, 4);
+    portfolios.filter(portfolio => portfolio.type === 'PEA').forEach(portfolio => {
+      const versements = Number(portfolio.versements || 0);
+      const percent = peaLimit ? versements / peaLimit * 100 : 0;
+      if (percent > 93) {
+        alerts.unshift({
+          name: `Plafond PEA - ${portfolio.name}`,
+          ticker: 'PEA',
+          distance: 0,
+          message: `${money(versements)} verses sur ${money(peaLimit)} (${pct(percent)}).`
+        });
+      }
+    });
+    document.getElementById('criticalAlerts').innerHTML = alerts.length ? alerts.map(alert => `
+      <div class="mini-card alert">
+        <span class="material-symbols-outlined">priority_high</span>
+        <div><strong>${alert.name}</strong><span>${alert.message || `${alert.ticker} est a ${alert.distance.toFixed(1)}% du stop.`}</span></div>
+      </div>
+    `).join('') : `<p class="text-muted">Aucune alerte critique sur le perimetre courant.</p>`;
+  }
+
+  function renderObjectives(portfolios, total) {
+    const dates = portfolios.flatMap(portfolio => [portfolio.initialSituation?.date, portfolio.targetSituation?.date]).filter(Boolean);
+    const initialDates = portfolios.map(portfolio => portfolio.initialSituation?.date).filter(Boolean);
+    const targetDates = portfolios.map(portfolio => portfolio.targetSituation?.date).filter(Boolean);
+    const progress = Math.max(0, Math.min(total.progressToTarget || 0, 999));
+    document.getElementById('initialSituation').textContent = money(total.initialValue);
+    document.getElementById('targetSituation').textContent = money(total.targetValue);
+    document.getElementById('currentSituation').textContent = money(total.value);
+    document.getElementById('initialDate').textContent = formatDateRange(initialDates);
+    document.getElementById('targetDate').textContent = formatDateRange(targetDates);
+    document.getElementById('targetProgress').textContent = total.targetValue ? `${pct(progress)} de l'objectif` : 'Objectif non renseigne';
+    document.getElementById('targetBar').style.width = `${Math.min(progress, 100)}%`;
+    document.getElementById('objectiveList').innerHTML = portfolios.map(portfolio => {
+      const positionsValue = portfolio.positions.reduce((sum, position) => sum + position.qty * position.currentPrice, 0);
+      const current = positionsValue + Number(portfolio.currentCash || 0);
+      const initial = Number(portfolio.initialSituation?.total || 0);
+      const target = Number(portfolio.targetSituation?.value || 0);
+      const portfolioProgress = target > initial ? (current - initial) / (target - initial) * 100 : 0;
+      return `<div class="objective-row">
+        <div><strong>${portfolio.name}</strong><span>${portfolio.type} · initial ${portfolio.initialSituation?.date || '-'} · objectif ${portfolio.targetSituation?.date || '-'}</span></div>
+        <div><span>Initial</span><strong>${money(initial)}</strong></div>
+        <div><span>Actuel</span><strong>${money(current)}</strong></div>
+        <div><span>Objectif</span><strong>${money(target)}</strong></div>
+        <div><span>Avancement</span><strong>${target ? pct(Math.max(0, portfolioProgress)) : '-'}</strong></div>
+      </div>`;
+    }).join('');
+    if (!dates.length) document.getElementById('objectiveList').innerHTML = `<p class="text-muted">Aucune situation initiale ou cible renseignee sur ce perimetre.</p>`;
+  }
+
+  function formatDateRange(dates) {
+    const unique = [...new Set(dates.filter(Boolean))];
+    if (!unique.length) return 'Date non renseignee';
+    if (unique.length === 1) return unique[0];
+    return `${unique[0]} - ${unique.at(-1)}`;
+  }
+
+  initDashboard();
+</script>

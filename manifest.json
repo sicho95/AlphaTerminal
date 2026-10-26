@@ -1,0 +1,41 @@
+{
+  "name": "AlphaTerminal — Pilotage Patrimonial",
+  "short_name": "AlphaTerm",
+  "description": "Plateforme de gestion de portefeuille et signaux financiers",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f7f9ff",
+  "theme_color": "#041627",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["finance", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "url": "./#/dashboard",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Signaux",
+      "url": "./#/signaux",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

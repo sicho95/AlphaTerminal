@@ -1,0 +1,152 @@
+<section class="page-stack">
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">Application</p>
+      <h1 class="headline-lg">Paramètres</h1>
+      <p class="text-muted">Données techniques, profils d'investissement et version installée.</p>
+    </div>
+    <span id="appVersion" class="status-pill neutral">Version</span>
+  </div>
+
+  <div class="bento-grid">
+    <article class="glass-panel md:col-span-12">
+      <div class="section-title"><span class="material-symbols-outlined">tune</span>Données techniques</div>
+      <form id="settingsForm" class="form-grid three">
+        <div class="field"><label>Fournisseur cours</label><input value="Yahoo Finance" disabled></div>
+        <div class="field"><label>Actualisation auto (min)</label><input name="autoRefreshMinutes" inputmode="numeric" value="10"></div>
+        <div class="field"><label>Proxy CORS</label><input name="corsProxy" placeholder="https://proxy.example/?url= ou .../{url}"></div>
+        <div class="field"><label>Plafond PEA</label><input name="peaLimit" inputmode="decimal"></div>
+        <div class="field"><label>Profil par défaut</label><select name="investorProfile"><option value="prudent">Prudent</option><option value="equilibre">Equilibre</option><option value="dynamique">Dynamique</option><option value="offensif">Offensif</option><option value="dca">DCA</option></select></div>
+        <div class="field"><label>Source macro/news</label><select name="macroProvider"><option value="yahoo">Yahoo Finance</option><option value="oksurf">OKSURF sans cle</option><option value="marketaux">Marketaux finance</option><option value="finnhub">Finnhub finance</option><option value="multi">Multi-sources auto</option></select></div>
+        <div class="field"><label>Requête macro</label><input name="macroQuery" placeholder="inflation OR energy OR geopolitics"></div>
+        <div class="field"><label>Clé Marketaux</label><input name="marketauxApiKey" type="password" autocomplete="off"></div>
+        <div class="field"><label>Clé Finnhub</label><input name="finnhubApiKey" type="password" autocomplete="off"></div>
+        <div class="field"><label><input type="checkbox" name="alertStopsEnabled"> Alerter si stop franchi</label></div>
+        <div class="field"><label><input type="checkbox" name="alertStopNearEnabled"> Alerter si stop à moins de 3 %</label></div>
+        <div class="field"><label><input type="checkbox" name="alertPerformanceEnabled"> Alerter si performance atteint +12 %</label></div>
+        <div class="field"><label><input type="checkbox" name="alertRsiEnabled"> Alerter si RSI extrême</label></div>
+        <button class="primary-btn" type="submit"><span class="material-symbols-outlined">save</span>Sauver config</button>
+      </form>
+    </article>
+
+    <article class="glass-panel md:col-span-12">
+      <div class="section-title"><span class="material-symbols-outlined">notifications_active</span>Notifications système</div>
+      <p class="text-muted">Le centre de notifications interne fonctionne indépendamment. Sur iPhone, installe la PWA à l'écran d'accueil et active les notifications ici.</p>
+      <button id="enableSystemNotifications" type="button" class="primary-btn mt-4">Activer les notifications iOS</button>
+      <p id="systemNotificationStatus" class="text-muted mt-3" role="status"></p>
+      <p class="text-muted mt-3">Web Push distant : réception préparée, en attente du futur backend SichoRuntime sur NAS.</p>
+    </article>
+
+    <article class="glass-panel md:col-span-12">
+      <div class="section-title"><span class="material-symbols-outlined">settings_suggest</span>Profils investisseur</div>
+      <div id="profilesEditor" class="profiles-editor"></div>
+      <button id="saveProfiles" class="primary-btn mt-4" type="button"><span class="material-symbols-outlined">save</span>Sauver profils</button>
+    </article>
+  </div>
+</section>
+
+<script type="module">
+  import { APP_VERSION, getSettings, saveSettings, parseLocaleNumber } from './js/store.js';
+  import { NotifService } from './js/notifications.js';
+
+  function initParametres() {
+    document.getElementById('appVersion').textContent = `Version ${APP_VERSION}`;
+    document.getElementById('settingsForm').onsubmit = event => {
+      event.preventDefault();
+      const data = Object.fromEntries(new FormData(event.target));
+      saveSettings({
+        dataProvider: 'yahoo',
+        twelveDataApiKey: '',
+        corsProxy: data.corsProxy,
+        autoRefreshMinutes: Math.max(1, parseLocaleNumber(data.autoRefreshMinutes) || 10),
+        peaLimit: parseLocaleNumber(data.peaLimit) || 150000,
+        investorProfile: data.investorProfile,
+        yahooFallback: true,
+        macroProvider: data.macroProvider,
+        macroQuery: data.macroQuery,
+        marketauxApiKey: data.marketauxApiKey,
+        finnhubApiKey: data.finnhubApiKey,
+        alertStopsEnabled: event.target.elements.alertStopsEnabled.checked,
+        alertStopNearEnabled: event.target.elements.alertStopNearEnabled.checked,
+        alertPerformanceEnabled: event.target.elements.alertPerformanceEnabled.checked,
+        alertRsiEnabled: event.target.elements.alertRsiEnabled.checked
+      });
+      renderSettings();
+    };
+    document.getElementById('enableSystemNotifications').onclick = async () => {
+      const allowed = await NotifService.enable();
+      document.getElementById('systemNotificationStatus').textContent = allowed
+        ? 'Notifications système autorisées.'
+        : 'Notifications non autorisées : vérifier l’installation sur l’écran d’accueil et les réglages iOS.';
+    };
+    document.getElementById('saveProfiles').onclick = saveProfilesFromEditor;
+    renderSettings();
+  }
+
+  function renderSettings() {
+    const settings = getSettings();
+    const form = document.getElementById('settingsForm');
+    form.autoRefreshMinutes.value = settings.autoRefreshMinutes || 10;
+    form.corsProxy.value = settings.corsProxy || '';
+    form.peaLimit.value = settings.peaLimit || 150000;
+    form.investorProfile.value = settings.investorProfile || 'equilibre';
+    form.macroProvider.value = settings.macroProvider || 'multi';
+    form.macroQuery.value = settings.macroQuery || '';
+    form.marketauxApiKey.value = settings.marketauxApiKey || '';
+    form.finnhubApiKey.value = settings.finnhubApiKey || '';
+    for (const name of ['alertStopsEnabled', 'alertStopNearEnabled', 'alertPerformanceEnabled', 'alertRsiEnabled']) {
+      form.elements[name].checked = Boolean(settings[name]);
+    }
+    const permission = 'Notification' in globalThis ? Notification.permission : 'non disponible';
+    document.getElementById('systemNotificationStatus').textContent = `Autorisation système : ${permission}.`;
+    renderProfilesEditor();
+  }
+
+  function renderProfilesEditor() {
+    const profiles = getSettings().investorProfiles || {};
+    document.getElementById('profilesEditor').innerHTML = Object.entries(profiles).map(([id, profile]) => `
+      <div class="profile-edit-card" data-profile="${id}">
+        <div class="form-grid three">
+          <div class="field"><label>Nom</label><input name="label" value="${profile.label || id}"></div>
+          <div class="field"><label>Objectif</label><input name="objective" value="${profile.objective || ''}"></div>
+          <div class="field"><label>Horizon</label><input name="horizon" value="${profile.horizon || ''}"></div>
+          <div class="field"><label>Rendement</label><input name="rate" inputmode="decimal" value="${profile.rate ?? 0.08}"></div>
+          <div class="field"><label>ATR stop</label><input name="atrMultiplier" inputmode="decimal" value="${profile.atrMultiplier ?? 3}"></div>
+          <div class="field"><label>ETF idee</label><input name="etf" value="${profile.etf || ''}"></div>
+          <div class="field"><label>Actions %</label><input name="Actions" inputmode="decimal" value="${profile.target?.Actions ?? 0}"></div>
+          <div class="field"><label>Part ETF %</label><input name="etfShare" inputmode="decimal" value="${profile.etfShare ?? profile.target?.ETF ?? 0}"></div>
+          <div class="field"><label>Obligations %</label><input name="Obligations" inputmode="decimal" value="${profile.target?.Obligations ?? 0}"></div>
+          <div class="field"><label>Liquidites %</label><input name="Liquidités" inputmode="decimal" value="${profile.target?.Liquidités ?? 0}"></div>
+          <div class="field"><label>Crypto %</label><input name="Crypto" inputmode="decimal" value="${profile.target?.Crypto ?? 0}"></div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function saveProfilesFromEditor() {
+    const investorProfiles = {};
+    document.querySelectorAll('[data-profile]').forEach(card => {
+      const id = card.dataset.profile;
+      const read = name => card.querySelector(`[name="${name}"]`)?.value;
+      investorProfiles[id] = {
+        label: read('label'),
+        objective: read('objective'),
+        horizon: read('horizon'),
+        rate: parseLocaleNumber(read('rate')),
+        atrMultiplier: parseLocaleNumber(read('atrMultiplier')) || 3,
+        etf: read('etf'),
+        etfShare: parseLocaleNumber(read('etfShare')),
+        target: {
+          Actions: parseLocaleNumber(read('Actions')),
+          Obligations: parseLocaleNumber(read('Obligations')),
+          Liquidités: parseLocaleNumber(read('Liquidités')),
+          Crypto: parseLocaleNumber(read('Crypto'))
+        }
+      };
+    });
+    saveSettings({ investorProfiles });
+    renderSettings();
+  }
+
+  initParametres();
+</script>

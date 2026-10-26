@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": "2026-01-01T00:00:00.000Z",
+  "data": {
+    "schemaVersion": 2,
+    "owners": [
+      {
+        "id": "demo",
+        "name": "Démonstration",
+        "color": "#2563eb"
+      }
+    ],
+    "portfolios": [
+      {
+        "id": "demo-pea",
+        "ownerId": "demo",
+        "name": "Portefeuille de démonstration",
+        "type": "PEA",
+        "profileId": "equilibre",
+        "versements": 1000,
+        "currentCash": 100,
+        "positions": [
+          {
+            "id": "demo-action",
+            "ticker": "DEMO",
+            "yahooTicker": "DEMO",
+            "isin": "",
+            "name": "Titre fictif (ne pas utiliser comme cours réel)",
+            "assetClass": "Actions",
+            "sector": "World",
+            "currency": "EUR",
+            "qty": 1,
+            "pru": 100,
+            "currentPrice": 100,
+            "stopLevel": 90
+          }
+        ]
+      }
+    ]
+  }
+}
