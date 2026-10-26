@@ -67,7 +67,7 @@ export AT_AUTO_DEPLOY=0
 bash "$AT_DEPLOY_HOME/bin/deploy-from-forgejo.sh"  # récupération Git + validation, PAS de démarrage
 # après validation de la configuration et choix de la branche main comme canal stable
 AT_AUTO_DEPLOY=1 bash "$AT_DEPLOY_HOME/bin/deploy-from-forgejo.sh"
-curl -fsS http://127.0.0.1:8787/health
+curl -fsS http://127.0.0.1:18878/health
 ```
 
 La version déployée provient **uniquement de `main` sur le miroir AlphaTerminal**. Une modification sur une branche candidate ne déploie rien. Le script ne lance `docker compose -p alphaterminal ... up -d` que si l'arbre `worker/` a changé : modifier un README ou les fichiers CSS seuls ne reconstruit pas le conteneur. Aucun `docker system prune` ni commande Docker globale. En cas d'échec du conteneur ou du contrôle de santé, tentative de retour à la release antérieure. Les données restent dans `$AT_HOST_DATA_DIR`.
@@ -97,13 +97,13 @@ tailscale serve status
 Si le port HTTPS 8443 est libre dans **Tailscale Serve** :
 
 ```bash
-tailscale serve --bg --https=8443 http://127.0.0.1:8787
+tailscale serve --bg --https=8443 http://127.0.0.1:18878
 tailscale serve status
 ```
 
 Tailscale crée un certificat valide pour son FQDN `*.ts.net` après activation des certificats HTTPS dans le tailnet. Dans AlphaTerminal, renseigner l'URL **réelle affichée** par `tailscale serve status`, avec `:8443` si applicable. Ne pas inventer le nom du domaine tailnet. Choisir un autre port ou montage de chemin si 8443 est déjà utilisé et tester la compatibilité de la version Tailscale installée. **Ne pas employer `tailscale funnel`** sauf décision explicite d'ouvrir au public.
 
-Si Tailscale est uniquement dans un conteneur distinct, `127.0.0.1:8787` pointe vers ce conteneur et non vers l'hôte QNAP : adapter le routage (reverse proxy local, réseau partagé ou instance Serve sur l'hôte), après inspection de l'installation existante. Le script ne modifie pas ces routes.
+Si Tailscale est uniquement dans un conteneur distinct, `127.0.0.1:18878` pointe vers ce conteneur et non vers l'hôte QNAP : adapter le routage (reverse proxy local, réseau partagé ou instance Serve sur l'hôte), après inspection de l'installation existante. Le script ne modifie pas ces routes.
 
 **Les iPhone et Mac doivent appartenir au tailnet pour accéder à cette API privée**. Ton père devra disposer d'un accès Tailscale autorisé pour appairage/synchronisation hors du Wi-Fi. Le NAS peut néanmoins pousser vers les serveurs Apple depuis Internet, même si le téléphone n'a pas de tunnel actif au moment de la réception. Une URL HTTPS publique via un proxy correctement sécurisé peut être envisagée plus tard si tu ne veux pas installer Tailscale sur tous les appareils.
 
@@ -121,3 +121,14 @@ Si Tailscale est uniquement dans un conteneur distinct, `127.0.0.1:8787` pointe 
 - Le serveur n'a pas été construit/testé dans Docker sur ce QNAP dans le présent environnement ; il faut valider permissions QTS et réseau Docker.
 - Les endpoints Yahoo Finance et certains flux RSS sont externes et peuvent changer, ne constituent pas une garantie de cotation en temps réel.
 - Forgejo « pull mirror » est en lecture seule ; les changements en direct doivent aller sur GitHub ou sur une branche hors miroir.
+
+
+## Correctif QNAP 26/10/2026 — routes existantes
+
+La sortie réelle `tailscale serve status` du NAS confirme **Funnel on** sur `https://nas-damien.tailfb6907.ts.net` : `/` → Home Assistant :8123, `/git` → Forgejo :3000, `/agent` → SichoAgent :18765, `/livres` → SichoBooks :8787, `/portainer` → Portainer :9443. **Ne jamais modifier ni réinitialiser ces routes à l'aveugle.** Funnel, contrairement à Serve privé, permet des accès depuis Internet ; utiliser une exposition privée du worker dans un premier temps et auditer les accès des services existants.
+
+**La valeur par défaut est maintenant `AT_HOST_PORT=18878`.** Compose expose uniquement `127.0.0.1:${AT_HOST_PORT:-18878}:8080` ; les vérifications de santé du script pointent vers ce même port. Avant tout démarrage, vérifier `netstat -tln 2>/dev/null | grep ':18878 '` et `docker ps`. L'ancienne archive/ancien script téléchargé avant ce correctif utilisent `8787` : **retélécharger la branche candidate** ou modifier explicitement les anciennes copies.
+
+La version exacte du client Tailscale QNAP doit être vérifiée via `<CHEMIN_BINAIRE_TAILSCALE> version` avant d'utiliser les syntaxes CLI récentes `--bg --https=8443`; les commandes Serve ont changé en 1.52. Tailscale 8443 serait une nouvelle entrée **Serve privée**, à envisager si elle est libre et si tous les appareils ont Tailscale. **Ne pas ajouter /alpha à Funnel public avant audit de sécurité et essais d'authentification.**
+
+Sur ce QNAP, `docker compose version` = 2.29.1-qnap2, mais `git --version` échoue (commande absente du PATH). Le script de déploiement exige Git sur le NAS : installer/repérer Git (Entware/QGit) ou utiliser un conteneur utilitaire isolé avant l'automatisation. La présence du répertoire téléchargé ne signifie pas que le worker est déployé. `main` GitHub est encore en 1.0.0 ; le script de déploiement ne doit pas être activé tant que `main` ne contient pas la version testée.

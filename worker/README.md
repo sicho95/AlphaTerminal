@@ -5,7 +5,7 @@ Moteur NAS Python 3.12, FastAPI, SQLite et Web Push. **Aucun compte ni portefeui
 ## Prérequis
 
 - NAS x86_64 ou ARM64 avec Docker Compose ; capacité persistante pour `/data`.
-- Un nom DNS **HTTPS public** (reverse proxy NAS ou tunnel HTTPS). Ne pas exposer `8787` directement sur Internet.
+- Un nom DNS **HTTPS public** (reverse proxy NAS ou tunnel HTTPS). Ne pas exposer `18878` directement sur Internet.
 - Un nom d'origine PWA `https://sicho95.github.io` pour CORS ; l'app hébergée sur GitHub Pages conserve son chemin `/AlphaTerminal/`.
 - Pour iOS : PWA installée à l'écran d'accueil, notifications autorisées par geste utilisateur.
 
@@ -23,10 +23,10 @@ chmod 700 state
 chmod 600 .env
 docker compose build
 docker compose up -d
-curl http://127.0.0.1:8787/health
+curl http://127.0.0.1:18878/health
 ```
 
-**Configurer le reverse proxy HTTPS avant d'appairer un iPhone.** Mapper l'URL publique vers `127.0.0.1:8787`. Pour les mises à jour : `docker compose up -d --build`. Le conteneur n'a pas besoin des ports d'administration QNAP.
+**Configurer le reverse proxy HTTPS avant d'appairer un iPhone.** Mapper l'URL publique vers `127.0.0.1:18878`. Pour les mises à jour : `docker compose up -d --build`. Le conteneur n'a pas besoin des ports d'administration QNAP.
 
 La base SQLite et la clé VAPID sont créées dans `worker/state/` (non versionnées) sous l'UID `10001`. **Sauvegarder ensemble les fichiers `.sqlite3` et `.pem`** ; pour les copies à chaud, employer l'API de backup SQLite ou arrêter proprement le conteneur. Le mode WAL implique que la copie isolée d'un `.sqlite3` pendant une écriture n'est pas une sauvegarde cohérente.
 
@@ -84,3 +84,8 @@ node --test tests/test-alerts.mjs
 ## Duplication Forgejo et déploiement continu
 
 Consulter [`../docs/forgejo-tailscale-cicd.md`](../docs/forgejo-tailscale-cicd.md), notamment le script de miroir unique, le volume `AT_HOST_DATA_DIR` extérieur aux releases et le proxy Tailscale Serve sur un port HTTPS distinct. Ne jamais utiliser `tailscale serve reset` lorsque d’autres routes existent.
+
+
+### QNAP nas-damien — port 18878
+
+Le port hôte 8787 est utilisé par SichoBooks (`/livres` en Tailscale Funnel). Depuis le correctif du 26/10/2026, **AlphaTerminal utilise `127.0.0.1:${AT_HOST_PORT:-18878}`**, et le script `deploy-from-forgejo.sh` vérifie ce port. Configurer `AT_HOST_PORT=18878` dans le fichier NAS `config/worker.env` et vérifier qu'il est disponible avant de déployer. L'API ne doit pas être rendue publique par Funnel avant revue de sécurité ; un HTTPS Serve privé est préférable pour démarrer.

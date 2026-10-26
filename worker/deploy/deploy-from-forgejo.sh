@@ -40,7 +40,7 @@ git --git-dir="$bare" fetch -q --depth=2 origin refs/heads/main
 sha=$(git --git-dir="$bare" rev-parse FETCH_HEAD)
 tree=$(git --git-dir="$bare" rev-parse "${sha}:worker")
 if [[ -f "$root/current-worker.tree" ]] && [[ "$(cat "$root/current-worker.tree")" == "$tree" ]]; then
-  if curl -fsS --max-time 3 http://127.0.0.1:8787/health | grep -q '"status":"ok"'; then
+  if curl -fsS --max-time 3 http://127.0.0.1:${AT_HOST_PORT:-18878}/health | grep -q '"status":"ok"'; then
     echo "AlphaTerminal worker actif et inchangé ($sha) : aucun redéploiement."; exit 0
   fi
   echo "Même version worker, mais healthcheck KO : tentative de réparation si AT_AUTO_DEPLOY=1." >&2
@@ -68,7 +68,7 @@ if ! docker compose -p alphaterminal --env-file "$config" -f "$compose" up -d --
 fi
 ok=0
 for _ in $(seq 1 20); do
-  if curl -fsS --max-time 3 http://127.0.0.1:8787/health | grep -q '"status":"ok"'; then ok=1;break;fi
+  if curl -fsS --max-time 3 http://127.0.0.1:${AT_HOST_PORT:-18878}/health | grep -q '"status":"ok"'; then ok=1;break;fi
   sleep 2
 done
 if [[ "$ok" != 1 ]]; then

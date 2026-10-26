@@ -13,7 +13,7 @@ services:
       AT_VAPID_SUBJECT: ${AT_VAPID_SUBJECT:?Ajouter mailto:adresse contact dans .env}
       AT_QUOTES_ENABLED: "true"
     ports:
-      - "127.0.0.1:8787:8080"
+      - "127.0.0.1:${AT_HOST_PORT:-18878}:8080"
     volumes:
       - ${AT_HOST_DATA_DIR:?Configurer AT_HOST_DATA_DIR (chemin absolu NAS)}:/data
     read_only: true
