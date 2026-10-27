@@ -1,3 +1,11 @@
+## 1.2.0 — 27 octobre 2026
+- Création libre de profils NAS, sans code administrateur ni invitation familiale.
+- Récupération du **même profil NAS** à partir du secret contenu dans une sauvegarde chiffrée ; jetons d'appareil indépendants.
+- Un seul export global chiffré AES-256-GCM (PBKDF2 et IndexedDB CryptoKey), restauration sans mot de passe sur un appareil déjà déverrouillé.
+- Paramètres organisés en 5 onglets ; sauvegarde centralisée hors de l'inventaire.
+- Console d'administration NAS à authentification forte pour lister, suspendre et supprimer des profils, suspension des cycles d'alertes/news.
+- Migrations SQLite additives, tests de récupération/gestion des profils, WebCrypto et pipeline CI.
+
 ## [1.1.0] — 2026-10-26 (développement, pas encore publié)
 - Worker Python SQLite/FastAPI : profils, appareils, synchronisation bidirectionnelle avec conflits, alertes stops et news filtrées, Web Push VAPID.
 - Interface PWA d'appairage, import profil, sync automatique, sans casser les données 1.0.0.
