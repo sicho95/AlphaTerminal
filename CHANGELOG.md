@@ -1,3 +1,10 @@
+## 1.2.2 — 27 octobre 2026
+- Centre de notifications iPhone : panneau à défilement autonome, fond bloqué, alerte ouverte automatiquement recentrée dans la liste, date/heure compacte sur une ligne et lien source lisible.
+- Nouveaux **intercalaires intégrés au cadre**, communs à Signaux (Technique / Macro), Analyse (Synthèse / Stops ATR / Lignes / News), Inventaire (Positions / Structure) et Paramètres (5 domaines).
+- Contrôleur d'onglets unique accessible (flèches, Origine, Fin), mémorisation de la dernière section visitée et rendu cohérent mobile/desktop. Impression : toutes les sections restent visibles.
+- Correction de la version affichée ; cache service worker `alphaterminal-v24` pour renouveler les fichiers statiques sans supprimer les données utilisateurs.
+- Tests automatisés de la structure des quatre pages, interaction des onglets et indépendance du défilement des notifications.
+
 ## 1.2.1 — 27 octobre 2026
 - Architecture unifiée `MonitorService` : moteur local lorsque la PWA n'a pas de suivi NAS, API `monitor/state` du worker pour cours, OHLC, alertes et actualités en mode NAS.
 - Règles d'alertes stop, proximité, performance, RSI et importance des actualités utilisant `shared/monitor-rules.json` côté worker et PWA. ATR calculé sur les données NAS avec le multiplicateur du profil investisseur/portefeuille ou surcharge individuelle.
