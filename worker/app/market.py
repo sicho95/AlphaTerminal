@@ -117,15 +117,17 @@ def event_payload(position,quote,kind):
     price=quote['price']
     stop=position['stop']
     ticker=position['symbol']
-    descriptions={
-        'stop':(f'Stop franchi — {name}',f'{ticker} : cours {price:.3f}, seuil {stop:.3f}'),
-        'stop-near':(f'Stop proche — {name}',f'{ticker} : cours {price:.3f}, seuil {stop:.3f}'),
-        'performance':(f'Performance +12 % — {name}',
-             f'{ticker} : performance latente {(price-position["pru"])/position["pru"]*100:.1f} %'),
-        'rsi-low':(f'RSI faible — {name}',f'{ticker} : RSI(14) {calculate_rsi14(quote.get("closes",[])):.1f}'),
-        'rsi-high':(f'RSI élevé — {name}',f'{ticker} : RSI(14) {calculate_rsi14(quote.get("closes",[])):.1f}')
-    }
-    title,message=descriptions[kind]
+    if kind=='stop':
+        title,message=f'Stop franchi — {name}',f'{ticker} : cours {price:.3f}, seuil {stop:.3f}'
+    elif kind=='stop-near':
+        title,message=f'Stop proche — {name}',f'{ticker} : cours {price:.3f}, seuil {stop:.3f}'
+    elif kind=='performance':
+        performance=(price-position['pru'])/position['pru']*100
+        title,message=f'Performance +12 % — {name}',f'{ticker} : performance latente {performance:.1f} %'
+    else:
+        rsi=calculate_rsi14(quote.get('closes',[]))
+        title=f'RSI {"faible" if kind=="rsi-low" else "élevé"} — {name}'
+        message=f'{ticker} : RSI(14) {rsi:.1f}'
     return {'title':title,'message':message+'. Cotation indicative.',
             'type':'rsi' if kind.startswith('rsi-') else kind,
             'severity':'error' if kind=='stop' else 'success' if kind=='performance' else 'warning',
