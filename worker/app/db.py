@@ -95,6 +95,9 @@ def init():
             closes_json TEXT NOT NULL, updated_at TEXT NOT NULL,
             PRIMARY KEY(profile_id,position_key)
         )''')
+        news_columns={r['name'] for r in c.execute('PRAGMA table_info(news_feed)')}
+        if 'provider' not in news_columns:
+            c.execute("ALTER TABLE news_feed ADD COLUMN provider TEXT NOT NULL DEFAULT 'unknown'")
         market_columns={r['name'] for r in c.execute('PRAGMA table_info(market_quotes)')}
         for column in ('highs_json','lows_json'):
             if column not in market_columns:
