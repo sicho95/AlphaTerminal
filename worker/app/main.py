@@ -20,7 +20,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives import serialization
 from .db import init,read_db,transaction,profile_state,apply_changes,new_id,compact,Conflict,now
 from .security import authorize,check_bootstrap,issue_device,digest,issue_recovery,read_recovery,verify_recovery
-from .market import check_market
+from .market import check_market,RULES
 from .news import check_news
 
 log=logging.getLogger('alphaterminal')
@@ -345,7 +345,7 @@ def monitor_state(authorization:str|None=Header(None)):
     with read_db() as db:
         device=authorize(db,authorization)
         pid=device['profile_id']
-        rows=db.execute('''SELECT position_key,symbol,price,as_of,closes_json,highs_json,lows_json,updated_at
+        rows=db.execute('''SELECT position_key,symbol,price,as_of,closes_json,highs_json,lows_json,atr14,atr_multiplier,suggested_stop,updated_at
                            FROM market_quotes WHERE profile_id=? ORDER BY updated_at DESC LIMIT 300''',(pid,)).fetchall()
         settings=db.execute('SELECT settings_json FROM profiles WHERE id=?',(pid,)).fetchone()
         config=json.loads(settings['settings_json'])
@@ -361,14 +361,14 @@ def monitor_state(authorization:str|None=Header(None)):
         alerts=db.execute('''SELECT payload_json FROM alerts WHERE profile_id=?
                              ORDER BY created_at DESC LIMIT 100''',(pid,)).fetchall()
         return {
-            'mode':'nas','contract_version':1,'rule_version':'market-alerts-v1',
+            'mode':'nas','contract_version':RULES['contract_version'],'rule_version':RULES['rule_version'],
             'sources':{'quotes':['Yahoo Finance'],'news':['OKSURF','Yahoo Finance','RSS AMF/BCE/Café de la Bourse','GDELT']},
             'quotes':[{**dict(row),'closes':json.loads(row['closes_json']),
                        'highs':json.loads(row['highs_json']),
                        'lows':json.loads(row['lows_json'])} for row in rows],
             'news':[dict(row) for row in news_rows],
             'alerts':[json.loads(row['payload_json']) for row in alerts],
-            'limits':{'quotes_min_minutes':5,'news_min_minutes':15},
+            'limits':{'quotes_min_minutes':RULES['quotes_min_minutes'],'news_min_minutes':RULES['news_min_minutes']},
             'requested_refresh_minutes':config.get('autoRefreshMinutes',10),
             'dynamic_enabled':bool(config.get('dynamicEnabled',False))
         }
