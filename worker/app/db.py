@@ -84,6 +84,16 @@ def init():
             id TEXT PRIMARY KEY, ip_hash TEXT NOT NULL, created_at TEXT NOT NULL
         )''')
         c.execute('CREATE INDEX IF NOT EXISTS signup_date_idx ON profile_signups(created_at)')
+        c.execute('''CREATE TABLE IF NOT EXISTS pair_invites(
+            id TEXT PRIMARY KEY, profile_id TEXT NOT NULL REFERENCES profiles(id),
+            code_hash TEXT NOT NULL UNIQUE, expires_at REAL NOT NULL,
+            used INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL
+        )''')
+        columns={r['name'] for r in c.execute('PRAGMA table_info(devices)')}
+        for column in ('push_last_attempt','push_last_success','push_last_error'):
+            if column not in columns:
+                c.execute(f'ALTER TABLE devices ADD COLUMN {column} TEXT')
+
 
 def new_id(prefix):
     return f'{prefix}_{secrets.token_urlsafe(12)}'
