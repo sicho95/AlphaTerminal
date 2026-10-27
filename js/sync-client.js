@@ -248,13 +248,14 @@ export const SyncClient={
       const quote=quotes.get(key);
       if(!quote||!Number.isFinite(quote.price)||quote.price<=0)return pos;
       const old=Date.parse(pos.lastUpdate||'')||0;
-      const next=Date.parse(quote.updated_at)||0;
-      if(next<=old&&pos.currentPrice===quote.price)return pos;
+      const marketTime=Number(quote.as_of)*1000;
+      if(!Number.isFinite(marketTime)||marketTime<=0)return pos;
+      if(marketTime<=old&&pos.currentPrice===quote.price)return pos;
       updated++;
       return {...pos,currentPrice:quote.price,
         atr14:quote.atr14,suggestedStop:quote.suggested_stop,
         history:{...(pos.history||{}),closes:quote.closes||[],highs:quote.highs||[],lows:quote.lows||[]},
-        lastUpdate:quote.updated_at,lastQuoteSource:'Yahoo Finance · NAS',
+        lastUpdate:new Date(marketTime).toISOString(),lastQuoteSource:'Yahoo Finance · NAS',
         lastQuoteSymbol:quote.symbol,lastQuoteStatus:'ok',lastQuoteError:''};
     })}));
     if(updated){
