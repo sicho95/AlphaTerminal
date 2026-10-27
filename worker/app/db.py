@@ -99,6 +99,9 @@ def init():
         if 'provider' not in news_columns:
             c.execute("ALTER TABLE news_feed ADD COLUMN provider TEXT NOT NULL DEFAULT 'unknown'")
         market_columns={r['name'] for r in c.execute('PRAGMA table_info(market_quotes)')}
+        for column in ('atr14','atr_multiplier','suggested_stop'):
+            if column not in market_columns:
+                c.execute(f'ALTER TABLE market_quotes ADD COLUMN {column} REAL')
         for column in ('highs_json','lows_json'):
             if column not in market_columns:
                 c.execute(f"ALTER TABLE market_quotes ADD COLUMN {column} TEXT NOT NULL DEFAULT '[]'")
