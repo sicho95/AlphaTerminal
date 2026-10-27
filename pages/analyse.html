@@ -16,9 +16,9 @@
   <div id="analyseContent" class="section-tabset">
     <nav class="section-tabbar" role="tablist" aria-label="Domaines de l'analyse">
       <button id="analyse-tab-summary" type="button" role="tab" data-tab="summary">Synthèse</button>
-      <button id="analyse-tab-atr" type="button" role="tab" data-tab="atr">Stops ATR</button>
-      <button id="analyse-tab-holdings" type="button" role="tab" data-tab="holdings">Lignes détenues</button>
-      <button id="analyse-tab-news" type="button" role="tab" data-tab="news">News titres</button>
+      <button id="analyse-tab-atr" type="button" role="tab" data-tab="atr"><span class="material-symbols-outlined" aria-hidden="true">shield</span>Stops ATR</button>
+      <button id="analyse-tab-holdings" type="button" role="tab" data-tab="holdings"><span class="material-symbols-outlined" aria-hidden="true">format_list_bulleted</span>Lignes détenues</button>
+      <button id="analyse-tab-news" type="button" role="tab" data-tab="news"><span class="material-symbols-outlined" aria-hidden="true">newspaper</span>News titres</button>
     </nav>
     <div class="section-tabframe">
       <section id="analyse-panel-summary" class="section-tabpane bento-grid" data-tab-panel="summary" role="tabpanel" aria-labelledby="analyse-tab-summary">
@@ -37,23 +37,24 @@
           <div id="rebalanceList" class="list-stack"></div>
         </article>
       </section>
-      <section id="analyse-panel-atr" class="section-tabpane bento-grid hidden" data-tab-panel="atr" role="tabpanel" aria-labelledby="analyse-tab-atr">
-        <article class="glass-panel md:col-span-12">
-          <div class="section-title"><span class="material-symbols-outlined">shield</span>Stops ATR profil</div>
-          <div id="stopList" class="list-stack"></div>
-        </article>
+      <section id="analyse-panel-atr" class="section-tabpane hidden" data-tab-panel="atr" role="tabpanel" aria-labelledby="analyse-tab-atr">
+        <div id="stopList" class="list-stack"></div>
       </section>
-      <section id="analyse-panel-holdings" class="section-tabpane bento-grid hidden" data-tab-panel="holdings" role="tabpanel" aria-labelledby="analyse-tab-holdings">
-        <article class="glass-panel md:col-span-12 report-block">
-          <div class="section-title"><span class="material-symbols-outlined">format_list_bulleted</span>Lignes détenues</div>
-          <div id="holdingsList" class="holdings-table"></div>
-        </article>
+      <section id="analyse-panel-holdings" class="section-tabpane hidden report-block" data-tab-panel="holdings" role="tabpanel" aria-labelledby="analyse-tab-holdings">
+        <div id="holdingsList" class="holdings-table"></div>
       </section>
-      <section id="analyse-panel-news" class="section-tabpane bento-grid hidden" data-tab-panel="news" role="tabpanel" aria-labelledby="analyse-tab-news">
-        <article class="glass-panel md:col-span-12 no-print">
-          <div class="section-title"><span class="material-symbols-outlined">newspaper</span>News titres Yahoo Finance</div>
-          <div id="positionNews" class="bento-grid"><div class="text-muted md:col-span-12">Chargement des actualités titres...</div></div>
-        </article>
+      <section id="analyse-panel-news" class="section-tabpane hidden no-print" data-tab-panel="news" role="tabpanel" aria-labelledby="analyse-tab-news">
+        <div class="holding-news-toolbar">
+          <div class="field"><label for="holdingNewsPosition">Titre détenu</label>
+            <select id="holdingNewsPosition"><option value="all">Tous les titres détenus</option></select>
+          </div>
+          <div class="field"><label for="holdingNewsPeriod">Période</label>
+            <select id="holdingNewsPeriod"><option value="7">7 derniers jours</option><option value="30">30 derniers jours</option></select>
+          </div>
+          <button class="secondary-btn" id="holdingNewsRefresh" type="button">Actualiser les actualités</button>
+        </div>
+        <p id="holdingNewsStatus" class="text-muted holding-news-status" role="status">Recherche des actualités liées aux positions détenues…</p>
+        <div id="positionNews" class="holding-news-list"></div>
       </section>
     </div>
   </div>
