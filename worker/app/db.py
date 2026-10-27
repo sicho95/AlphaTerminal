@@ -84,6 +84,10 @@ def init():
             id TEXT PRIMARY KEY, ip_hash TEXT NOT NULL, created_at TEXT NOT NULL
         )''')
         c.execute('CREATE INDEX IF NOT EXISTS signup_date_idx ON profile_signups(created_at)')
+        c.execute('''CREATE TABLE IF NOT EXISTS news_feed(
+            url_hash TEXT PRIMARY KEY, title TEXT NOT NULL, url TEXT NOT NULL,
+            source TEXT NOT NULL, summary TEXT NOT NULL, updated_at TEXT NOT NULL
+        )''')
         c.execute('''CREATE TABLE IF NOT EXISTS market_quotes(
             profile_id TEXT NOT NULL REFERENCES profiles(id),
             position_key TEXT NOT NULL, symbol TEXT NOT NULL,
