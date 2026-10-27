@@ -15,7 +15,7 @@ export const stableData=(data)=>({schemaVersion:data.schemaVersion||2,
 const eq=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 
 export const SyncClient={
-  applying:false,working:false,enrolling:false,timer:null,ready:false,session:null,revs:{settings_rev:0,data_rev:0},
+  applying:false,working:false,enrolling:false,timer:null,ready:false,session:null,monitorCache:null,monitorAt:0,revs:{settings_rev:0,data_rev:0},
   pending:{},lastStable:null,status:'Mode local',listeners:new Set(),
   onChange(fn){this.listeners.add(fn);return()=>this.listeners.delete(fn);},
   report(message){this.status=message;this.listeners.forEach(fn=>fn(message));},
@@ -82,6 +82,7 @@ export const SyncClient={
         const remote=await this.request('sync/state');
         await this.applyRemote(remote);
         await this.syncAlerts();
+        if(this.isNasActive())await this.refreshMonitor();
       }
     }catch(error){
       if(error.status===409)this.report(`Conflit de synchronisation : ${error.message}. Choisir une version dans Paramètres.`);
@@ -222,8 +223,47 @@ export const SyncClient={
     const remote=await this.request('sync/state');
     await this.applyRemote(remote);
     await this.syncAlerts();
+    if(this.isNasActive())await this.refreshMonitor();
     this.enrollPushIfGranted().catch(()=>{});
     return creds;
+  },
+  isNasActive(){return Boolean(this.session?.token&&getSettings().dynamicEnabled);},
+  async monitorState(force=false){
+    if(!this.isNasActive())return null;
+    if(!force&&this.monitorCache&&Date.now()-this.monitorAt<45000)return this.monitorCache;
+    const remote=await this.request('monitor/state');
+    if(remote.contract_version!==1)throw Error('Contrat de surveillance NAS non compatible');
+    this.monitorCache=remote;this.monitorAt=Date.now();
+    return remote;
+  },
+  async refreshMonitor(){
+    if(!this.isNasActive())return {refreshStats:{updated:0,failed:0,total:0,failures:[]}};
+    const remote=await this.monitorState(true);
+    // NAS is source of truth for live prices when dynamic surveillance is enabled.
+    const quotes=new Map((remote.quotes||[]).map(q=>[q.position_key,q]));
+    const original=getData();
+    let updated=0;
+    const portfolios=(original.portfolios||[]).map(p=>({...p,positions:(p.positions||[]).map(pos=>{
+      const key=p.id+':'+(pos.id||pos.isin||pos.ticker);
+      const quote=quotes.get(key);
+      if(!quote||!Number.isFinite(quote.price)||quote.price<=0)return pos;
+      const old=Date.parse(pos.lastUpdate||'')||0;
+      const next=Date.parse(quote.updated_at)||0;
+      if(next<=old&&pos.currentPrice===quote.price)return pos;
+      updated++;
+      return {...pos,currentPrice:quote.price,
+        history:{...(pos.history||{}),closes:quote.closes||[],highs:quote.highs||[],lows:quote.lows||[]},
+        lastUpdate:quote.updated_at,lastQuoteSource:'Yahoo Finance · NAS',
+        lastQuoteSymbol:quote.symbol,lastQuoteStatus:'ok',lastQuoteError:''};
+    })}));
+    if(updated){
+      const before=this.applying;this.applying=true;
+      try{saveData({...original,portfolios});}finally{this.applying=before;}
+      this.lastStable=stableData(getData());
+    }
+    for(const alert of remote.alerts||[])
+      if(!state.alerts.some(existing=>existing.id===alert.id))addAlert(alert);
+    return {refreshStats:{updated,failed:0,total:quotes.size,failures:[]}};
   },
   async pushStatus(){
     if(!this.session?.token)return null;
