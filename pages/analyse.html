@@ -13,39 +13,56 @@
     <p>Importe tes donnees ou cree un portefeuille depuis Inventaire.</p>
   </div>
 
-  <div id="analyseContent" class="bento-grid">
-    <article class="hero-card md:col-span-5">
-      <p class="eyebrow">Score de coherence</p>
-      <div id="scoreValue" class="metric-xl">0</div>
-      <span id="scoreBadge" class="trend-pill neutral">A calculer</span>
-      <p id="profileSummary" class="mt-4 text-muted"></p>
-    </article>
-    <article class="glass-panel md:col-span-7">
-      <div class="section-title"><span class="material-symbols-outlined">compare_arrows</span>Allocation actuelle vs cible</div>
-      <div id="allocationBars" class="list-stack"></div>
-    </article>
-    <article class="glass-panel md:col-span-6">
-      <div class="section-title"><span class="material-symbols-outlined">swap_horiz</span>Reequilibrage</div>
-      <div id="rebalanceList" class="list-stack"></div>
-    </article>
-    <article class="glass-panel md:col-span-6">
-      <div class="section-title"><span class="material-symbols-outlined">shield</span>Stops ATR profil</div>
-      <div id="stopList" class="list-stack"></div>
-    </article>
-    <article class="glass-panel md:col-span-12 report-block">
-      <div class="section-title"><span class="material-symbols-outlined">format_list_bulleted</span>Lignes detenues</div>
-      <div id="holdingsList" class="holdings-table"></div>
-    </article>
-    <article class="glass-panel md:col-span-12 no-print">
-      <div class="section-title"><span class="material-symbols-outlined">newspaper</span>News titres Yahoo Finance</div>
-      <div id="positionNews" class="bento-grid"><div class="text-muted md:col-span-12">Chargement des actualites titres...</div></div>
-    </article>
+  <div id="analyseContent" class="section-tabset">
+    <nav class="section-tabbar" role="tablist" aria-label="Domaines de l'analyse">
+      <button id="analyse-tab-summary" role="tab" type="button" data-tab="summary">Synthèse</button>
+      <button id="analyse-tab-atr" role="tab" type="button" data-tab="atr">Stops ATR</button>
+      <button id="analyse-tab-holdings" role="tab" type="button" data-tab="holdings">Lignes détenues</button>
+      <button id="analyse-tab-news" role="tab" type="button" data-tab="news">News titres</button>
+    </nav>
+    <div class="section-tabframe">
+      <section id="analyse-panel-summary" class="section-tabpane bento-grid" data-tab-panel="summary" role="tabpanel" aria-labelledby="analyse-tab-summary">
+        <article class="hero-card md:col-span-5">
+          <p class="eyebrow">Score de cohérence</p>
+          <div id="scoreValue" class="metric-xl">0</div>
+          <span id="scoreBadge" class="trend-pill neutral">À calculer</span>
+          <p id="profileSummary" class="mt-4 text-muted"></p>
+        </article>
+        <article class="glass-panel md:col-span-7">
+          <div class="section-title"><span class="material-symbols-outlined">compare_arrows</span>Allocation actuelle vs cible</div>
+          <div id="allocationBars" class="list-stack"></div>
+        </article>
+        <article class="glass-panel md:col-span-12">
+          <div class="section-title"><span class="material-symbols-outlined">swap_horiz</span>Rééquilibrage</div>
+          <div id="rebalanceList" class="list-stack"></div>
+        </article>
+      </section>
+      <section id="analyse-panel-atr" class="section-tabpane bento-grid hidden" data-tab-panel="atr" role="tabpanel" aria-labelledby="analyse-tab-atr">
+        <article class="glass-panel md:col-span-12">
+          <div class="section-title"><span class="material-symbols-outlined">shield</span>Stops ATR profil</div>
+          <div id="stopList" class="list-stack"></div>
+        </article>
+      </section>
+      <section id="analyse-panel-holdings" class="section-tabpane bento-grid hidden" data-tab-panel="holdings" role="tabpanel" aria-labelledby="analyse-tab-holdings">
+        <article class="glass-panel md:col-span-12 report-block">
+          <div class="section-title"><span class="material-symbols-outlined">format_list_bulleted</span>Lignes détenues</div>
+          <div id="holdingsList" class="holdings-table"></div>
+        </article>
+      </section>
+      <section id="analyse-panel-news" class="section-tabpane bento-grid hidden" data-tab-panel="news" role="tabpanel" aria-labelledby="analyse-tab-news">
+        <article class="glass-panel md:col-span-12 no-print">
+          <div class="section-title"><span class="material-symbols-outlined">newspaper</span>News titres Yahoo Finance</div>
+          <div id="positionNews" class="bento-grid"><div class="text-muted md:col-span-12">Chargement des actualités titres...</div></div>
+        </article>
+      </section>
+    </div>
   </div>
 </section>
 
 <script type="module">
   import { getVisiblePortfolios, totals, getSettings, money, pct, decimal } from './js/store.js';
   import { suggestedStop, fetchPositionNews } from './js/data.js';
+  import { initSectionTabs } from './js/page-tabs.js';
 
   function initAnalyse() {
     const portfolios = getVisiblePortfolios();
@@ -53,6 +70,7 @@
     document.getElementById('emptyAnalyse').classList.toggle('hidden', total.positions.length > 0);
     document.getElementById('analyseContent').classList.toggle('hidden', total.positions.length === 0);
     if (!total.positions.length) return;
+    initSectionTabs(document.getElementById('analyseContent'),'analyse');
 
     const settings = getSettings();
     const profiles = settings.investorProfiles;
