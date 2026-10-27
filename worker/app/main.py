@@ -394,7 +394,10 @@ def push_status(authorization:str|None=Header(None)):
         row=db.execute('''SELECT push_json,push_last_attempt,push_last_success,push_last_error
                           FROM devices WHERE id=?''',(device['id'],)).fetchone()
         settings=db.execute('SELECT settings_json FROM profiles WHERE id=?',(device['profile_id'],)).fetchone()
-        enabled=json.loads(settings['settings_json']).get('dynamicEnabled',False)
+        config=json.loads(settings['settings_json'])
+        enabled=config.get('dynamicEnabled',False)
+        try:minutes=max(RULES['quotes_min_minutes'],min(RULES['quotes_max_minutes'],int(float(config.get('autoRefreshMinutes',10)))))
+        except (TypeError,ValueError,OverflowError):minutes=10
         return {
             'subscribed':bool(row['push_json']),
             'dynamic_enabled':bool(enabled),
@@ -402,8 +405,8 @@ def push_status(authorization:str|None=Header(None)):
             'last_attempt':row['push_last_attempt'],
             'last_success':row['push_last_success'],
             'last_error':row['push_last_error'],
-            'quotes_interval_seconds':max(300,int(os.getenv('AT_QUOTES_INTERVAL','600'))),
-            'news_interval_seconds':max(900,int(os.getenv('AT_NEWS_INTERVAL','1800')))
+            'quotes_interval_seconds':minutes*60,
+            'news_interval_seconds':max(RULES['news_min_minutes'],minutes)*60
         }
 
 @app.post('/api/v1/push/subscribe')
