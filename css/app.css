@@ -656,3 +656,79 @@ body.notifications-open { overflow: hidden; }
 @media (max-width: 480px) {
   #notification-panel { max-width: 100%; width: 100%; border-left: none; }
 }
+
+
+/* 1.2.2 — Intercalaires = titre du bloc. Pas de panneau superflu à l'intérieur. */
+.section-tabbar [role="tab"] .material-symbols-outlined {
+  display: inline-block;
+  vertical-align: -4px;
+  font-size: 18px;
+  margin-right: 6px;
+  line-height: 1;
+}
+.section-tabframe > .section-tabpane:not(.hidden) { min-width: 0; }
+.section-tabpane > .form-grid:first-child,
+.section-tabpane > .action-row:first-child { margin-top: 0; }
+.section-tabpane .table-list,
+.section-tabpane .holdings-table,
+.section-tabpane .list-stack { min-width: 0; }
+.section-tabpane > .signals-grid { margin: 0; }
+.section-tabpane > .list-stack:first-child { padding: 0; }
+
+/* Liste des alertes plus compacte, sans sacrifier la lisibilité iPhone. */
+#notification-panel .notification-head {
+  margin-bottom: 7px;
+  padding-block: 3px 7px;
+}
+#notification-panel #notification-list { padding: 0 2px 12px 0; }
+#notification-list .notification-card {
+  padding: 10px 12px;
+  border-radius: 11px;
+}
+#notification-list .notification-card + .notification-card { margin-top: 7px; }
+#notification-list .notification-title { font-size: .91rem; line-height: 1.25; }
+#notification-list .notification-message { font-size: .84rem; line-height: 1.32; margin-top: 4px; }
+#notification-list .notification-footer { margin-top: 5px; row-gap: 3px; }
+#notification-list .notification-date { font-size: .71rem; }
+#notification-list .notification-footer a { font-size: .76rem; }
+#notification-list .notification-message:empty { display: none; }
+
+/* Actualités propres aux lignes détenues : filtres et petits résumés de presse. */
+.holding-news-toolbar {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.holding-news-toolbar .field { flex: 1 1 190px; min-width: 0; }
+.holding-news-toolbar .field:first-child { flex: 2 1 240px; }
+.holding-news-toolbar select { width: 100%; max-width: 100%; }
+.holding-news-toolbar button { min-height: 44px; flex: 0 0 auto; }
+.holding-news-status { font-size: .8rem; line-height: 1.45; margin: 4px 0 12px; }
+.holding-news-list { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,280px),1fr)); gap: 10px; }
+.holding-news-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 13px 14px;
+  border: 1px solid var(--tab-border, #c4c6cd);
+  border-radius: 12px;
+  background: rgba(255,255,255,.035);
+  transition: border-color .15s ease;
+}
+.holding-news-card:hover, .holding-news-card:focus-visible { border-color: #3b6934; }
+.holding-news-title { font-size: .92rem; line-height: 1.38; overflow-wrap: anywhere; }
+.holding-news-company { font-size: .78rem; color: #546474; font-weight: 750; overflow-wrap: anywhere; }
+.holding-news-meta { font-size: .75rem; color: #667085; overflow-wrap: anywhere; }
+.dark .holding-news-company { color: #b4c4d6; }
+.dark .holding-news-meta { color: #9aa9bc; }
+.holding-news-more { margin-top: 13px; width: 100%; }
+@media(max-width:640px){
+  .holding-news-toolbar { gap: 9px; }
+  .holding-news-toolbar .field { flex-basis: 100%; }
+  .holding-news-toolbar button { width: 100%; }
+  .holding-news-list { grid-template-columns: 1fr; gap: 8px; }
+  .holding-news-card { padding: 11px 12px; }
+}

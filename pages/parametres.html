@@ -12,9 +12,9 @@
   <nav class="settings-tabbar section-tabbar" role="tablist" aria-label="Domaines de paramètres">
     <button id="settings-tab-general" type="button" role="tab" data-tab="general">Général</button>
     <button id="settings-tab-alerts" type="button" role="tab" data-tab="alerts">Alertes</button>
-    <button id="settings-tab-nas" type="button" role="tab" data-tab="nas">Synchronisation NAS</button>
-    <button id="settings-tab-investors" type="button" role="tab" data-tab="investors">Profils investisseurs</button>
-    <button id="settings-tab-backup" type="button" role="tab" data-tab="backup">Sauvegardes</button>
+    <button id="settings-tab-nas" type="button" role="tab" data-tab="nas"><span class="material-symbols-outlined" aria-hidden="true">sync</span>Synchronisation NAS</button>
+    <button id="settings-tab-investors" type="button" role="tab" data-tab="investors"><span class="material-symbols-outlined" aria-hidden="true">settings_suggest</span>Profils investisseurs</button>
+    <button id="settings-tab-backup" type="button" role="tab" data-tab="backup"><span class="material-symbols-outlined" aria-hidden="true">encrypted</span>Sauvegardes</button>
   </nav>
   <div class="section-tabframe bento-grid">
     <article id="settings-panel-general" class="glass-panel md:col-span-12 settings-pane section-tabpane" role="tabpanel" data-tab-panel="general" data-settings-tab="general">
@@ -55,7 +55,7 @@
 
 
     <article id="settings-panel-nas" class="glass-panel md:col-span-12 settings-pane section-tabpane hidden" role="tabpanel" data-tab-panel="nas" data-settings-tab="nas">
-      <div class="section-title"><span class="material-symbols-outlined">sync</span>Profil NAS et synchronisation multi-appareils</div>
+      
       <p class="text-muted">Facultatif et libre : chacun peut créer son profil NAS sans code administrateur. Plusieurs appareils peuvent partager un même profil via un appairage temporaire.</p>
       <div class="field"><label><input type="checkbox" name="dynamicEnabled" form="settingsForm"> Surveillance autonome sur NAS</label></div>
       <button class="primary-btn mt-4" form="settingsForm" type="submit">Enregistrer la surveillance</button>
@@ -94,12 +94,12 @@
     </article>
 
     <article id="settings-panel-investors" class="glass-panel md:col-span-12 settings-pane section-tabpane hidden" role="tabpanel" data-tab-panel="investors" data-settings-tab="investors">
-      <div class="section-title"><span class="material-symbols-outlined">settings_suggest</span>Profils investisseur</div>
+      
       <div id="profilesEditor" class="profiles-editor"></div>
       <button id="saveProfiles" class="primary-btn mt-4" type="button"><span class="material-symbols-outlined">save</span>Sauver profils</button>
     </article>
     <article id="settings-panel-backup" class="glass-panel md:col-span-12 settings-pane section-tabpane hidden" role="tabpanel" data-tab-panel="backup" data-settings-tab="backup">
-      <div class="section-title"><span class="material-symbols-outlined">encrypted</span>Sauvegarde complète chiffrée</div>
+      
       <p class="text-muted">Un seul fichier pour les portefeuilles, alertes, réglages et, si activée, la récupération du même suivi NAS. L'identité de chaque appareil reste indépendante.</p>
       <div class="form-grid two mt-4">
         <div class="field"><label for="backupNewPassword">Définir / changer la phrase de passe</label><input id="backupNewPassword" type="password" autocomplete="new-password" minlength="12" placeholder="12 caractères minimum"></div>

@@ -21,6 +21,8 @@ export function initSectionTabs(root, storageKey = '') {
       if(active&&focus){tab.focus({preventScroll:true});tab.scrollIntoView({block:'nearest',inline:'nearest'});}
     }
     if(key&&persist){try{sessionStorage.setItem(key,name);}catch{/* navigation remains available */}}
+    if(persist&&typeof root.dispatchEvent==='function')root.dispatchEvent(
+      new CustomEvent('alphaterminal:tabchange',{detail:{tab:name}}));
   };
   const remembered=(()=>{try{return key?sessionStorage.getItem(key):null;}catch{return null;}})();
   choose(names.includes(remembered)?remembered:names[0],{persist:false});

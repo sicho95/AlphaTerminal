@@ -23,6 +23,7 @@ jobs:
             node --input-type=module --check < "$file"
           done
           node --check sw.js
+          node scripts/check-pages.mjs
       - name: PWA unit tests
         run: node --test tests/*.mjs
 

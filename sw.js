@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'alphaterminal-v24';
+const CACHE_VERSION = 'alphaterminal-v25';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DATA_CACHE = `${CACHE_VERSION}-data`;
 
@@ -23,6 +23,7 @@ const STATIC_ASSETS = [
   './js/backup.js',
   './js/backup-ui.js',
   './js/page-tabs.js',
+  './js/holding-news.js',
   './js/sync-ui.js',
   './pages/dashboard.html',
   './pages/analyse.html',

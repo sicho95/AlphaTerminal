@@ -1,4 +1,13 @@
 ## 1.2.2 — 27 octobre 2026
+- Intercalaires homogènes sur Signaux, Analyse, Inventaire et Paramètres ; titre et icône portés par l'onglet, sans doublon ni grande carte imbriquée inutile. Sélection clavier et mémorisation de l'onglet.
+- Panneau de notifications mobile : liste réellement défilante et isolée du document, ouverture de la notification sélectionnée, dates lisibles, cartes compactées.
+- **News titres distinctes de la veille macro** : seules les positions actuellement détenues sont recherchées, sur 7 ou 30 jours, avec sélection d'une entreprise/ETF ou consultation de tout le périmètre, résultats datés et sources affichées.
+- Yahoo Finance, Google Actualités RSS et GDELT ciblés par entreprise/ETF, nom et ISIN ; sources indisponibles signalées plutôt qu'un faux « aucune actualité ».
+- NAS : endpoint privé `GET /api/v1/holdings/news` basé sur les portefeuilles du profil authentifié, mise en cache SQLite isolée par profil et titre (20 min), 6 titres maximum par page, appels réseau concurrents bornés et navigation « autres titres ».
+- Local : même interface de lecture, recherche via proxy existant et cache mémoire ; disponibilité limitée par CORS et les fournisseurs.
+- CI : tests de confidentialité/7–30 jours/cache/filtre titres côté FastAPI, tests JS des positions et syntaxe des scripts HTML, image Docker et Compose.
+
+## 1.2.2 — 27 octobre 2026
 - Centre de notifications iPhone : panneau à défilement autonome, fond bloqué, alerte ouverte automatiquement recentrée dans la liste, date/heure compacte sur une ligne et lien source lisible.
 - Nouveaux **intercalaires intégrés au cadre**, communs à Signaux (Technique / Macro), Analyse (Synthèse / Stops ATR / Lignes / News), Inventaire (Positions / Structure) et Paramètres (5 domaines).
 - Contrôleur d'onglets unique accessible (flèches, Origine, Fin), mémorisation de la dernière section visitée et rendu cohérent mobile/desktop. Impression : toutes les sections restent visibles.

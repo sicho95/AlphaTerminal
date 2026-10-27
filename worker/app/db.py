@@ -88,6 +88,13 @@ def init():
             url_hash TEXT PRIMARY KEY, title TEXT NOT NULL, url TEXT NOT NULL,
             source TEXT NOT NULL, summary TEXT NOT NULL, updated_at TEXT NOT NULL
         )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS holding_news_cache(
+            profile_id TEXT NOT NULL REFERENCES profiles(id),
+            position_key TEXT NOT NULL, days INTEGER NOT NULL,
+            signature TEXT NOT NULL, fetched_at REAL NOT NULL,
+            results_json TEXT NOT NULL, errors_json TEXT NOT NULL,
+            PRIMARY KEY(profile_id,position_key,days)
+        )''')
         c.execute('''CREATE TABLE IF NOT EXISTS market_quotes(
             profile_id TEXT NOT NULL REFERENCES profiles(id),
             position_key TEXT NOT NULL, symbol TEXT NOT NULL,

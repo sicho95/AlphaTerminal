@@ -19,10 +19,10 @@ export const SyncClient={
   pending:{},lastStable:null,status:'Mode local',listeners:new Set(),
   onChange(fn){this.listeners.add(fn);return()=>this.listeners.delete(fn);},
   report(message){this.status=message;this.listeners.forEach(fn=>fn(message));},
-  async request(path,{method='GET',body,publicRequest=false}={}){
+  async request(path,{method='GET',body,publicRequest=false,timeoutMs=12000}={}){
     const url=this.session?.url;
     if(!url)throw Error('URL du NAS manquante');
-    const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),12000);
+    const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),timeoutMs);
     try {
       const resp=await fetch(`${url}/api/v1/${path}`,{method,headers:{'Content-Type':'application/json',
         ...(!publicRequest&&this.session.token?{'Authorization':`Bearer ${this.session.token}`}:{})},
@@ -266,6 +266,13 @@ export const SyncClient={
     for(const alert of remote.alerts||[])
       if(!state.alerts.some(existing=>existing.id===alert.id))addAlert(alert);
     return {refreshStats:{updated,failed:0,total:quotes.size,failures:[]}};
+  },
+  async holdingNews(days=7,positionId='',offset=0,portfolioIds=[]){
+    if(!this.isNasActive())return null;
+    const params=new URLSearchParams({days:String(days),offset:String(offset)});
+    if(positionId)params.set('position_id',positionId);
+    if(portfolioIds?.length)params.set('portfolio_ids',portfolioIds.join(','));
+    return this.request('holdings/news?'+params.toString(),{timeoutMs:45000});
   },
   async pushStatus(){
     if(!this.session?.token)return null;
