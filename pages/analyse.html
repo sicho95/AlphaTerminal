@@ -51,7 +51,7 @@
           <div class="field"><label for="holdingNewsPeriod">Période</label>
             <select id="holdingNewsPeriod"><option value="7">7 derniers jours</option><option value="30">30 derniers jours</option></select>
           </div>
-          <button class="secondary-btn" id="holdingNewsRefresh" type="button">Actualiser les actualités</button>
+          <button class="secondary-btn" id="holdingNewsRefresh" type="button">Rechercher les actualités</button>
         </div>
         <p id="holdingNewsStatus" class="text-muted holding-news-status" role="status">Recherche des actualités liées aux positions détenues…</p>
         <div id="positionNews" class="holding-news-list"></div>
@@ -202,11 +202,11 @@
           <span class="holding-news-company">${escapeNews(a.holding_name||a.ticker)} · ${escapeNews(a.ticker||'')}</span>
           <span class="holding-news-meta">${escapeNews(a.source||a.provider||'Actualités')} · ${escapeNews(date)}</span>
         </a>`;
-      }).join(''):(!busy?'<p class="text-muted">Aucune actualité vérifiée pour ces titres et cette période.</p>':'');
+      }).join(''):(!busy?'<p class="text-muted">Aucune actualité trouvée parmi les titres déjà interrogés pour cette période.</p>':'');
       more.classList.toggle('hidden',nextOffset===null||busy||select.value!=='all');
       more.textContent='Rechercher aussi parmi les autres titres ('+scanned+'/'+total+' vérifiés)';
       status.textContent=busy?'Recherche des actualités des sociétés et ETF détenus…':
-        (scanned+'/'+total+' titres vérifiés · '+rows.length+' articles sur '+period.value+' jours · Google Actualités, Yahoo Finance et GDELT')+
+        (scanned+'/'+total+' titres vérifiés · '+rows.length+' articles sur '+period.value+' jours · Google Actualités, Yahoo Finance et GDELT · cache NAS 20 min')+
         (errors.length?' · Certaines sources ne répondent pas.':'');
       if(!busy&&!rows.length&&errors.length){
         target.innerHTML='<p class="text-muted">Aucun article obtenu. Certaines sources sont temporairement indisponibles : ce résultat ne signifie pas qu’il n’existe aucune actualité.</p>';
