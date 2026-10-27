@@ -55,7 +55,7 @@ def transition(profile_id, position_id, kind, is_active, payload):
 
 async def check_market(dispatch):
     with read_db() as db:
-        profiles=db.execute('SELECT id,settings_json,data_json FROM profiles').fetchall()
+        profiles=db.execute('SELECT id,settings_json,data_json FROM profiles WHERE disabled=0').fetchall()
     watches=[]
     for p in profiles:
         settings=json.loads(p['settings_json'])
