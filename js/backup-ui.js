@@ -48,6 +48,8 @@ export async function initBackupUI(){
       await refresh();
       show(result==='restored-with-nas'?
         'Restauration terminée. Même profil NAS reconnecté, appareil indépendant. Vérifier les portefeuilles et les alertes.':
+        result==='restored-local-nas-unavailable'?
+        'Données locales restaurées. Le profil NAS n’a pas pu être récupéré ; vérifier sa disponibilité avant d’activer une nouvelle synchronisation.':
         'Restauration locale complète. Aucune nouvelle synchronisation NAS créée.');
     }catch(e){
       show(e.message==='PASSWORD_REQUIRED'?
