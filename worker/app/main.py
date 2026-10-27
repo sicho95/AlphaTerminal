@@ -332,6 +332,31 @@ def vapid_keys():
     raw=key.public_key().public_bytes(serialization.Encoding.X962,serialization.PublicFormat.UncompressedPoint)
     return str(pem),base64.urlsafe_b64encode(raw).decode().rstrip('=')
 
+@app.get('/api/v1/monitor/state')
+def monitor_state(authorization:str|None=Header(None)):
+    """Authenticated, read-only API: NAS is authoritative for quotes/news/alerts."""
+    with read_db() as db:
+        device=authorize(db,authorization)
+        pid=device['profile_id']
+        rows=db.execute('''SELECT position_key,symbol,price,as_of,closes_json,updated_at
+                           FROM market_quotes WHERE profile_id=? ORDER BY updated_at DESC LIMIT 300''',(pid,)).fetchall()
+        news_rows=db.execute('''SELECT title,url,source,summary,updated_at
+                                FROM news_feed ORDER BY updated_at DESC LIMIT 100''').fetchall()
+        settings=db.execute('SELECT settings_json FROM profiles WHERE id=?',(pid,)).fetchone()
+        config=json.loads(settings['settings_json'])
+        alerts=db.execute('''SELECT payload_json FROM alerts WHERE profile_id=?
+                             ORDER BY created_at DESC LIMIT 100''',(pid,)).fetchall()
+        return {
+            'mode':'nas','contract_version':1,'rule_version':'market-alerts-v1',
+            'sources':{'quotes':['Yahoo Finance'],'news':['OKSURF','Yahoo Finance','RSS AMF/BCE/Café de la Bourse','GDELT']},
+            'quotes':[{**dict(row),'closes':json.loads(row['closes_json'])} for row in rows],
+            'news':[dict(row) for row in news_rows],
+            'alerts':[json.loads(row['payload_json']) for row in alerts],
+            'limits':{'quotes_min_minutes':5,'news_min_minutes':15},
+            'requested_refresh_minutes':config.get('autoRefreshMinutes',10),
+            'dynamic_enabled':bool(config.get('dynamicEnabled',False))
+        }
+
 @app.get('/api/v1/push/key')
 def push_public_key(authorization:str|None=Header(None)):
     with read_db() as db:authorize(db,authorization)
@@ -432,10 +457,10 @@ async def scheduler():
         try:
             epoch=time.monotonic()
             if epoch>=next_market:
-                next_market=epoch+max(300,int(os.getenv('AT_QUOTES_INTERVAL','600')))
+                next_market=epoch+60
                 if os.getenv('AT_QUOTES_ENABLED','true')=='true':await check_market(dispatch)
             if epoch>=next_news:
-                next_news=epoch+max(900,int(os.getenv('AT_NEWS_INTERVAL','1800')))
+                next_news=epoch+60
                 if os.getenv('AT_NEWS_ENABLED','true')=='true':await check_news(dispatch)
         except Exception:
             log.exception('Worker poll failed; no push for uncertain data')
