@@ -48,7 +48,7 @@
         <div class="field"><label>Code administrateur (création seulement)</label><input id="syncAdminCode" type="password" autocomplete="off"></div>
         <div class="field"><label>Code d'appairage affiché sur nouvel appareil</label><input id="syncPairCode" inputmode="numeric" maxlength="6" placeholder="000000"></div>
       </div>
-      <div class="action-row mt-4" style="flex-wrap:wrap;gap:8px">
+      <div class="action-row nas-sync-actions mt-4">
         <button class="primary-btn" id="syncCreate" type="button">Créer un profil</button>
         <button class="secondary-btn" id="syncPairStart" type="button">Nouvel appareil : demander un code</button>
         <button class="secondary-btn" id="syncPairApprove" type="button">Ancien appareil : autoriser le code</button>
@@ -57,7 +57,7 @@
         <button class="secondary-btn" id="syncPush" type="button">Activer Web Push NAS</button>
         <button class="secondary-btn" id="syncExport" type="button">Exporter une sauvegarde JSON</button>
       </div>
-      <div class="action-row mt-3" style="flex-wrap:wrap;gap:8px">
+      <div class="action-row nas-sync-actions mt-3">
         <button class="secondary-btn" id="syncServerWins" type="button">Conflit : choisir NAS</button>
         <button class="secondary-btn" id="syncLocalWins" type="button">Conflit : choisir cet appareil</button>
       </div>
