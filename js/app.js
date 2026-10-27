@@ -127,13 +127,15 @@ const App = {
     button?.classList.add('is-loading');
     if (button) button.disabled = true;
     try {
-      const result = await refreshQuotes();
+      const onNas=SyncClient.isNasActive();
+      const result = onNas?await SyncClient.refreshMonitor():await refreshQuotes();
+      if(onNas)saveSettings({lastQuotesRefreshAt:new Date().toISOString()});
       const stats = result.refreshStats || { updated: 0, failed: 0, total: 0, failures: [] };
-      if (stats.updated) evaluateMarketAlerts();
-      if (stats.failed) {
+      if (stats.updated&&!onNas) evaluateMarketAlerts();
+      if (stats.failed&&!onNas) {
         const failedTickers = stats.failures.slice(0, 4).map(item => item.ticker).join(', ');
         NotifService.sendError('Actualisation partielle', `${stats.updated}/${stats.total} lignes mises a jour. Echecs: ${failedTickers || stats.failed}.`);
-      } else if (userTriggered) {
+      } else if (userTriggered&&!onNas) {
         NotifService.push('Cours mis a jour', `${stats.updated}/${stats.total} lignes actualisees avec Yahoo Finance.`);
       }
       this.router();
@@ -149,7 +151,7 @@ const App = {
   scheduleAutoRefresh() {
     const run = () => {
       const settings = getSettings();
-      const minutes = Number(settings.autoRefreshMinutes || 10);
+      const minutes = Math.max(5,Math.min(120,Number(settings.autoRefreshMinutes || 10)));
       if (!minutes || minutes < 1) return;
       const last = settings.lastQuotesRefreshAt ? new Date(settings.lastQuotesRefreshAt).getTime() : 0;
       if (!last || Date.now() - last > minutes * 60 * 1000) this.refreshAllQuotes(null, false);
