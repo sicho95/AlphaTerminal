@@ -111,14 +111,9 @@
       </div>
       <div class="form-grid two mt-4">
         <div class="field"><label for="backupFile">Restaurer un fichier AlphaTerminal</label><input id="backupFile" type="file" accept=".json,application/json"></div>
-        <div class="field"><label for="backupRestorePassword">Mot de passe du fichier (si demandé)</label><input id="backupRestorePassword" type="password" autocomplete="current-password"></div>
-        <div class="field"><label for="backupRestorePolicy">Si le NAS possède déjà des données</label>
-          <select id="backupRestorePolicy">
-            <option value="server">Conserver les données actuelles du NAS (recommandé)</option>
-            <option value="backup">Remplacer volontairement les données NAS par cette sauvegarde</option>
-          </select>
-        </div>
+        <div class="field"><label for="backupRestorePassword">Mot de passe du JSON (uniquement si la clé locale ne convient pas)</label><input id="backupRestorePassword" type="password" autocomplete="current-password"></div>
       </div>
+      <p class="text-muted mt-2">La comparaison avec le NAS est automatique : en cas de NAS plus récent, AlphaTerminal vous demande quelle version garder. Les clés créées séparément sur deux appareils n'ont pas nécessairement le même sel, même avec le même mot de passe.</p>
       <button id="backupRestore" class="secondary-btn mt-4" type="button">Restaurer la sauvegarde</button>
       <p id="backupStatus" class="text-muted mt-3" role="status"></p>
     </article>
