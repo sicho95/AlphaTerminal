@@ -49,4 +49,4 @@ Dans **Paramètres → Sauvegardes** : définir une phrase de passe (12 caractè
 - Le secret dans une sauvegarde chiffrée est suffisant pour réclamer une nouvelle autorisation sur le profil NAS ; protéger **fichier ET mot de passe**.
 - Les clés non exportables IndexedDB protègent contre l'extraction directe, **pas** contre un script exécuté dans l'origine de l'application.
 - Le NAS n'a pas de chiffrement de bout en bout des portefeuilles : SQLite côté serveur contient les données en clair pour le moteur autonome.
-- La nouvelle page d'administration graphique de gestion des profils/suppression est **hors de ce lot** ; ne pas exposer une interface d'administration non protégée à Funnel public.
+- La page d'administration est accessible sur Funnel public mais toutes ses opérations sont protégées par le secret administrateur long et des limites de tentatives ; utiliser un code fort et le renouveler s'il a déjà circulé. La suspension doit désactiver également les cycles d'alertes/news NAS.
