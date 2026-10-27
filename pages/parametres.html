@@ -8,8 +8,15 @@
     <span id="appVersion" class="status-pill neutral">Version</span>
   </div>
 
+  <nav class="settings-tabbar" role="tablist" aria-label="Domaines de paramètres">
+    <button type="button" role="tab" data-tab="general">Général</button>
+    <button type="button" role="tab" data-tab="alerts">Alertes</button>
+    <button type="button" role="tab" data-tab="nas">Synchronisation NAS</button>
+    <button type="button" role="tab" data-tab="investors">Profils investisseurs</button>
+    <button type="button" role="tab" data-tab="backup">Sauvegardes</button>
+  </nav>
   <div class="bento-grid">
-    <article class="glass-panel md:col-span-12">
+    <article class="glass-panel md:col-span-12 settings-pane" data-settings-tab="general">
       <div class="section-title"><span class="material-symbols-outlined">tune</span>Données techniques</div>
       <form id="settingsForm" class="form-grid three">
         <div class="field"><label>Fournisseur cours</label><input value="Yahoo Finance" disabled></div>
@@ -19,33 +26,41 @@
         <div class="field"><label>Profil par défaut</label><select name="investorProfile"><option value="prudent">Prudent</option><option value="equilibre">Equilibre</option><option value="dynamique">Dynamique</option><option value="offensif">Offensif</option><option value="dca">DCA</option></select></div>
         <div class="field"><label>Source macro/news</label><select name="macroProvider"><option value="yahoo">Yahoo Finance</option><option value="oksurf">OKSURF sans cle</option><option value="multi">Multi-sources auto</option></select></div>
         <div class="field"><label>Requête macro</label><input name="macroQuery" placeholder="inflation OR energy OR geopolitics"></div>
-        <div class="field"><label><input type="checkbox" name="alertStopsEnabled"> Alerter si stop franchi</label></div>
-        <div class="field"><label><input type="checkbox" name="alertStopNearEnabled"> Alerter si stop à moins de 3 %</label></div>
-        <div class="field"><label><input type="checkbox" name="alertPerformanceEnabled"> Alerter si performance atteint +12 %</label></div>
-        <div class="field"><label><input type="checkbox" name="alertRsiEnabled"> Alerter si RSI extrême</label></div>
-        <div class="field"><label><input type="checkbox" name="dynamicEnabled"> Surveillance autonome sur NAS</label></div>
-        <div class="field"><label><input type="checkbox" name="alertNewsEnabled"> Alertes d'actualités significatives</label></div>
+        
+        
+        
+        
+        
+        
         <button class="primary-btn" type="submit"><span class="material-symbols-outlined">save</span>Sauver config</button>
       </form>
     </article>
 
-    <article class="glass-panel md:col-span-12">
+    <article class="glass-panel md:col-span-12 settings-pane" data-settings-tab="alerts">
       <div class="section-title"><span class="material-symbols-outlined">notifications_active</span>Notifications système</div>
       <p class="text-muted">Le centre de notifications interne fonctionne indépendamment. Sur iPhone, installe la PWA à l'écran d'accueil et active les notifications ici.</p>
       <button id="enableSystemNotifications" type="button" class="primary-btn mt-4">Activer les notifications iOS</button>
       <p id="systemNotificationStatus" class="text-muted mt-3" role="status"></p>
       <p class="text-muted mt-3">Web Push autonome : disponible après appairage avec AlphaTerminal Worker, sur le NAS.</p>
+      <div class="form-grid two mt-4"><div class="field"><label><input type="checkbox" name="alertStopsEnabled" form="settingsForm"> Alerter si stop franchi</label></div>
+        <div class="field"><label><input type="checkbox" name="alertStopNearEnabled" form="settingsForm"> Alerter si stop à moins de 3 %</label></div>
+        <div class="field"><label><input type="checkbox" name="alertPerformanceEnabled" form="settingsForm"> Alerter si performance atteint +12 %</label></div>
+        <div class="field"><label><input type="checkbox" name="alertRsiEnabled" form="settingsForm"> Alerter si RSI extrême</label></div>
+        <div class="field"><label><input type="checkbox" name="alertNewsEnabled" form="settingsForm"> Alertes d'actualités significatives</label></div></div>
+      <button class="primary-btn mt-4" form="settingsForm" type="submit">Enregistrer les alertes</button>
     </article>
 
 
-    <article class="glass-panel md:col-span-12">
+    <article class="glass-panel md:col-span-12 settings-pane" data-settings-tab="nas">
       <div class="section-title"><span class="material-symbols-outlined">sync</span>Profil NAS et synchronisation multi-appareils</div>
-      <p class="text-muted">Facultatif : sans appairage, tout reste local. Un profil rassemble les paramètres et les portefeuilles sur tes appareils autorisés.</p>
+      <p class="text-muted">Facultatif et libre : chacun peut créer son profil NAS sans code administrateur. Plusieurs appareils peuvent partager un même profil via un appairage temporaire.</p>
+      <div class="field"><label><input type="checkbox" name="dynamicEnabled" form="settingsForm"> Surveillance autonome sur NAS</label></div>
+      <button class="primary-btn mt-4" form="settingsForm" type="submit">Enregistrer la surveillance</button>
       <div class="form-grid three mt-4">
         <div class="field"><label>URL HTTPS du worker</label><input id="syncServer" placeholder="https://alphaterminal.exemple.fr"></div>
         <div class="field"><label>Nom du profil (création)</label><input id="syncName" placeholder="Damien"></div>
         <div class="field"><label>Nom de l'appareil</label><input id="syncDevice" placeholder="iPhone Damien"></div>
-        <div class="field"><label>Code administrateur (création seulement)</label><input id="syncAdminCode" type="password" autocomplete="off"></div>
+        
         <div class="field"><label>Code d'appairage affiché sur nouvel appareil</label><input id="syncPairCode" inputmode="numeric" maxlength="6" placeholder="000000"></div>
       </div>
       <div class="action-row nas-sync-actions mt-4">
@@ -55,7 +70,7 @@
         <button class="secondary-btn" id="syncPairClaim" type="button">Nouvel appareil : terminer</button>
         <button class="secondary-btn" id="syncNow" type="button">Synchroniser maintenant</button>
         <button class="secondary-btn" id="syncPush" type="button">Activer Web Push NAS</button>
-        <button class="secondary-btn" id="syncExport" type="button">Exporter une sauvegarde JSON</button>
+        
       </div>
       <div class="action-row nas-sync-actions mt-3">
         <button class="secondary-btn" id="syncServerWins" type="button">Conflit : choisir NAS</button>
@@ -65,10 +80,35 @@
       <p class="text-muted mt-2">Important : exporte tes données avant une première restauration. Les changements hors connexion seront envoyés au retour du réseau ; un conflit doit être résolu explicitement.</p>
     </article>
 
-    <article class="glass-panel md:col-span-12">
+    <article class="glass-panel md:col-span-12 settings-pane" data-settings-tab="investors">
       <div class="section-title"><span class="material-symbols-outlined">settings_suggest</span>Profils investisseur</div>
       <div id="profilesEditor" class="profiles-editor"></div>
       <button id="saveProfiles" class="primary-btn mt-4" type="button"><span class="material-symbols-outlined">save</span>Sauver profils</button>
+    </article>
+    <article class="glass-panel md:col-span-12 settings-pane" data-settings-tab="backup">
+      <div class="section-title"><span class="material-symbols-outlined">encrypted</span>Sauvegarde complète chiffrée</div>
+      <p class="text-muted">Un seul fichier pour les portefeuilles, alertes, réglages et, si activée, la récupération du même suivi NAS. L'identité de chaque appareil reste indépendante.</p>
+      <div class="form-grid two mt-4">
+        <div class="field"><label for="backupNewPassword">Définir / changer la phrase de passe</label><input id="backupNewPassword" type="password" autocomplete="new-password" minlength="12" placeholder="12 caractères minimum"></div>
+        <div class="field"><label>Clé chiffrante locale</label><p id="backupKeyStatus" role="status" class="text-muted">Vérification…</p></div>
+      </div>
+      <p class="text-muted mt-2">La clé cryptographique non exportable reste dans IndexedDB. Le mot de passe n'est pas stocké par AlphaTerminal ; vous pouvez l'enregistrer dans votre trousseau ou gestionnaire de mots de passe.</p>
+      <div class="action-row nas-sync-actions mt-4">
+        <button id="backupSetPassword" class="secondary-btn" type="button">Définir / changer le mot de passe</button>
+        <button id="backupExport" class="primary-btn" type="button">Exporter la sauvegarde chiffrée</button>
+      </div>
+      <div class="form-grid two mt-4">
+        <div class="field"><label for="backupFile">Restaurer un fichier AlphaTerminal</label><input id="backupFile" type="file" accept=".json,application/json"></div>
+        <div class="field"><label for="backupRestorePassword">Mot de passe du fichier (si demandé)</label><input id="backupRestorePassword" type="password" autocomplete="current-password"></div>
+        <div class="field"><label for="backupRestorePolicy">Si le NAS possède déjà des données</label>
+          <select id="backupRestorePolicy">
+            <option value="server">Conserver les données actuelles du NAS (recommandé)</option>
+            <option value="backup">Remplacer volontairement les données NAS par cette sauvegarde</option>
+          </select>
+        </div>
+      </div>
+      <button id="backupRestore" class="secondary-btn mt-4" type="button">Restaurer la sauvegarde</button>
+      <p id="backupStatus" class="text-muted mt-3" role="status"></p>
     </article>
   </div>
 </section>
@@ -77,6 +117,7 @@
   import { APP_VERSION, getSettings, saveSettings, parseLocaleNumber } from './js/store.js';
   import { NotifService } from './js/notifications.js';
   import { initSyncUI } from './js/sync-ui.js';
+  import { initBackupUI, initSettingsTabs } from './js/backup-ui.js';
 
   function initParametres() {
     document.getElementById('appVersion').textContent = `Version ${APP_VERSION}`;
@@ -111,6 +152,8 @@
     document.getElementById('saveProfiles').onclick = saveProfilesFromEditor;
     renderSettings();
     initSyncUI();
+    initBackupUI();
+    initSettingsTabs();
   }
 
   function renderSettings() {
