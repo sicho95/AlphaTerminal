@@ -8,7 +8,7 @@ export function initSyncUI(){
   const show=(message)=>{status.textContent=message;};
   const off=SyncClient.onChange(show);
   show(SyncClient.status);
-  find('syncServer').value=SyncClient.session?.url||'';
+  find('syncServer').value=SyncClient.session?.url||find('syncServer').value||'';
   find('syncName').value=SyncClient.session?.profile_name||'';
   find('syncDevice').value=localStorage.getItem('alphaTerm_deviceName')||'';
   const fail=fn=>async()=>{try{await fn();}catch(e){show(`Erreur : ${e.message}`);}};
