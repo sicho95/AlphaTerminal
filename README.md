@@ -1,3 +1,8 @@
+## AlphaTerminal 1.2.2 — intercalaires et actualités des titres
+L'interface de Signaux, Analyse, Inventaire et Paramètres utilise des intercalaires continus avec leur panneau ; le centre de notifications est compact et possède son propre défilement. Analyse → **News titres** recherche la presse des positions réellement détenues, séparément de la veille Macro/géopolitique : fenêtre 7/30 jours, source et date, Google Actualités/Yahoo Finance/GDELT, parcours par titre ou par pages de six titres.
+
+Détails : [Actualités titres et interface 1.2.2](docs/holding-news-ui-1.2.2.md).
+
 ## Ergonomie mobile — version 1.2.2
 
 Le centre de notifications possède sa propre liste défilante sur iPhone et iPad. Un appui sur une notification Web Push ouvre la PWA, le panneau et fait défiler **uniquement les notifications** jusqu'à l'alerte concernée. Les dates/horaires sont placés sous les messages, sans écrasement des titres.
