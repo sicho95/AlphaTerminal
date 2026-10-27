@@ -1,4 +1,4 @@
-# AlphaTerminal Worker — v1.1.0 (prototype intégrable)
+# AlphaTerminal Worker — v1.2.0 (profils libres et restauration chiffrée)
 
 Moteur NAS Python 3.12, FastAPI, SQLite et Web Push. **Aucun compte ni portefeuille n'est inclus dans ce dépôt.**
 
@@ -28,23 +28,23 @@ curl http://127.0.0.1:18878/health
 
 **Configurer le reverse proxy HTTPS avant d'appairer un iPhone.** Mapper l'URL publique vers `127.0.0.1:18878`. Pour les mises à jour : `docker compose up -d --build`. Le conteneur n'a pas besoin des ports d'administration QNAP.
 
-La base SQLite et la clé VAPID sont créées dans `worker/state/` (non versionnées) sous l'UID `10001`. **Sauvegarder ensemble les fichiers `.sqlite3` et `.pem`** ; pour les copies à chaud, employer l'API de backup SQLite ou arrêter proprement le conteneur. Le mode WAL implique que la copie isolée d'un `.sqlite3` pendant une écriture n'est pas une sauvegarde cohérente.
+La base SQLite, la clé VAPID et la clé de coffre `recovery_vault.key` sont créées dans `worker/state/` (non versionnées) sous l'UID `10001`. **Sauvegarder ensemble les fichiers `.sqlite3`, `.pem` et `recovery_vault.key`** ; pour les copies à chaud, employer l'API de backup SQLite ou arrêter proprement le conteneur. Le mode WAL implique que la copie isolée d'un `.sqlite3` pendant une écriture n'est pas une sauvegarde cohérente.
 
 ## Utilisation dans la PWA
 
-1. Dans Paramètres > Profil NAS, saisir l'URL `https://...`, un nom de profil et le code administrateur. Cliquer « Créer un profil ».
+1. Dans Paramètres > Synchronisation NAS, choisir le nom du profil et de l'appareil puis cliquer « Créer un profil ». **Aucun code administrateur n'est demandé à l'utilisateur.**
 2. Le premier appareil transmet ses paramètres (hors clés/secrets) et ses positions, dans le modèle local-first existant. Dans Paramètres, cocher « Surveillance autonome sur NAS », enregistrer.
 3. Cliquer « Activer Web Push NAS » **sur l'appareil concerné** après acceptation iOS. Chaque téléphone reçoit son propre abonnement.
 4. Pour un second appareil : « Demander un code » ; sur le premier saisir le code avec « Autoriser le code » ; sur le nouveau « Terminer ». Un nouveau token de session est délivré, distinct du premier.
 5. Les modifications enregistrées localement sont mises en file d'attente et poussées ; l'appareil consulte le NAS au premier plan et toutes les 60 secondes lorsqu'il est actif.
 6. **En cas de conflit** l'application n'écrase pas silencieusement ; un choix explicite est nécessaire.
 
-Pour créer un deuxième profil familial, le code administrateur permet « Créer un profil » depuis l'installation de la seconde personne. **Ne jamais utiliser le même profil si l'on souhaite des listes privées et des notifications distinctes.**
+Pour créer un profil familial distinct, la seconde personne crée son propre profil librement depuis son téléphone ; chaque profil possède un identifiant et un secret de récupération distincts. L'export global chiffré et la restauration par mot de passe se trouvent dans Paramètres > Sauvegardes. Consulter [la procédure v1.2](../docs/backup-recovery-v1.2.md).
 
 ## API (v1)
 
 - `GET /health`: disponibilité.
-- `POST /api/v1/setup/add-profile`: création profil initiale protégée par secret administrateur.
+- `POST /api/v1/profiles/create`: création publique et bornée par quotas d'un profil indépendant.\n- `GET /api/v1/profiles/recovery` et `POST /api/v1/profiles/recover`: preuve de récupération et nouveau jeton d'appareil sans dupliquer le profil NAS.\n- `GET /admin` + `/api/v1/admin/profiles`: console NAS protégée par code administrateur pour suspendre/réactiver/supprimer les profils.\n- `POST /api/v1/setup/add-profile`: ancienne création administrative encore disponible par compatibilité ; **ne pas utiliser pour les utilisateurs ordinaires**.
 - `POST /api/v1/pair/start`, `pair/approve`, `pair/claim`: association, code six chiffres expirant en cinq minutes, autorisation depuis ancien appareil.
 - `GET /api/v1/sync/state`, `POST /api/v1/sync/changes`: snapshots / patch avec vérification des révisions. Paramètres fusionnés par clé, portefeuilles en CAS sur la révision globale.
 - `GET /api/v1/alerts`: événements persistants.
