@@ -84,11 +84,12 @@ const App = {
 
     document.getElementById('notification-toggle')?.addEventListener('click', () => this.openNotifications());
 
-    document.getElementById('notification-close')?.addEventListener('click', () => {
-      const panel = document.getElementById('notification-panel');
-      panel.classList.add('translate-x-full');
-      setTimeout(() => panel.classList.add('hidden'), 220);
-      markAlertsRead();
+    document.getElementById('notification-close')?.addEventListener('click', () => this.closeNotifications());
+    document.addEventListener('keydown', event=>{
+      const panel=document.getElementById('notification-panel');
+      if(event.key==='Escape'&&panel&&!panel.classList.contains('hidden')){
+        event.preventDefault();this.closeNotifications();
+      }
     });
 
     document.getElementById('notification-clear')?.addEventListener('click', () => clearAlerts());
@@ -98,19 +99,46 @@ const App = {
   openNotifications(alertId = '') {
     this.highlightedAlertId = alertId;
     const panel = document.getElementById('notification-panel');
-    panel?.classList.remove('hidden');
+    if (!panel)return;
+    this.notificationReturnFocus=document.activeElement;
+    panel.classList.remove('hidden');
+    panel.setAttribute('aria-hidden','false');
+    document.body.classList.add('notifications-open');
+    this.renderNotifications();
     requestAnimationFrame(() => {
-      panel?.classList.remove('translate-x-full');
-      this.renderNotifications();
-      this.focusAlert();
+      panel.classList.remove('translate-x-full');
+      if(alertId)this.focusAlert();
+      else document.getElementById('notification-list')?.focus({preventScroll:true});
     });
+  },
+
+  closeNotifications() {
+    const panel=document.getElementById('notification-panel');
+    if(!panel)return;
+    panel.classList.add('translate-x-full');
+    panel.setAttribute('aria-hidden','true');
+    document.body.classList.remove('notifications-open');
+    this.highlightedAlertId='';
+    const focusBack=this.notificationReturnFocus;
+    if(focusBack?.isConnected)focusBack.focus({preventScroll:true});
+    setTimeout(()=>{
+      if(panel.classList.contains('translate-x-full'))panel.classList.add('hidden');
+    },220);
+    markAlertsRead();
   },
 
   focusAlert() {
     if (!this.highlightedAlertId) return;
-    const item = Array.from(document.querySelectorAll('[data-alert-id]'))
-      .find(el => el.dataset.alertId === this.highlightedAlertId);
-    item?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    const list=document.getElementById('notification-list');
+    if(!list)return;
+    const item=Array.from(list.querySelectorAll('[data-alert-id]'))
+      .find(el=>el.dataset.alertId===this.highlightedAlertId);
+    if(!item)return;
+    // Scroll the inbox only: scrollIntoView() also moves the document on mobile Safari.
+    const parent=list.getBoundingClientRect();
+    const rect=item.getBoundingClientRect();
+    const delta=rect.top-parent.top-(list.clientHeight-rect.height)/2;
+    list.scrollTo({top:Math.max(0,list.scrollTop+delta),behavior:'smooth'});
   },
 
   async syncRemoteAlerts() {
@@ -260,18 +288,23 @@ const App = {
       list.innerHTML = `<div class="empty-state compact"><span class="material-symbols-outlined">notifications</span><p>Aucune alerte active.</p></div>`;
       return;
     }
-    list.innerHTML = state.alerts.map(alert => `
-      <article class="mini-card ${alert.read ? 'opacity-70' : ''}" data-alert-id="${escapeHtml(alert.id)}" style="${this.highlightedAlertId === alert.id ? 'outline: 2px solid #3b6934; outline-offset: 2px;' : ''}">
-        <div class="flex items-start justify-between gap-3">
-          <div>
-            <p class="text-sm font-bold">${escapeHtml(alert.title || alert.type || 'Alerte')}</p>
-            <p class="mt-1 text-sm text-muted dark:text-slate-300">${escapeHtml(alert.message || '')}</p>
-          </div>
-          <span class="status-pill ${alert.severity === 'error' ? 'danger' : 'neutral'}">${new Date(alert.timestamp).toLocaleDateString('fr-FR')}</span>
+    const previousScroll=list.scrollTop;
+    list.innerHTML = state.alerts.map(alert => {
+      const date=new Date(alert.timestamp);
+      const stamp=Number.isFinite(date.getTime())
+        ? new Intl.DateTimeFormat('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}).format(date)
+        : '';
+      const selected=this.highlightedAlertId === alert.id;
+      return `<article role="listitem" class="mini-card notification-card ${alert.read ? 'opacity-70' : ''} ${selected ? 'notification-selected' : ''}" data-alert-id="${escapeHtml(alert.id)}">
+        <p class="notification-title">${escapeHtml(alert.title || alert.type || 'Alerte')}</p>
+        <p class="notification-message">${escapeHtml(alert.message || '')}</p>
+        <div class="notification-footer">
+          <time class="notification-date" datetime="${Number.isFinite(date.getTime()) ? date.toISOString() : ''}">${escapeHtml(stamp)}</time>
+          ${alert.url && /^https:\/\//.test(alert.url) ? `<a href="${escapeHtml(alert.url)}" target="_blank" rel="noopener noreferrer">Lire la source</a>` : ''}
         </div>
-        ${alert.url && /^https:\/\//.test(alert.url) ? `<p class="mt-2 text-sm"><a href="${escapeHtml(alert.url)}" target="_blank" rel="noopener noreferrer">Lire la source</a></p>` : ''}
-      </article>
-    `).join('');
+      </article>`;
+    }).join('');
+    list.scrollTop=previousScroll;
   },
 
   renderOnlineState() {
