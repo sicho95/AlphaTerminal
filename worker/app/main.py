@@ -14,6 +14,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Any
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives import serialization
@@ -54,6 +55,12 @@ class RecoverProfile(BaseModel):
     profile_id:str=Field(min_length=5,max_length=100)
     recovery_secret:str=Field(min_length=40,max_length=160)
     device_name:str=Field(min_length=1,max_length=80)
+
+class AdminStatus(BaseModel):
+    disabled:bool
+
+class AdminRemove(BaseModel):
+    confirm_name:str
 
 class PairStart(BaseModel):
     device_name:str=Field(min_length=1,max_length=80)
@@ -129,6 +136,46 @@ def recover_profile(body:RecoverProfile,request:Request):
         creds=issue_device(db,body.profile_id,body.device_name.strip())
         name=db.execute('SELECT name FROM profiles WHERE id=?',(body.profile_id,)).fetchone()['name']
         return {**creds,'profile_name':name}
+
+def verify_admin(request:Request,admin_key:str|None):
+    ratelimit(request,'admin',n=12,window=300)
+    configured=os.getenv('AT_BOOTSTRAP_CODE','')
+    if not admin_key or len(configured)<24 or not hmac.compare_digest(configured,admin_key):
+        raise HTTPException(403,'Acces administrateur refuse')
+
+@app.get('/admin',include_in_schema=False)
+def admin_page():
+    return FileResponse(Path(__file__).parent/'admin.html',media_type='text/html',
+                        headers={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'})
+
+@app.get('/api/v1/admin/profiles')
+def admin_profiles(request:Request,x_admin_key:str|None=Header(None)):
+    verify_admin(request,x_admin_key)
+    with read_db() as db:
+        rows=db.execute('''SELECT p.id,p.name,p.created_at,p.disabled,
+            (SELECT COUNT(*) FROM devices d WHERE d.profile_id=p.id AND d.revoked=0) AS active_devices
+            FROM profiles p ORDER BY p.created_at DESC LIMIT 250''').fetchall()
+        return {'profiles':[dict(r) for r in rows]}
+
+@app.post('/api/v1/admin/profiles/{profile_id}/status')
+def admin_status(profile_id:str,body:AdminStatus,request:Request,x_admin_key:str|None=Header(None)):
+    verify_admin(request,x_admin_key)
+    with transaction() as db:
+        updated=db.execute('UPDATE profiles SET disabled=? WHERE id=?',(int(body.disabled),profile_id))
+        if not updated.rowcount:raise HTTPException(404,'Profil inconnu')
+    return {'profile_id':profile_id,'disabled':body.disabled}
+
+@app.delete('/api/v1/admin/profiles/{profile_id}')
+def admin_delete(profile_id:str,body:AdminRemove,request:Request,x_admin_key:str|None=Header(None)):
+    verify_admin(request,x_admin_key)
+    with transaction() as db:
+        profile=db.execute('SELECT name FROM profiles WHERE id=?',(profile_id,)).fetchone()
+        if not profile:raise HTTPException(404,'Profil inconnu')
+        if body.confirm_name!=profile['name']:raise HTTPException(409,'Confirmer exactement le nom du profil')
+        for table in ('seen_news','alert_states','alerts','setting_edits','pairs','devices'):
+            db.execute(f'DELETE FROM {table} WHERE profile_id=?',(profile_id,))
+        db.execute('DELETE FROM profiles WHERE id=?',(profile_id,))
+    return {'deleted':profile_id}
 
 @app.post('/api/v1/setup/first')
 def first(body:First, request:Request):
