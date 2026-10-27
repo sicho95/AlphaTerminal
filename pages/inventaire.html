@@ -12,32 +12,25 @@
 
   <div id="inventoryGrid" class="section-tabset">
     <nav class="section-tabbar" role="tablist" aria-label="Sections de l'inventaire">
-      <button id="inventory-tab-positions" type="button" role="tab" data-tab="positions">Positions</button>
-      <button id="inventory-tab-structure" type="button" role="tab" data-tab="structure">Structure</button>
+      <button id="inventory-tab-positions" type="button" role="tab" data-tab="positions"><span class="material-symbols-outlined" aria-hidden="true">inventory_2</span>Positions</button>
+      <button id="inventory-tab-structure" type="button" role="tab" data-tab="structure"><span class="material-symbols-outlined" aria-hidden="true">account_tree</span>Structure</button>
     </nav>
     <div class="section-tabframe">
-      <section id="inventory-panel-positions" class="section-tabpane bento-grid" role="tabpanel" data-tab-panel="positions" aria-labelledby="inventory-tab-positions">
-        <article class="glass-panel md:col-span-12">
-      <div class="section-title"><span class="material-symbols-outlined">inventory_2</span>Positions</div>
-      <div class="form-grid three">
-        <div class="field"><label>Recherche</label><input id="searchInput" placeholder="Ticker, nom, ISIN"></div>
-        <div class="field"><label>Classe</label><select id="assetFilter"><option value="all">Toutes</option><option>Actions</option><option>ETF</option><option>Obligations</option><option>Liquidités</option><option>Crypto</option></select></div>
-        <div class="field"><label>Tri</label><select id="sortFilter"><option value="value">Valeur</option><option value="perf">Performance</option><option value="name">Nom</option><option value="portfolio">Portefeuille</option></select></div>
-      </div>
-      <div id="positionsList" class="table-list mt-4"></div>
-    </article>
-
+      <section id="inventory-panel-positions" class="section-tabpane" role="tabpanel" data-tab-panel="positions" aria-labelledby="inventory-tab-positions">
+        <div class="form-grid three">
+          <div class="field"><label>Recherche</label><input id="searchInput" placeholder="Ticker, nom, ISIN"></div>
+          <div class="field"><label>Classe</label><select id="assetFilter"><option value="all">Toutes</option><option>Actions</option><option>ETF</option><option>Obligations</option><option>Liquidités</option><option>Crypto</option></select></div>
+          <div class="field"><label>Tri</label><select id="sortFilter"><option value="value">Valeur</option><option value="perf">Performance</option><option value="name">Nom</option><option value="portfolio">Portefeuille</option></select></div>
+        </div>
+        <div id="positionsList" class="table-list mt-4"></div>
       </section>
-      <section id="inventory-panel-structure" class="section-tabpane bento-grid hidden" role="tabpanel" data-tab-panel="structure" aria-labelledby="inventory-tab-structure">
-        <aside class="glass-panel md:col-span-12">
-      <div class="section-title"><span class="material-symbols-outlined">account_tree</span>Structure</div>
-      <div id="importStatus" class="mini-card hidden"></div>
-      <div class="action-row mt-4">
-        <button id="addOwner" class="ghost-btn" type="button"><span class="material-symbols-outlined">person_add</span>Propriétaire</button>
-        <button id="addPortfolio" class="ghost-btn" type="button"><span class="material-symbols-outlined">add_business</span>Portefeuille</button>
-      </div>
-      <div id="portfolioList" class="list-stack mt-4"></div>
-        </aside>
+      <section id="inventory-panel-structure" class="section-tabpane hidden" role="tabpanel" data-tab-panel="structure" aria-labelledby="inventory-tab-structure">
+        <div id="importStatus" class="mini-card hidden"></div>
+        <div class="action-row">
+          <button id="addOwner" class="ghost-btn" type="button"><span class="material-symbols-outlined">person_add</span>Propriétaire</button>
+          <button id="addPortfolio" class="ghost-btn" type="button"><span class="material-symbols-outlined">add_business</span>Portefeuille</button>
+        </div>
+        <div id="portfolioList" class="list-stack mt-4"></div>
       </section>
     </div>
   </div>
