@@ -119,13 +119,60 @@ export const SyncClient={
     if(parsed.username||parsed.password||parsed.search||parsed.hash)throw Error('URL serveur non valide');
     this.session={url:parsed.origin+(parsed.pathname==='/'?'':parsed.pathname.replace(/\/$/,''))};
   },
-  async newProfile(url,code,profileName,deviceName){
+  async newProfile(url,profileName,deviceName){
+    if(this.session?.token)throw Error('Ce navigateur possède déjà un profil NAS. Utiliser la restauration ou un autre appareil.');
     this.setUrl(url);
-    const creds=await this.request('setup/add-profile',{method:'POST',body:{code,profile_name:profileName,device_name:deviceName},publicRequest:true});
+    const creds=await this.request('profiles/create',{method:'POST',body:{profile_name:profileName,device_name:deviceName},publicRequest:true});
     this.session={...this.session,...creds};putJson(SESSION,this.session);
+    localStorage.setItem('alphaTerm_deviceName',deviceName);
     this.revs={settings_rev:0,data_rev:0};putJson(REVS,this.revs);
     this.pending={settings_patch:cleanSettings(getSettings()),data:stableData(getData())};putJson(PENDING,this.pending);
     await this.flush();return creds;
+  },
+  async ensureRecovery(){
+    if(!this.session?.token)return null;
+    if(!this.session.recovery_secret){
+      const response=await this.request('profiles/recovery');
+      this.session={...this.session,...response};putJson(SESSION,this.session);
+    }
+    return {url:this.session.url,profile_id:this.session.profile_id,recovery_secret:this.session.recovery_secret,profile_name:this.session.profile_name};
+  },
+  async restoreConnection(nas,deviceName,source='server'){
+    if(!nas?.url||!nas.profile_id||!nas.recovery_secret)throw Error('Sauvegarde sans preuve de récupération NAS valide');
+    const previous=this.session;
+    this.setUrl(nas.url);
+    try {
+      if(previous?.profile_id===nas.profile_id&&previous?.token&&previous?.url===this.session.url){
+        this.session=previous; // appareil déjà enrôlé : conserver son jeton et son identifiant
+      }else{
+        const creds=await this.request('profiles/recover',{method:'POST',
+          body:{profile_id:nas.profile_id,recovery_secret:nas.recovery_secret,device_name:deviceName},publicRequest:true});
+        this.session={url:nas.url,...creds,recovery_secret:nas.recovery_secret};
+      }
+      const remote=await this.request('sync/state');
+      putJson(SESSION,this.session);
+      localStorage.setItem('alphaTerm_deviceName',deviceName);
+      this.pending={};putJson(PENDING,this.pending);
+      this.revs={settings_rev:0,data_rev:0};putJson(REVS,this.revs);
+      if(source==='backup'){
+        this.revs={settings_rev:remote.settings_rev,data_rev:remote.data_rev};putJson(REVS,this.revs);
+        this.pending={settings_patch:cleanSettings(getSettings()),data:stableData(getData())};putJson(PENDING,this.pending);
+        await this.flush();
+        if(Object.keys(this.pending).length)throw Error('Synchronisation NAS différée : vérifier le statut');
+      }else if(remote.settings_rev||remote.data_rev){
+        await this.applyRemote(remote);
+      }else{
+        this.pending={settings_patch:cleanSettings(getSettings()),data:stableData(getData())};putJson(PENDING,this.pending);
+        await this.flush();
+      }
+      this.lastStable=stableData(getData());
+      this.report('Profil NAS existant restauré · suivi autonome conservé');
+      return remote;
+    }catch(error){
+      // En cas de problème réseau, ne pas effacer la session d'origine.
+      if(!this.session?.token){this.session=previous;putJson(SESSION,previous);}
+      throw error;
+    }
   },
   async startPair(url,deviceName){
     this.setUrl(url);
@@ -145,6 +192,7 @@ export const SyncClient={
       body:{request_id:pair.request_id,claim_secret:pair.claim_secret}});
     if(result.status!=='ready')return result;
     this.session={url:pair.url,...result};putJson(SESSION,this.session);
+    localStorage.setItem('alphaTerm_deviceName',pair.device_name||'Nouvel appareil');
     this.revs={settings_rev:0,data_rev:0};this.pending={};putJson(REVS,this.revs);putJson(PENDING,{});
     sessionStorage.removeItem('alphaTerm_pairPending');
     await this.flush();return result;
