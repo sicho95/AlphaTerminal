@@ -44,7 +44,10 @@ Pour créer un profil familial distinct, la seconde personne crée son propre pr
 ## API (v1)
 
 - `GET /health`: disponibilité.
-- `POST /api/v1/profiles/create`: création publique et bornée par quotas d'un profil indépendant.\n- `GET /api/v1/profiles/recovery` et `POST /api/v1/profiles/recover`: preuve de récupération et nouveau jeton d'appareil sans dupliquer le profil NAS.\n- `GET /admin` + `/api/v1/admin/profiles`: console NAS protégée par code administrateur pour suspendre/réactiver/supprimer les profils.\n- `POST /api/v1/setup/add-profile`: ancienne création administrative encore disponible par compatibilité ; **ne pas utiliser pour les utilisateurs ordinaires**.
+- `POST /api/v1/profiles/create`: création publique et bornée par quotas d'un profil indépendant.
+- `GET /api/v1/profiles/recovery` et `POST /api/v1/profiles/recover`: preuve de récupération et nouveau jeton d'appareil sans dupliquer le profil NAS.
+- `GET /admin` + `/api/v1/admin/profiles`: console NAS protégée par code administrateur pour suspendre/réactiver/supprimer les profils.
+- `POST /api/v1/setup/add-profile`: ancienne création administrative encore disponible par compatibilité ; **ne pas utiliser pour les utilisateurs ordinaires**.
 - `POST /api/v1/pair/start`, `pair/approve`, `pair/claim`: association, code six chiffres expirant en cinq minutes, autorisation depuis ancien appareil.
 - `GET /api/v1/sync/state`, `POST /api/v1/sync/changes`: snapshots / patch avec vérification des révisions. Paramètres fusionnés par clé, portefeuilles en CAS sur la révision globale.
 - `GET /api/v1/alerts`: événements persistants.
