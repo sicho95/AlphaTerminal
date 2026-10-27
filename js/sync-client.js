@@ -141,7 +141,7 @@ export const SyncClient={
     }
     return {url:this.session.url,profile_id:this.session.profile_id,recovery_secret:this.session.recovery_secret,profile_name:this.session.profile_name};
   },
-  async restoreConnection(nas,deviceName,source='server'){
+  async restoreConnection(nas,deviceName,source='auto',backupMeta=null){
     if(!nas?.url||!nas.profile_id||!nas.recovery_secret)throw Error('Sauvegarde sans preuve de récupération NAS valide');
     const previous=this.session;
     this.setUrl(nas.url);
@@ -165,16 +165,29 @@ export const SyncClient={
       localStorage.setItem('alphaTerm_deviceName',deviceName);
       this.pending={};putJson(PENDING,this.pending);
       this.revs={settings_rev:0,data_rev:0};putJson(REVS,this.revs);
-      if(source==='backup'){
+      const revisions=backupMeta?.revisions;
+      const backedRevsKnown=Number.isInteger(revisions?.data_rev)&&Number.isInteger(revisions?.settings_rev);
+      const remoteIsNewer=backedRevsKnown?(
+        remote.data_rev>revisions.data_rev||remote.settings_rev>revisions.settings_rev):null;
+      const backedUpData=stableData(getData());
+      const differentData=!eq(backedUpData,stableData(remote.data||{owners:[],portfolios:[]}));
+      const differentSettings=!eq(cleanSettings(getSettings()),cleanSettings(remote.settings||{}));
+      const changed=differentData||differentSettings;
+      let useBackup=!remoteIsNewer;
+      if(remoteIsNewer===true&&changed){
+        useBackup=!confirm('Le NAS a des modifications plus récentes que cette sauvegarde. OK : conserver les données NAS actuelles. Annuler : remplacer le NAS par les données du JSON.');
+      }else if(remoteIsNewer===null&&changed&&(remote.data_rev||remote.settings_rev)){
+        useBackup=!confirm('Impossible de comparer les dates de cet ancien JSON avec le NAS. OK : garder la version NAS. Annuler : remplacer par le JSON.');
+      }else if(!changed){
+        useBackup=false; // pas de modification à transmettre
+      }
+      if(useBackup){
         this.revs={settings_rev:remote.settings_rev,data_rev:remote.data_rev};putJson(REVS,this.revs);
-        this.pending={settings_patch:cleanSettings(getSettings()),data:stableData(getData())};putJson(PENDING,this.pending);
+        this.pending={settings_patch:cleanSettings(getSettings()),data:backedUpData};putJson(PENDING,this.pending);
         await this.flush();
         if(Object.keys(this.pending).length)throw Error('Synchronisation NAS différée : vérifier le statut');
-      }else if(remote.settings_rev||remote.data_rev){
-        await this.applyRemote(remote);
       }else{
-        this.pending={settings_patch:cleanSettings(getSettings()),data:stableData(getData())};putJson(PENDING,this.pending);
-        await this.flush();
+        await this.applyRemote(remote);
       }
       this.lastStable=stableData(getData());
       this.enrollPushIfGranted().catch(()=>{});
