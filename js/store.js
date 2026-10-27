@@ -1,6 +1,6 @@
 export const SCHEMA_VERSION = 2;
 export const PROFILE_DEFAULTS_VERSION = 3;
-export const APP_VERSION = '1.1.0';
+export const APP_VERSION = '1.2.0';
 
 export const KEYS = {
   data: 'alphaTerm_data',
