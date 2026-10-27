@@ -84,6 +84,14 @@ def init():
             id TEXT PRIMARY KEY, ip_hash TEXT NOT NULL, created_at TEXT NOT NULL
         )''')
         c.execute('CREATE INDEX IF NOT EXISTS signup_date_idx ON profile_signups(created_at)')
+        c.execute('''CREATE TABLE IF NOT EXISTS market_quotes(
+            profile_id TEXT NOT NULL REFERENCES profiles(id),
+            position_key TEXT NOT NULL, symbol TEXT NOT NULL,
+            price REAL NOT NULL, as_of INTEGER NOT NULL,
+            closes_json TEXT NOT NULL, updated_at TEXT NOT NULL,
+            PRIMARY KEY(profile_id,position_key)
+        )''')
+
         c.execute('''CREATE TABLE IF NOT EXISTS pair_invites(
             id TEXT PRIMARY KEY, profile_id TEXT NOT NULL REFERENCES profiles(id),
             code_hash TEXT NOT NULL UNIQUE, expires_at REAL NOT NULL,
