@@ -213,7 +213,7 @@
       }
     };
     const load=async(reset=false)=>{
-      if(busy)return;
+      if(busy&&!reset)return;
       if(reset){items=[];nextOffset=0;scanned=0;errors=[];loaded=true;}
       if(nextOffset===null)return;
       const token=++newsRequestId;
@@ -230,9 +230,12 @@
         nextOffset=result.next_offset??null;
         errors.push(...(result.source_errors||[]));
       }catch(error){
+        if(token!==newsRequestId)return;
         nextOffset=null;
         errors.push(error.message||'Sources indisponibles');
-      }finally{busy=false;render();}
+      }finally{
+        if(token===newsRequestId){busy=false;render();}
+      }
     };
     select.addEventListener('change',()=>load(true));
     period.addEventListener('change',()=>load(true));
