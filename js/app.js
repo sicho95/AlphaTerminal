@@ -4,6 +4,7 @@ import { NotifService } from './notifications.js';
 import { evaluateMarketAlerts } from './market-alerts.js';
 import { syncPendingPushAlerts } from './push-sync.js';
 import { SyncClient } from './sync-client.js';
+import { loadMonitorRules,getMonitorRules } from './monitor-rules.js';
 
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
@@ -12,6 +13,7 @@ const routes = new Set(['dashboard', 'analyse', 'signaux', 'inventaire', 'parame
 const App = {
   async init() {
     initStore(DEFAULT_DATA);
+    await loadMonitorRules();
     SyncClient.init();
     this.applyTheme(getSettings().darkMode);
     this.bindShell();
@@ -151,7 +153,8 @@ const App = {
   scheduleAutoRefresh() {
     const run = () => {
       const settings = getSettings();
-      const minutes = Math.max(5,Math.min(120,Number(settings.autoRefreshMinutes || 10)));
+      const rules=getMonitorRules();
+      const minutes = Math.max(rules.quotes_min_minutes,Math.min(rules.quotes_max_minutes,Number(settings.autoRefreshMinutes || 10)));
       if (!minutes || minutes < 1) return;
       const last = settings.lastQuotesRefreshAt ? new Date(settings.lastQuotesRefreshAt).getTime() : 0;
       if (!last || Date.now() - last > minutes * 60 * 1000) this.refreshAllQuotes(null, false);
