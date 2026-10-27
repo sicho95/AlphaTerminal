@@ -95,6 +95,11 @@ def init():
             closes_json TEXT NOT NULL, updated_at TEXT NOT NULL,
             PRIMARY KEY(profile_id,position_key)
         )''')
+        market_columns={r['name'] for r in c.execute('PRAGMA table_info(market_quotes)')}
+        for column in ('highs_json','lows_json'):
+            if column not in market_columns:
+                c.execute(f"ALTER TABLE market_quotes ADD COLUMN {column} TEXT NOT NULL DEFAULT '[]'")
+
 
         c.execute('''CREATE TABLE IF NOT EXISTS pair_invites(
             id TEXT PRIMARY KEY, profile_id TEXT NOT NULL REFERENCES profiles(id),
