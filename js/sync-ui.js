@@ -1,6 +1,5 @@
 /** User-initiated pairing. No automatic account signup or export from old 1.0.0. */
 import { SyncClient } from './sync-client.js';
-import { getSettings, saveSettings, exportBackup } from './store.js';
 
 export function initSyncUI(){
   const find=id=>document.getElementById(id);
@@ -9,15 +8,15 @@ export function initSyncUI(){
   const show=(message)=>{status.textContent=message;};
   const off=SyncClient.onChange(show);
   show(SyncClient.status);
-  find('syncServer').value=SyncClient.session?.url||'';
+  find('syncServer').value=SyncClient.session?.url||find('syncServer').value||'';
   find('syncName').value=SyncClient.session?.profile_name||'';
+  find('syncDevice').value=localStorage.getItem('alphaTerm_deviceName')||'';
   const fail=fn=>async()=>{try{await fn();}catch(e){show(`Erreur : ${e.message}`);}};
   find('syncCreate').onclick=fail(async()=>{
     const name=find('syncName').value.trim(),device=find('syncDevice').value.trim()||'Mon appareil';
     if(!name)throw Error('Indiquer un nom de profil');
-    const creds=await SyncClient.newProfile(find('syncServer').value,find('syncAdminCode').value,name,device);
-    show(`Profil ${creds.profile_name} créé et sauvegardé. Code administrateur à effacer.`);
-    find('syncAdminCode').value='';
+    const creds=await SyncClient.newProfile(find('syncServer').value,name,device);
+    show(`Profil ${creds.profile_name} créé et synchronisé. Pense à exporter une sauvegarde chiffrée.`);
   });
   find('syncPairStart').onclick=fail(async()=>{
     const p=await SyncClient.startPair(find('syncServer').value,find('syncDevice').value.trim()||'Nouvel appareil');
@@ -36,10 +35,5 @@ export function initSyncUI(){
   find('syncPush').onclick=fail(async()=>{await SyncClient.enablePush();show('Abonnement Web Push NAS actif sur cet appareil.');});
   find('syncServerWins').onclick=fail(async()=>{await SyncClient.resolve(false);show(SyncClient.status);});
   find('syncLocalWins').onclick=fail(async()=>{await SyncClient.resolve(true);show(SyncClient.status);});
-  find('syncExport').onclick=()=>{
-    const blob=new Blob([JSON.stringify(exportBackup(),null,2)],{type:'application/json'});
-    const u=URL.createObjectURL(blob);const a=document.createElement('a');
-    a.href=u;a.download=`alphaterminal-sauvegarde-${new Date().toISOString().slice(0,10)}.json`;a.click();
-    setTimeout(()=>URL.revokeObjectURL(u),2000);
-  };
+
 }

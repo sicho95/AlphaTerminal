@@ -130,7 +130,7 @@ async def collect_news(search_terms=()):
 
 async def check_news(dispatch):
     with read_db() as c:
-        profiles=c.execute('SELECT id,settings_json,data_json,news_initialized FROM profiles').fetchall()
+        profiles=c.execute('SELECT id,settings_json,data_json,news_initialized FROM profiles WHERE disabled=0').fetchall()
     terms=[]
     for p in profiles:
         settings=json.loads(p['settings_json'])

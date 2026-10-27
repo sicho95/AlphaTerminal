@@ -72,6 +72,18 @@ def init():
           profile_id TEXT NOT NULL, article_hash TEXT NOT NULL,
           created_at TEXT NOT NULL, PRIMARY KEY(profile_id,article_hash));
         ''')
+        # Migration additive: les profils et appareils v1.1 existants sont préservés.
+        columns={r['name'] for r in c.execute('PRAGMA table_info(profiles)')}
+        if 'recovery_hash' not in columns:
+            c.execute('ALTER TABLE profiles ADD COLUMN recovery_hash TEXT')
+        if 'recovery_secret_enc' not in columns:
+            c.execute('ALTER TABLE profiles ADD COLUMN recovery_secret_enc TEXT')
+        if 'disabled' not in columns:
+            c.execute('ALTER TABLE profiles ADD COLUMN disabled INTEGER NOT NULL DEFAULT 0')
+        c.execute('''CREATE TABLE IF NOT EXISTS profile_signups (
+            id TEXT PRIMARY KEY, ip_hash TEXT NOT NULL, created_at TEXT NOT NULL
+        )''')
+        c.execute('CREATE INDEX IF NOT EXISTS signup_date_idx ON profile_signups(created_at)')
 
 def new_id(prefix):
     return f'{prefix}_{secrets.token_urlsafe(12)}'

@@ -30,6 +30,74 @@ class WorkerTests(unittest.TestCase):
             p=apply_changes(db,'p',{'data':{'owners':[],'portfolios':[]},'data_base_rev':0})
             self.assertEqual(p['data_rev'],1)
             with self.assertRaises(Conflict):apply_changes(db,'p',{'data':{'owners':[]},'data_base_rev':0})
+    def test_public_profile_recovery_preserves_one_nas_profile(self):
+        from app.main import app
+        from app.security import read_recovery
+        with TestClient(app) as client:
+            created=client.post('/api/v1/profiles/create',json={
+                'profile_name':'Famille-test','device_name':'Telephone A'})
+            self.assertEqual(created.status_code,200,created.text)
+            profile=created.json()
+            self.assertGreaterEqual(len(profile['recovery_secret']),40)
+            first={'Authorization':'Bearer '+profile['token']}
+            self.assertEqual(client.get('/api/v1/sync/state').status_code,401)
+            recovery=client.get('/api/v1/profiles/recovery',headers=first)
+            self.assertEqual(recovery.status_code,200,recovery.text)
+            self.assertEqual(recovery.json()['recovery_secret'],profile['recovery_secret'])
+            saved=client.post('/api/v1/sync/changes',headers=first,json={
+                'settings_patch':{'dynamicEnabled':True},'settings_base_rev':0,
+                'data':{'owners':[],'portfolios':[]},'data_base_rev':0
+            })
+            self.assertEqual(saved.status_code,200,saved.text)
+            rejected=client.post('/api/v1/profiles/recover',json={
+                'profile_id':profile['profile_id'],'recovery_secret':'X'*55,
+                'device_name':'Attaquant'})
+            self.assertEqual(rejected.status_code,401,rejected.text)
+            second=client.post('/api/v1/profiles/recover',json={
+                'profile_id':profile['profile_id'],
+                'recovery_secret':profile['recovery_secret'],
+                'device_name':'Telephone B'})
+            self.assertEqual(second.status_code,200,second.text)
+            self.assertNotEqual(second.json()['device_id'],profile['device_id'])
+            self.assertEqual(second.json()['profile_id'],profile['profile_id'])
+            bearer={'Authorization':'Bearer '+second.json()['token']}
+            restored=client.get('/api/v1/sync/state',headers=bearer)
+            self.assertEqual(restored.status_code,200)
+            self.assertTrue(restored.json()['settings']['dynamicEnabled'])
+            with transaction() as db:
+                self.assertEqual(db.execute(
+                    'SELECT COUNT(*) FROM profiles WHERE id=?',(profile['profile_id'],)).fetchone()[0],1)
+                self.assertEqual(read_recovery(db,profile['profile_id']),profile['recovery_secret'])
+
+    def test_administration_suspension_and_deletion(self):
+        from app.main import app
+        with TestClient(app) as client:
+            created=client.post('/api/v1/profiles/create',json={
+                'profile_name':'Profil-a-supprimer','device_name':'Appareil-test'})
+            self.assertEqual(created.status_code,200,created.text)
+            result=created.json()
+            bearer={'Authorization':'Bearer '+result['token']}
+            admin={'X-Admin-Key':os.environ['AT_BOOTSTRAP_CODE']}
+            self.assertEqual(client.get('/api/v1/admin/profiles').status_code,403)
+            self.assertEqual(client.get('/api/v1/admin/profiles',headers=admin).status_code,200)
+            profile_id=result['profile_id']
+            suspended=client.post('/api/v1/admin/profiles/'+profile_id+'/status',
+                                  headers=admin,json={'disabled':True})
+            self.assertEqual(suspended.status_code,200,suspended.text)
+            self.assertEqual(client.get('/api/v1/sync/state',headers=bearer).status_code,401)
+            self.assertEqual(client.post('/api/v1/profiles/recover',json={
+                'profile_id':profile_id,'recovery_secret':result['recovery_secret'],
+                'device_name':'Appareil-test2'}).status_code,401)
+            self.assertEqual(client.post('/api/v1/admin/profiles/'+profile_id+'/status',
+                headers=admin,json={'disabled':False}).status_code,200)
+            self.assertEqual(client.get('/api/v1/sync/state',headers=bearer).status_code,200)
+            path='/api/v1/admin/profiles/'+profile_id
+            self.assertEqual(client.request('DELETE',path,headers=admin,
+                json={'confirm_name':'Faux profil'}).status_code,409)
+            self.assertEqual(client.request('DELETE',path,headers=admin,
+                json={'confirm_name':'Profil-a-supprimer'}).status_code,200)
+            self.assertEqual(client.get('/api/v1/sync/state',headers=bearer).status_code,401)
+
     def test_stop_transition(self):
         payload={'title':'2CRSI','message':'cours','type':'stop','severity':'error'}
         self.assertIsNotNone(transition('p','row1','stop',True,payload))

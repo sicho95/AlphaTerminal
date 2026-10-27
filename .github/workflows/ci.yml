@@ -1,0 +1,78 @@
+name: AlphaTerminal validation
+on:
+  pull_request:
+  push:
+    branches: [main, 'feature/**', 'fix/**']
+
+permissions:
+  contents: read
+
+jobs:
+  pwa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in js/*.js; do
+            node --input-type=module --check < "$file"
+          done
+          node --check sw.js
+      - name: PWA unit tests
+        run: node --test tests/*.mjs
+
+  worker:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: worker/requirements.txt
+      - name: Install worker dependencies
+        run: pip install -r requirements.txt
+      - name: Validate Python modules
+        run: python -m compileall -q app tests
+      - name: Worker and migration tests
+        env:
+          PYTHONPATH: .
+        run: python -m unittest discover -s tests -v
+
+  docker-worker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build production worker image
+        run: docker build -t alphaterminal-worker-ci ./worker
+      - name: Start and verify container with persistent writable data
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/alphaterminal-data"
+          sudo chown 10001:10001 "$RUNNER_TEMP/alphaterminal-data"
+          docker run -d --name alphaterminal-worker-ci \
+            -p 127.0.0.1:18878:8080 \
+            -v "$RUNNER_TEMP/alphaterminal-data:/data" \
+            -e AT_BOOTSTRAP_CODE="test-ci-secret-123456789012345678901234" \
+            -e AT_QUOTES_ENABLED=false -e AT_NEWS_ENABLED=false \
+            -e AT_VAPID_SUBJECT=mailto:test@example.invalid \
+            alphaterminal-worker-ci
+          trap 'docker rm -f alphaterminal-worker-ci >/dev/null 2>&1 || true' EXIT
+          ready=0
+          for i in $(seq 1 25); do
+            if curl -fsS --max-time 2 http://127.0.0.1:18878/health > /dev/null; then ready=1; break; fi
+            sleep 2
+          done
+          if [ "$ready" != 1 ]; then docker logs alphaterminal-worker-ci; exit 1; fi
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18878/api/v1/sync/state)" = 401
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18878/admin)" = 200
+          echo "Docker worker 1.2: health, auth and admin page OK"

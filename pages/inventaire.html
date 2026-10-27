@@ -6,8 +6,6 @@
       <p class="text-muted">Positions et portefeuilles du périmètre sélectionné.</p>
     </div>
     <div class="action-row">
-      <button id="exportJson" class="ghost-btn" type="button"><span class="material-symbols-outlined">download</span>JSON</button>
-      <label class="ghost-btn import-label" for="importJson"><span class="material-symbols-outlined">upload</span>Importer<input id="importJson" class="file-input-cover" type="file" accept="application/json,.json"></label>
       <button id="addPosition" class="ghost-btn" type="button"><span class="material-symbols-outlined">add</span>Position</button>
     </div>
   </div>
@@ -114,7 +112,7 @@
 </div>
 
 <script type="module">
-  import { getOwners, getPortfolios, getVisiblePortfolios, flattenPositions, money, pct, decimal, round3, parseLocaleNumber, addOwner, upsertPortfolio, deletePortfolio, upsertPosition, deletePosition, exportBackup, importBackup, getSettings, state } from './js/store.js';
+  import { getOwners, getPortfolios, getVisiblePortfolios, flattenPositions, money, pct, decimal, round3, parseLocaleNumber, addOwner, upsertPortfolio, deletePortfolio, upsertPosition, deletePosition, getSettings, state } from './js/store.js';
   import { suggestedStop } from './js/data.js';
 
   function initInventaire() {
@@ -191,21 +189,6 @@
       });
       closePosition();
       renderAll();
-    };
-    document.getElementById('exportJson').onclick = () => {
-      const blob = new Blob([JSON.stringify(exportBackup(), null, 2)], { type: 'application/json' });
-      const link = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `alphaterminal-backup-${new Date().toISOString().slice(0, 10)}.json` });
-      link.click();
-      URL.revokeObjectURL(link.href);
-    };
-    document.getElementById('importJson').onchange = async event => {
-      const file = event.target.files[0];
-      if (!file) return;
-      const payload = JSON.parse(await file.text());
-      importBackup(payload, 'replace');
-      renderImportStatus(payload);
-      renderAll();
-      event.target.value = '';
     };
   }
 

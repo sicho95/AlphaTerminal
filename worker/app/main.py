@@ -1,5 +1,6 @@
 """AlphaTerminal Worker v1.1: one-process FastAPI + SQLite + per-device Web Push."""
 import asyncio
+import hashlib
 import base64
 import hmac
 import json
@@ -9,14 +10,16 @@ import secrets
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
+from datetime import datetime, timezone, timedelta
 from typing import Any
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives import serialization
 from .db import init,read_db,transaction,profile_state,apply_changes,new_id,compact,Conflict,now
-from .security import authorize,check_bootstrap,issue_device,digest
+from .security import authorize,check_bootstrap,issue_device,digest,issue_recovery,read_recovery,verify_recovery
 from .market import check_market
 from .news import check_news
 
@@ -43,6 +46,21 @@ class First(BaseModel):
     code:str
     profile_name:str=Field(min_length=1,max_length=80)
     device_name:str=Field(min_length=1,max_length=80)
+
+class PublicProfile(BaseModel):
+    profile_name:str=Field(min_length=1,max_length=80)
+    device_name:str=Field(min_length=1,max_length=80)
+
+class RecoverProfile(BaseModel):
+    profile_id:str=Field(min_length=5,max_length=100)
+    recovery_secret:str=Field(min_length=40,max_length=160)
+    device_name:str=Field(min_length=1,max_length=80)
+
+class AdminStatus(BaseModel):
+    disabled:bool
+
+class AdminRemove(BaseModel):
+    confirm_name:str
 
 class PairStart(BaseModel):
     device_name:str=Field(min_length=1,max_length=80)
@@ -73,12 +91,93 @@ async def lifespan(app):
         try:await task
         except asyncio.CancelledError:pass
 
-app=FastAPI(title='AlphaTerminal Worker',version='1.1.0',lifespan=lifespan,docs_url=None,redoc_url=None)
+app=FastAPI(title='AlphaTerminal Worker',version='1.2.0',lifespan=lifespan,docs_url=None,redoc_url=None)
 app.add_middleware(CORSMiddleware,allow_origins=[ALLOWED_ORIGIN],allow_methods=['GET','POST','DELETE'],
                    allow_headers=['authorization','content-type'],allow_credentials=False)
 
 @app.get('/health')
 def health():return {'status':'ok','service':'alphaterminal-worker'}
+
+# Inscription autonome: aucun secret administrateur requis, quotas cote serveur
+# et consommation bornee par profil. Les profils historiques restent inchanges.
+@app.post('/api/v1/profiles/create')
+def public_create(body:PublicProfile,request:Request):
+    ratelimit(request,'public-create',n=3,window=3600)
+    ip=request.client.host if request.client else 'unknown'
+    ip_hash=hashlib.sha256(ip.encode()).hexdigest()
+    since=(datetime.now(timezone.utc)-timedelta(days=1)).isoformat()
+    max_profiles=max(1,int(os.getenv('AT_MAX_PROFILES','60')))
+    max_signups=max(1,int(os.getenv('AT_SIGNUPS_PER_DAY','20')))
+    per_ip=max(1,int(os.getenv('AT_SIGNUPS_PER_IP_DAY','5')))
+    with transaction() as db:
+        count=db.execute('SELECT COUNT(*) FROM profiles').fetchone()[0]
+        day_count=db.execute('SELECT COUNT(*) FROM profile_signups WHERE created_at>=?',(since,)).fetchone()[0]
+        local_count=db.execute('SELECT COUNT(*) FROM profile_signups WHERE created_at>=? AND ip_hash=?',(since,ip_hash)).fetchone()[0]
+        if count>=max_profiles or day_count>=max_signups or local_count>=per_ip:
+            raise HTTPException(429,'Capacite des inscriptions atteinte. Reessayer plus tard.')
+        pid=new_id('profile')
+        db.execute('INSERT INTO profiles(id,name,created_at) VALUES(?,?,?)',(pid,body.profile_name.strip(),now()))
+        secret=issue_recovery(db,pid)
+        credentials=issue_device(db,pid,body.device_name.strip())
+        db.execute('INSERT INTO profile_signups(id,ip_hash,created_at) VALUES(?,?,?)',(pid,ip_hash,now()))
+        return {**credentials,'profile_name':body.profile_name.strip(),'recovery_secret':secret}
+
+@app.get('/api/v1/profiles/recovery')
+def get_profile_recovery(authorization:str|None=Header(None)):
+    with transaction() as db:
+        device=authorize(db,authorization)
+        return {'profile_id':device['profile_id'],'recovery_secret':read_recovery(db,device['profile_id'])}
+
+@app.post('/api/v1/profiles/recover')
+def recover_profile(body:RecoverProfile,request:Request):
+    ratelimit(request,'public-recover',n=12,window=120)
+    with transaction() as db:
+        verify_recovery(db,body.profile_id,body.recovery_secret)
+        creds=issue_device(db,body.profile_id,body.device_name.strip())
+        name=db.execute('SELECT name FROM profiles WHERE id=?',(body.profile_id,)).fetchone()['name']
+        return {**creds,'profile_name':name}
+
+def verify_admin(request:Request,admin_key:str|None):
+    ratelimit(request,'admin',n=12,window=300)
+    configured=os.getenv('AT_BOOTSTRAP_CODE','')
+    if not admin_key or len(configured)<24 or not hmac.compare_digest(configured,admin_key):
+        raise HTTPException(403,'Acces administrateur refuse')
+
+@app.get('/admin',include_in_schema=False)
+def admin_page():
+    return FileResponse(Path(__file__).parent/'admin.html',media_type='text/html',
+                        headers={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',
+                        'X-Frame-Options':'DENY','Referrer-Policy':'no-referrer',
+                        'Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'none'"})
+
+@app.get('/api/v1/admin/profiles')
+def admin_profiles(request:Request,x_admin_key:str|None=Header(None)):
+    verify_admin(request,x_admin_key)
+    with read_db() as db:
+        rows=db.execute('''SELECT p.id,p.name,p.created_at,p.disabled,
+            (SELECT COUNT(*) FROM devices d WHERE d.profile_id=p.id AND d.revoked=0) AS active_devices
+            FROM profiles p ORDER BY p.created_at DESC LIMIT 250''').fetchall()
+        return {'profiles':[dict(r) for r in rows]}
+
+@app.post('/api/v1/admin/profiles/{profile_id}/status')
+def admin_status(profile_id:str,body:AdminStatus,request:Request,x_admin_key:str|None=Header(None)):
+    verify_admin(request,x_admin_key)
+    with transaction() as db:
+        updated=db.execute('UPDATE profiles SET disabled=? WHERE id=?',(int(body.disabled),profile_id))
+        if not updated.rowcount:raise HTTPException(404,'Profil inconnu')
+    return {'profile_id':profile_id,'disabled':body.disabled}
+
+@app.delete('/api/v1/admin/profiles/{profile_id}')
+def admin_delete(profile_id:str,body:AdminRemove,request:Request,x_admin_key:str|None=Header(None)):
+    verify_admin(request,x_admin_key)
+    with transaction() as db:
+        profile=db.execute('SELECT name FROM profiles WHERE id=?',(profile_id,)).fetchone()
+        if not profile:raise HTTPException(404,'Profil inconnu')
+        if body.confirm_name!=profile['name']:raise HTTPException(409,'Confirmer exactement le nom du profil')
+        for table in ('seen_news','alert_states','alerts','setting_edits','pairs','devices'):
+            db.execute(f'DELETE FROM {table} WHERE profile_id=?',(profile_id,))
+        db.execute('DELETE FROM profiles WHERE id=?',(profile_id,))
+    return {'deleted':profile_id}
 
 @app.post('/api/v1/setup/first')
 def first(body:First, request:Request):
