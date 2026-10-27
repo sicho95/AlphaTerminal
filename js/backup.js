@@ -135,10 +135,14 @@ export const BackupVault={
     SyncClient.applying=true;
     try{importBackup(payload,'replace');}finally{SyncClient.applying=wasApplying;}
     if(payload.nas?.recovery_secret){
-      await SyncClient.restoreConnection(payload.nas,deviceName(),source);
-    }else if(payload.nas){
-      throw Error('Données locales restaurées, mais cette ancienne sauvegarde ne contient pas de preuve NAS');
+      try{
+        await SyncClient.restoreConnection(payload.nas,deviceName(),source);
+        return 'restored-with-nas';
+      }catch(error){
+        console.warn('La sauvegarde locale est restaurée, mais le NAS est injoignable ou refuse la récupération',error.status);
+        return 'restored-local-nas-unavailable';
+      }
     }
-    return payload.nas?'restored-with-nas':'restored-local';
+    return payload.nas?'restored-local-nas-unavailable':'restored-local';
   }
 };
