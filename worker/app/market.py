@@ -45,7 +45,10 @@ def watchlist(data):
             except (ValueError,TypeError):stop=0.
             try:pru=float(pru) if pru is not None else 0.
             except (ValueError,TypeError):pru=0.
-            yield {'symbol':symbol,'stop':stop,'pru':pru,'profile_id':portfolio.get('profileId','equilibre'),
+            try:previous=float(pos.get('currentPrice') or 0)
+            except (TypeError,ValueError):previous=0.
+            yield {'symbol':symbol,'stop':stop,'pru':pru,'previous_price':previous,
+                   'profile_id':portfolio.get('profileId','equilibre'),
                 'atr_multiplier_override':pos.get('atrMultiplier'),
                 'key':f"{portfolio.get('id','')}:{ident}",
                 'label':pos.get('name') or symbol,'portfolio':portfolio.get('name','')}
@@ -197,7 +200,7 @@ async def check_market(dispatch):
         for pos in positions:
             quote=quotes.get(pos['symbol'])
             if quote is None:continue
-            quote=adjusted_quote(quote,pos['pru'])
+            quote=adjusted_quote(quote,pos['previous_price'] if pos['previous_price']>0 else pos['pru'])
             indicators=suggested_stop(pos,quote,settings)
             with transaction() as db:
                 db.execute('''INSERT INTO market_quotes(profile_id,position_key,symbol,price,as_of,closes_json,highs_json,lows_json,atr14,atr_multiplier,suggested_stop,updated_at)
