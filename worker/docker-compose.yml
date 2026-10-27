@@ -1,6 +1,8 @@
 services:
   alphaterminal-worker:
-    build: .
+    build:
+      context: ..
+      dockerfile: worker/Dockerfile
     container_name: alphaterminal-worker
     restart: unless-stopped
     environment:
