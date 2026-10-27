@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { webcrypto } from 'node:crypto';
 
-globalThis.crypto=webcrypto;
+// Node 22 fournit WebCrypto via globalThis.crypto en lecture seule.
 const dbRecords=new Map();
 const asyncRequest=fn=>{
   const r={};
