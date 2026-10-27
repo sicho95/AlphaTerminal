@@ -1,4 +1,5 @@
 import { SyncClient } from './sync-client.js';
+import { getMonitorRules } from './monitor-rules.js';
 import { getPortfolios, saveData, getData, totals, getSettings, saveSettings, DEFAULT_INVESTOR_PROFILES, readJSON, writeJSON, parseLocaleNumber, round3 } from './store.js';
 
 export const DEFAULT_DATA = {
@@ -112,7 +113,7 @@ function quoteSymbols(position) {
   return [...new Set(symbols)];
 }
 
-export function calculateATR(highs = [], lows = [], closes = [], period = 14) {
+export function calculateATR(highs = [], lows = [], closes = [], period = getMonitorRules().atr_period) {
   if (highs.length < period + 1 || lows.length < period + 1 || closes.length < period + 1) return null;
   const trueRanges = [];
   for (let i = 1; i < highs.length; i += 1) {
@@ -130,7 +131,7 @@ export function suggestedStop(position, profileKey = position.profileId || getSe
   const settings = getSettings();
   const atr = calculateATR(position.history?.highs, position.history?.lows, position.history?.closes);
   const profile = settings.investorProfiles?.[profileKey];
-  const multiplier = Number(position.atrMultiplier || profile?.atrMultiplier || settings.stopAtrMultipliers?.[profileKey] || 3);
+  const multiplier = Number(position.atrMultiplier || profile?.atrMultiplier || settings.stopAtrMultipliers?.[profileKey] || getMonitorRules().atr_default_multiplier);
   if (!atr || !position.currentPrice) return { atr: null, multiplier, stop: position.stopLevel || 0 };
   return { atr, multiplier, stop: Math.max(0, position.currentPrice - atr * multiplier) };
 }
@@ -166,6 +167,8 @@ export async function fetchMacroNews() {
     let events = [];
     if (provider === 'oksurf') events = await fetchOkSurfNews();
     if (provider === 'yahoo') events = await fetchYahooFinanceNews(query);
+    if (provider === 'rss') events = await fetchRssNews();
+    if (provider === 'gdelt') events = await fetchGdeltNews();
     if (events.length) {
       writeMacroCache(cacheKey, events);
       return events;
