@@ -19,6 +19,10 @@ class WorkerTests(unittest.TestCase):
         init()
     @classmethod
     def tearDownClass(cls):cls.tmp.cleanup()
+    def setUp(self):
+        # Les cas d'essai partagent localhost, mais doivent conserver des quotas isolés.
+        from app.main import ATTEMPTS
+        ATTEMPTS.clear()
     def test_profile_and_cas(self):
         with transaction() as db:
             db.execute("INSERT INTO profiles(id,name,created_at) VALUES('p','Test','now')")
