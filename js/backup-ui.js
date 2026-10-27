@@ -1,20 +1,8 @@
+import { initSectionTabs } from './page-tabs.js';
 import { BackupVault } from './backup.js';
 
 export function initSettingsTabs(){
-  const tabs=[...document.querySelectorAll('.settings-tabbar [data-tab]')];
-  const panes=[...document.querySelectorAll('.settings-pane')];
-  const show=id=>{
-    for(const tab of tabs){
-      const active=tab.dataset.tab===id;
-      tab.setAttribute('aria-selected',String(active));
-      tab.tabIndex=active?0:-1;
-    }
-    for(const pane of panes)pane.classList.toggle('hidden',pane.dataset.settingsTab!==id);
-    sessionStorage.setItem('alphaterminal-settings-tab',id);
-  };
-  for(const tab of tabs)tab.addEventListener('click',()=>show(tab.dataset.tab));
-  show(tabs.some(t=>t.dataset.tab===sessionStorage.getItem('alphaterminal-settings-tab'))?
-    sessionStorage.getItem('alphaterminal-settings-tab'):'general');
+  return initSectionTabs(document.getElementById('settingsTabset'),'settings');
 }
 export async function initBackupUI(){
   const el=id=>document.getElementById(id);

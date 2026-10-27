@@ -1,3 +1,11 @@
+## Ergonomie mobile — version 1.2.2
+
+Le centre de notifications possède sa propre liste défilante sur iPhone et iPad. Un appui sur une notification Web Push ouvre la PWA, le panneau et fait défiler **uniquement les notifications** jusqu'à l'alerte concernée. Les dates/horaires sont placés sous les messages, sans écrasement des titres.
+
+Sur **Signaux**, **Analyse**, **Inventaire** et **Paramètres**, les grands groupes de contenu sont séparés en **intercalaires** avec l'onglet sélectionné dans la continuité du cadre. Les onglets sont utilisables sur mobile (glissement horizontal) et clavier (flèches, Home, End), et le choix reste mémorisé durant la session de navigation.
+
+L'actualisation du cache de la PWA est automatique (service worker v24) : **ne pas désinstaller ni effacer le stockage local** pour forcer l'affichage de la nouvelle version.
+
 ## AlphaTerminal 1.2.1 — suivi local ou autonome NAS
 
 La PWA et le NAS utilisent le même contrat versionné `shared/monitor-rules.json`. Les portefeuilles et profils investisseurs restent synchronisés : arrêts explicites, ATR, multiplicateurs par profil, performance PRU, RSI et alertes d'actualités reposent sur les mêmes critères. L'adaptateur `js/monitor-service.js` privilégie les calculs locaux sans NAS et les résultats de l'API NAS dès que le suivi dynamique est activé.

@@ -10,8 +10,14 @@
     </div>
   </div>
 
-  <div id="inventoryGrid" class="bento-grid">
-    <article class="glass-panel md:col-span-8">
+  <div id="inventoryGrid" class="section-tabset">
+    <nav class="section-tabbar" role="tablist" aria-label="Sections de l'inventaire">
+      <button id="inventory-tab-positions" type="button" role="tab" data-tab="positions">Positions</button>
+      <button id="inventory-tab-structure" type="button" role="tab" data-tab="structure">Structure</button>
+    </nav>
+    <div class="section-tabframe">
+      <section id="inventory-panel-positions" class="section-tabpane bento-grid" role="tabpanel" data-tab-panel="positions" aria-labelledby="inventory-tab-positions">
+        <article class="glass-panel md:col-span-12">
       <div class="section-title"><span class="material-symbols-outlined">inventory_2</span>Positions</div>
       <div class="form-grid three">
         <div class="field"><label>Recherche</label><input id="searchInput" placeholder="Ticker, nom, ISIN"></div>
@@ -21,7 +27,9 @@
       <div id="positionsList" class="table-list mt-4"></div>
     </article>
 
-    <aside class="glass-panel md:col-span-4">
+      </section>
+      <section id="inventory-panel-structure" class="section-tabpane bento-grid hidden" role="tabpanel" data-tab-panel="structure" aria-labelledby="inventory-tab-structure">
+        <aside class="glass-panel md:col-span-12">
       <div class="section-title"><span class="material-symbols-outlined">account_tree</span>Structure</div>
       <div id="importStatus" class="mini-card hidden"></div>
       <div class="action-row mt-4">
@@ -29,8 +37,9 @@
         <button id="addPortfolio" class="ghost-btn" type="button"><span class="material-symbols-outlined">add_business</span>Portefeuille</button>
       </div>
       <div id="portfolioList" class="list-stack mt-4"></div>
-    </aside>
-
+        </aside>
+      </section>
+    </div>
   </div>
 </section>
 
@@ -112,11 +121,13 @@
 </div>
 
 <script type="module">
+  import { initSectionTabs } from './js/page-tabs.js';
   import { getOwners, getPortfolios, getVisiblePortfolios, flattenPositions, money, pct, decimal, round3, parseLocaleNumber, addOwner, upsertPortfolio, deletePortfolio, upsertPosition, deletePosition, getSettings, state } from './js/store.js';
   import { suggestedStop } from './js/data.js';
 
   function initInventaire() {
     bindOnce();
+    initSectionTabs(document.getElementById('inventoryGrid'),'inventaire');
     renderAll();
   }
 
