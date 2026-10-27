@@ -404,3 +404,59 @@ main#app-content { width: 100%; max-width: none; margin: 0 auto; padding: 24px 1
     color: #fff;
   }
 }
+
+
+/* v1.2 : onglets de paramètres sans rupture du thème AlphaTerminal. */
+.settings-tabbar {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 16px;
+  padding: 3px 0 8px;
+}
+.settings-tabbar [role="tab"] {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: 0 0 auto;
+  border: 1px solid #c4c6cd;
+  color: #041627;
+  background: rgba(255,255,255,.72);
+  border-radius: 10px;
+  padding: 11px 14px;
+  min-height: 44px;
+  line-height: 1.25;
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+.settings-tabbar [role="tab"][aria-selected="true"] {
+  border-color: #3b6934;
+  background: #3b6934;
+  color: white;
+}
+.dark .settings-tabbar [role="tab"] {
+  border-color: #475569;
+  background: rgba(15,23,42,.86);
+  color: #f1f5f9;
+}
+.dark .settings-tabbar [role="tab"][aria-selected="true"] {
+  border-color: #6c9b65;
+  background: #3b6934;
+  color: white;
+}
+.settings-tabbar [role="tab"]:focus-visible {
+  outline: 2px solid #3b6934;
+  outline-offset: 2px;
+}
+.settings-pane {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+@media(max-width:639px) {
+  .settings-tabbar { margin-inline: -4px; }
+  .settings-tabbar [role="tab"] { padding-inline: 12px; }
+  .settings-pane .field input[type="file"] { max-width: 100%; overflow-wrap: anywhere; }
+}
