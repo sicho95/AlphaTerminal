@@ -115,6 +115,9 @@ export const BackupVault={
     if(!payload?.data||!Array.isArray(payload.data.portfolios)||!payload.settings)
       throw Error('Sauvegarde incomplète ou endommagée');
     const existing=SyncClient.session;
+    if(existing?.token&&!payload.nas){
+      throw Error('Ce terminal utilise déjà un profil NAS. Pour éviter d’orpheliner sa surveillance, restaurer un fichier complet associé au même NAS sur cet appareil.');
+    }
     if(existing?.token&&payload.nas?.profile_id&&existing.profile_id!==payload.nas.profile_id){
       if(!confirm('Ce terminal est déjà relié à un AUTRE profil NAS. Le remplacer par celui de cette sauvegarde ?'))
         return 'cancelled';
@@ -123,6 +126,10 @@ export const BackupVault={
     if(payload.nas&&source==='backup'&&!confirm(
       'Cette option peut écraser des données plus récentes sur le NAS. Confirmer le remplacement du NAS par ce fichier ?'
     ))return 'cancelled';
+    // Dès le déchiffrement accepté, garder localement la clé correcte même si le NAS est hors ligne.
+    if(derived&&usedDerived){
+      await vault({id:'primary',salt:json.kdf.salt,iterations:json.kdf.iterations,key:derived});
+    }
     // Les notifications iOS, l'identité et les jetons des appareils restent indépendants.
     const wasApplying=SyncClient.applying;
     SyncClient.applying=true;
@@ -131,9 +138,6 @@ export const BackupVault={
       await SyncClient.restoreConnection(payload.nas,deviceName(),source);
     }else if(payload.nas){
       throw Error('Données locales restaurées, mais cette ancienne sauvegarde ne contient pas de preuve NAS');
-    }
-    if(derived&&usedDerived){
-      await vault({id:'primary',salt:json.kdf.salt,iterations:json.kdf.iterations,key:derived});
     }
     return payload.nas?'restored-with-nas':'restored-local';
   }
