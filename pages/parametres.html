@@ -20,11 +20,11 @@
       <div class="section-title"><span class="material-symbols-outlined">tune</span>Données techniques</div>
       <form id="settingsForm" class="form-grid three">
         <div class="field"><label>Fournisseur cours</label><input value="Yahoo Finance" disabled></div>
-        <div class="field"><label>Actualisation auto (min)</label><input name="autoRefreshMinutes" inputmode="numeric" value="10"></div>
+        <div class="field"><label>Actualisation auto (min)</label><input name="autoRefreshMinutes" type="number" min="5" max="120" step="1" inputmode="numeric" value="10"><small>5 à 120 min, synchronisé entre PWA et NAS. Vérification des actualités au minimum toutes les 15 min.</small></div>
         <div class="field"><label>Proxy CORS</label><input name="corsProxy" placeholder="https://proxy.example/?url= ou .../{url}"></div>
         <div class="field"><label>Plafond PEA</label><input name="peaLimit" inputmode="decimal"></div>
         <div class="field"><label>Profil par défaut</label><select name="investorProfile"><option value="prudent">Prudent</option><option value="equilibre">Equilibre</option><option value="dynamique">Dynamique</option><option value="offensif">Offensif</option><option value="dca">DCA</option></select></div>
-        <div class="field"><label>Source macro/news</label><select name="macroProvider"><option value="yahoo">Yahoo Finance</option><option value="oksurf">OKSURF sans cle</option><option value="multi">Multi-sources auto</option></select></div>
+        <div class="field"><label>Source macro/news</label><select name="macroProvider"><option value="yahoo">Yahoo Finance</option><option value="oksurf">OKSURF sans cle</option><option value="multi">Multi-sources auto</option><option value="rss">RSS AMF / BCE / Café de la Bourse</option><option value="gdelt">GDELT</option></select></div>
         <div class="field"><label>Requête macro</label><input name="macroQuery" placeholder="inflation OR energy OR geopolitics"></div>
         
         
@@ -41,7 +41,9 @@
       <p class="text-muted">Le centre de notifications interne fonctionne indépendamment. Sur iPhone, installe la PWA à l'écran d'accueil et active les notifications ici.</p>
       <button id="enableSystemNotifications" type="button" class="primary-btn mt-4">Activer les notifications iOS</button>
       <p id="systemNotificationStatus" class="text-muted mt-3" role="status"></p>
-      <p class="text-muted mt-3">Web Push autonome : disponible après appairage avec AlphaTerminal Worker, sur le NAS.</p>
+      <p class="text-muted mt-3">Les notifications système sont facultatives. Si le suivi NAS est actif et qu'elles sont autorisées sur cet appareil, l'abonnement Web Push est automatique ; le NAS continue même quand la PWA est fermée.</p>
+      <p id="syncPushStatus" class="text-muted mt-3" role="status">Diagnostic NAS à charger…</p>
+      <button id="syncPushTest" class="secondary-btn mt-3" type="button">Tester une notification envoyée par le NAS (15 secondes)</button>
       <div class="form-grid two mt-4"><div class="field"><label><input type="checkbox" name="alertStopsEnabled" form="settingsForm"> Alerter si stop franchi</label></div>
         <div class="field"><label><input type="checkbox" name="alertStopNearEnabled" form="settingsForm"> Alerter si stop à moins de 3 %</label></div>
         <div class="field"><label><input type="checkbox" name="alertPerformanceEnabled" form="settingsForm"> Alerter si performance atteint +12 %</label></div>
@@ -58,23 +60,33 @@
       <button class="primary-btn mt-4" form="settingsForm" type="submit">Enregistrer la surveillance</button>
       <div class="form-grid three mt-4">
         <div class="field"><label>URL HTTPS du worker</label><input id="syncServer" value="https://nas-damien.tailfb6907.ts.net/alphaterm" placeholder="https://.../alphaterm"></div>
-        <div class="field"><label>Nom du profil (création)</label><input id="syncName" placeholder="Damien"></div>
-        <div class="field"><label>Nom de l'appareil</label><input id="syncDevice" placeholder="iPhone Damien"></div>
-        
-        <div class="field"><label>Code d'appairage affiché sur nouvel appareil</label><input id="syncPairCode" inputmode="numeric" maxlength="6" placeholder="000000"></div>
+        <div class="field"><label>Nom du profil (première création)</label><input id="syncName" placeholder="Damien"></div>
+        <div class="field"><label>Nom de cet appareil</label><input id="syncDevice" placeholder="iPhone Damien"></div>
       </div>
-      <div class="action-row nas-sync-actions mt-4">
-        <button class="primary-btn" id="syncCreate" type="button">Créer un profil</button>
-        <button class="secondary-btn" id="syncPairStart" type="button">Nouvel appareil : demander un code</button>
-        <button class="secondary-btn" id="syncPairApprove" type="button">Ancien appareil : autoriser le code</button>
-        <button class="secondary-btn" id="syncPairClaim" type="button">Nouvel appareil : terminer</button>
+      <div class="action-row nas-sync-actions mt-4" id="syncCreateArea">
+        <button class="primary-btn" id="syncCreate" type="button">Créer mon profil NAS</button>
+      </div>
+      <div class="form-grid two mt-4">
+        <div id="syncExistingArea">
+          <p class="text-muted">Sur l'appareil déjà relié au NAS :</p>
+          <button class="secondary-btn" id="syncPairInvite" type="button">Afficher le code pour ajouter un appareil</button>
+          <p id="syncGeneratedCode" class="text-muted mt-2" role="status"></p>
+        </div>
+        <div id="syncNewArea">
+          <p class="text-muted">Sur le nouvel appareil :</p>
+          <div class="field"><label>Code affiché sur l'ancien appareil</label><input id="syncPairCode" inputmode="numeric" maxlength="6" placeholder="000000"></div>
+          <button class="primary-btn mt-3" id="syncPairJoin" type="button">Connecter cet appareil</button>
+        </div>
+      </div>
+      <div class="action-row mt-4">
         <button class="secondary-btn" id="syncNow" type="button">Synchroniser maintenant</button>
-        <button class="secondary-btn" id="syncPush" type="button">Activer Web Push NAS</button>
-        
       </div>
-      <div class="action-row nas-sync-actions mt-3">
-        <button class="secondary-btn" id="syncServerWins" type="button">Conflit : choisir NAS</button>
-        <button class="secondary-btn" id="syncLocalWins" type="button">Conflit : choisir cet appareil</button>
+      <div id="syncConflictArea" class="hidden mt-3">
+        <p class="text-muted">Conflit détecté : des modifications simultanées existent. Choisis explicitement la version à conserver.</p>
+        <div class="action-row nas-sync-actions">
+          <button class="secondary-btn" id="syncServerWins" type="button">Garder la version NAS</button>
+          <button class="secondary-btn" id="syncLocalWins" type="button">Garder cet appareil</button>
+        </div>
       </div>
       <p id="syncStatus" class="text-muted mt-3" role="status">Mode local</p>
       <p class="text-muted mt-2">Important : exporte tes données avant une première restauration. Les changements hors connexion seront envoyés au retour du réseau ; un conflit doit être résolu explicitement.</p>
@@ -117,6 +129,7 @@
   import { APP_VERSION, getSettings, saveSettings, parseLocaleNumber } from './js/store.js';
   import { NotifService } from './js/notifications.js';
   import { initSyncUI } from './js/sync-ui.js';
+  import { SyncClient } from './js/sync-client.js';
   import { initBackupUI, initSettingsTabs } from './js/backup-ui.js';
 
   function initParametres() {
@@ -128,7 +141,7 @@
         dataProvider: 'yahoo',
         twelveDataApiKey: '',
         corsProxy: data.corsProxy,
-        autoRefreshMinutes: Math.max(1, parseLocaleNumber(data.autoRefreshMinutes) || 10),
+        autoRefreshMinutes: Math.max(5, Math.min(120, parseLocaleNumber(data.autoRefreshMinutes) || 10)),
         peaLimit: parseLocaleNumber(data.peaLimit) || 150000,
         investorProfile: data.investorProfile,
         yahooFallback: true,
@@ -142,11 +155,16 @@
         alertNewsEnabled: event.target.elements.alertNewsEnabled.checked
       });
       renderSettings();
+      if (getSettings().dynamicEnabled) SyncClient.enrollPushIfGranted().catch(error => console.warn('Abonnement Web Push à vérifier', error));
     };
     document.getElementById('enableSystemNotifications').onclick = async () => {
       const allowed = await NotifService.enable();
+      if(allowed&&SyncClient.isNasActive()){
+        try{await SyncClient.enablePush(false);}
+        catch(error){document.getElementById('systemNotificationStatus').textContent='Notifications iOS autorisées, mais abonnement NAS échoué : '+error.message;return;}
+      }
       document.getElementById('systemNotificationStatus').textContent = allowed
-        ? 'Notifications système autorisées.'
+        ? 'Notifications système autorisées. Abonnement NAS automatique si le suivi dynamique est actif.'
         : 'Notifications non autorisées : vérifier l’installation sur l’écran d’accueil et les réglages iOS.';
     };
     document.getElementById('saveProfiles').onclick = saveProfilesFromEditor;
