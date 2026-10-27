@@ -40,6 +40,17 @@ def watchlist(data):
                 'key':f"{portfolio.get('id','')}:{ident}",
                 'label':pos.get('name') or symbol,'portfolio':portfolio.get('name','')}
 
+def adjusted_quote(quote,reference):
+    """Evenly scale Yahoo GBp/EUR price units as in the local PWA data provider."""
+    price=quote['price']
+    if not reference or reference<=0:return quote
+    candidates=[price*factor for factor in (1,.1,.01,.001,.0001,10,100,1000)]
+    chosen=min(candidates,key=lambda x:abs(math.log(x/reference)))
+    scale=chosen/price
+    if scale==1:return quote
+    return {**quote,'price':chosen,
+            **{k:[v*scale for v in quote.get(k,[])] for k in ('closes','highs','lows')}}
+
 def calculate_rsi14(values):
     values=[float(x) for x in values if isinstance(x,(int,float)) and math.isfinite(x)]
     if len(values)<15:return None
@@ -86,7 +97,10 @@ async def fetch_quotes(symbols):
                 if age<0 or age>4*86400:return
                 bars=((item.get('indicators') or {}).get('quote') or [{}])[0].get('close') or []
                 closes=[float(v) for v in bars if isinstance(v,(int,float)) and math.isfinite(v)]
-                result[symbol]={'price':price,'as_of':int(ts),'closes':closes[-40:]}
+                highs=[float(v) for v in (((item.get('indicators') or {}).get('quote') or [{}])[0].get('high') or []) if isinstance(v,(int,float)) and math.isfinite(v)]
+                lows=[float(v) for v in (((item.get('indicators') or {}).get('quote') or [{}])[0].get('low') or []) if isinstance(v,(int,float)) and math.isfinite(v)]
+                result[symbol]={'price':price,'as_of':int(ts),'closes':closes[-40:],
+                                'highs':highs[-40:],'lows':lows[-40:]}
             except (httpx.HTTPError,ValueError,KeyError,IndexError,TypeError):
                 return
         # Bound outbound concurrency to limit NAS resources/requests.
@@ -153,14 +167,17 @@ async def check_market(dispatch):
         for pos in positions:
             quote=quotes.get(pos['symbol'])
             if quote is None:continue
+            quote=adjusted_quote(quote,pos['pru'])
             with transaction() as db:
-                db.execute('''INSERT INTO market_quotes(profile_id,position_key,symbol,price,as_of,closes_json,updated_at)
-                    VALUES(?,?,?,?,?,?,?)
+                db.execute('''INSERT INTO market_quotes(profile_id,position_key,symbol,price,as_of,closes_json,highs_json,lows_json,updated_at)
+                    VALUES(?,?,?,?,?,?,?,?,?)
                     ON CONFLICT(profile_id,position_key) DO UPDATE SET
                     symbol=excluded.symbol,price=excluded.price,as_of=excluded.as_of,
-                    closes_json=excluded.closes_json,updated_at=excluded.updated_at''',
+                    closes_json=excluded.closes_json,highs_json=excluded.highs_json,
+                    lows_json=excluded.lows_json,updated_at=excluded.updated_at''',
                     (profile,pos['key'],pos['symbol'],quote['price'],quote['as_of'],
-                     compact(quote.get('closes',[])),now()))
+                     compact(quote.get('closes',[])),compact(quote.get('highs',[])),
+                     compact(quote.get('lows',[])),now()))
             for kind,active in conditions(pos,quote,settings).items():
                 event=transition(profile,pos['key'],kind,active,event_payload(pos,quote,kind) if active else {})
                 if event:await dispatch(profile,event)
