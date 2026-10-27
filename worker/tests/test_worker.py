@@ -166,6 +166,43 @@ class WorkerTests(unittest.TestCase):
                 'settings_patch':{'autoRefreshMinutes':2},'settings_base_rev':1})
             self.assertEqual(invalid.status_code,422)
 
+    def test_server_web_push_submission_without_active_pwa(self):
+        import asyncio
+        from unittest.mock import patch
+        from app.main import app,_send_push
+        from app.db import read_db
+        with TestClient(app) as client:
+            created=client.post('/api/v1/profiles/create',json={
+                'profile_name':'WebPush-test','device_name':'iPhone hors ligne'})
+            self.assertEqual(created.status_code,200,created.text)
+            creds=created.json()
+            header={'Authorization':'Bearer '+creds['token']}
+            invalid=client.post('/api/v1/push/subscribe',headers=header,json={
+                'subscription':{'endpoint':'https://example.com/fake',
+                                'keys':{'auth':'a','p256dh':'b'}}})
+            self.assertEqual(invalid.status_code,422,invalid.text)
+            valid=client.post('/api/v1/push/subscribe',headers=header,json={
+                'subscription':{'endpoint':'https://web.push.apple.com/mock-test',
+                                'keys':{'auth':'test-auth','p256dh':'test-p256dh'}}})
+            self.assertEqual(valid.status_code,200,valid.text)
+            status=client.get('/api/v1/push/status',headers=header)
+            self.assertTrue(status.json()['subscribed'])
+            scheduled=client.post('/api/v1/push/test',headers=header)
+            self.assertEqual(scheduled.status_code,200,scheduled.text)
+            self.assertEqual(scheduled.json()['delay_seconds'],15)
+            with read_db() as db:
+                row=db.execute('SELECT id,push_json FROM devices WHERE id=?',
+                               (creds['device_id'],)).fetchone()
+            # Dispatch sends directly from the server; it never depends on a foreground browser.
+            with patch('pywebpush.webpush') as fake_sender:
+                result=asyncio.run(_send_push(row,{
+                    'id':'test-sent-from-nas','title':'Test NAS','message':'PWA fermée'}))
+                self.assertTrue(result['sent'],result)
+                fake_sender.assert_called_once()
+            history=client.get('/api/v1/push/status',headers=header).json()
+            self.assertIsNotNone(history['last_success'])
+            self.assertIsNone(history['last_error'])
+
     def test_stop_transition(self):
         payload={'title':'2CRSI','message':'cours','type':'stop','severity':'error'}
         self.assertIsNotNone(transition('p','row1','stop',True,payload))
