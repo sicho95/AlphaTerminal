@@ -22,6 +22,7 @@ from .db import init,read_db,transaction,profile_state,apply_changes,new_id,comp
 from .security import authorize,check_bootstrap,issue_device,digest,issue_recovery,read_recovery,verify_recovery
 from .market import check_market,RULES
 from .news import check_news
+from .holding_news import holdings_news
 
 log=logging.getLogger('alphaterminal')
 ALLOWED_ORIGIN=os.getenv('AT_CORS_ORIGIN','https://sicho95.github.io').rstrip('/')
@@ -178,7 +179,7 @@ def admin_delete(profile_id:str,body:AdminRemove,request:Request,x_admin_key:str
         profile=db.execute('SELECT name FROM profiles WHERE id=?',(profile_id,)).fetchone()
         if not profile:raise HTTPException(404,'Profil inconnu')
         if body.confirm_name!=profile['name']:raise HTTPException(409,'Confirmer exactement le nom du profil')
-        for table in ('seen_news','alert_states','alerts','setting_edits','pairs','pair_invites','market_quotes','devices'):
+        for table in ('seen_news','alert_states','alerts','setting_edits','pairs','pair_invites','market_quotes','holding_news_cache','devices'):
             db.execute(f'DELETE FROM {table} WHERE profile_id=?',(profile_id,))
         db.execute('DELETE FROM profiles WHERE id=?',(profile_id,))
     return {'deleted':profile_id}
@@ -338,6 +339,17 @@ def vapid_keys():
         key=serialization.load_pem_private_key(pem.read_bytes(),password=None)
     raw=key.public_key().public_bytes(serialization.Encoding.X962,serialization.PublicFormat.UncompressedPoint)
     return str(pem),base64.urlsafe_b64encode(raw).decode().rstrip('=')
+
+@app.get('/api/v1/holdings/news')
+async def holdings_specific_news(request:Request,days:int=7,position_id:str='',offset:int=0,
+                                 authorization:str|None=Header(None)):
+    """Only securities actually owned by the caller, never a macro/geopolitical feed."""
+    if days not in (7,30) or len(position_id)>150 or not 0<=offset<=500:
+        raise HTTPException(422,'Période 7/30 jours et pagination valides requises')
+    with read_db() as db:
+        device=authorize(db,authorization)
+    ratelimit(request,'holding-news-'+device['profile_id'],n=25,window=60)
+    return await holdings_news(device['profile_id'],days,position_id,offset)
 
 @app.get('/api/v1/monitor/state')
 def monitor_state(authorization:str|None=Header(None)):
