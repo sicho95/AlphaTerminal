@@ -7,14 +7,23 @@ import re
 import json
 import math
 import time
+from pathlib import Path
 from datetime import datetime, timezone
 import httpx
 from .db import read_db,transaction,compact,now,new_id
 
 SYMBOL=re.compile(r'^[A-Z0-9.\-^=]{1,35}$')
+def _load_rules():
+    paths=[Path(__file__).resolve().parents[1]/'shared'/'monitor-rules.json',
+           Path(__file__).resolve().parents[2]/'shared'/'monitor-rules.json']
+    for path in paths:
+        if path.is_file():return json.loads(path.read_text(encoding='utf-8'))
+    raise RuntimeError('Manifeste de surveillance partagé absent')
+
+RULES=_load_rules()
 LAST_RUN={}
-REFRESH_MIN=5
-REFRESH_MAX=120
+REFRESH_MIN=RULES['quotes_min_minutes']
+REFRESH_MAX=RULES['quotes_max_minutes']
 
 def minutes(value):
     try:
@@ -36,7 +45,8 @@ def watchlist(data):
             except (ValueError,TypeError):stop=0.
             try:pru=float(pru) if pru is not None else 0.
             except (ValueError,TypeError):pru=0.
-            yield {'symbol':symbol,'stop':stop,'pru':pru,
+            yield {'symbol':symbol,'stop':stop,'pru':pru,'profile_id':portfolio.get('profileId','equilibre'),
+                'atr_multiplier_override':pos.get('atrMultiplier'),
                 'key':f"{portfolio.get('id','')}:{ident}",
                 'label':pos.get('name') or symbol,'portfolio':portfolio.get('name','')}
 
@@ -51,11 +61,31 @@ def adjusted_quote(quote,reference):
     return {**quote,'price':chosen,
             **{k:[v*scale for v in quote.get(k,[])] for k in ('closes','highs','lows')}}
 
+def calculate_atr(highs,lows,closes,period=None):
+    period=period or RULES['atr_period']
+    if min(len(highs),len(lows),len(closes))<period+1:return None
+    ranges=[max(highs[i]-lows[i],abs(highs[i]-closes[i-1]),abs(lows[i]-closes[i-1]))
+            for i in range(1,min(len(highs),len(lows),len(closes)))]
+    return sum(ranges[-period:])/period
+
+def suggested_stop(position,quote,settings):
+    """Stop ATR indicatif : jamais transformé en alerte stop sans seuil explicite."""
+    profile_id=position.get('profile_id') or settings.get('investorProfile','equilibre')
+    profile=(settings.get('investorProfiles') or {}).get(profile_id,{})
+    mult=position.get('atr_multiplier_override') or profile.get('atrMultiplier') or (
+        settings.get('stopAtrMultipliers') or {}).get(profile_id) or RULES['atr_default_multiplier']
+    try:mult=float(mult)
+    except (TypeError,ValueError):mult=RULES['atr_default_multiplier']
+    atr=calculate_atr(quote.get('highs',[]),quote.get('lows',[]),quote.get('closes',[]))
+    return {'atr14':atr,'atr_multiplier':mult,
+            'suggested_stop':max(0.,quote['price']-atr*mult) if atr else position.get('stop',0.)}
+
 def calculate_rsi14(values):
     values=[float(x) for x in values if isinstance(x,(int,float)) and math.isfinite(x)]
-    if len(values)<15:return None
+    period=RULES['rsi_period']
+    if len(values)<period+1:return None
     gains=losses=0.
-    for i in range(len(values)-14,len(values)):
+    for i in range(len(values)-period,len(values)):
         change=values[i]-values[i-1]
         gains+=max(0.,change)
         losses+=max(0.,-change)
@@ -69,15 +99,15 @@ def conditions(position,quote,settings):
     pru=position['pru']
     distance=(price-stop)/price*100 if stop>0 else math.inf
     crossed=stop>0 and price<=stop
-    near=stop>0 and price>stop and distance<=3
+    near=stop>0 and price>stop and distance<=RULES['near_stop_percent']
     performance=(price-pru)/pru*100 if pru>0 else math.nan
     rsi=calculate_rsi14(quote.get('closes',[]))
     return {
         'stop':bool(settings.get('alertStopsEnabled',True) and crossed),
         'stop-near':bool(settings.get('alertStopNearEnabled',True) and near),
-        'performance':bool(settings.get('alertPerformanceEnabled') and math.isfinite(performance) and performance>=12),
-        'rsi-low':bool(settings.get('alertRsiEnabled') and rsi is not None and rsi<25),
-        'rsi-high':bool(settings.get('alertRsiEnabled') and rsi is not None and rsi>75)
+        'performance':bool(settings.get('alertPerformanceEnabled') and math.isfinite(performance) and performance>=RULES['performance_percent']),
+        'rsi-low':bool(settings.get('alertRsiEnabled') and rsi is not None and rsi<RULES['rsi_low']),
+        'rsi-high':bool(settings.get('alertRsiEnabled') and rsi is not None and rsi>RULES['rsi_high'])
     }
 
 async def fetch_quotes(symbols):
