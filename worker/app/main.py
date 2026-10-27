@@ -146,7 +146,9 @@ def verify_admin(request:Request,admin_key:str|None):
 @app.get('/admin',include_in_schema=False)
 def admin_page():
     return FileResponse(Path(__file__).parent/'admin.html',media_type='text/html',
-                        headers={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'})
+                        headers={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',
+                        'X-Frame-Options':'DENY','Referrer-Policy':'no-referrer',
+                        'Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'none'"})
 
 @app.get('/api/v1/admin/profiles')
 def admin_profiles(request:Request,x_admin_key:str|None=Header(None)):
