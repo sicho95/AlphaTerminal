@@ -139,8 +139,12 @@ const App = {
         NotifService.push('Cours mis a jour', `${stats.updated}/${stats.total} lignes actualisees avec Yahoo Finance.`);
       }
       this.router();
-    } catch {
-      NotifService.sendError('Actualisation impossible', 'Yahoo Finance ou le proxy de cours est indisponible.');
+    } catch (error) {
+      if(MonitorService.mode==='nas'){
+        SyncClient.report('Suivi NAS momentanément indisponible : '+error.message);
+      }else{
+        NotifService.sendError('Actualisation impossible', 'Yahoo Finance ou le proxy de cours est indisponible.');
+      }
     } finally {
       this.refreshingQuotes = false;
       button?.classList.remove('is-loading');
