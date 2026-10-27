@@ -194,7 +194,7 @@ class WorkerTests(unittest.TestCase):
                 row=db.execute('SELECT id,push_json FROM devices WHERE id=?',
                                (creds['device_id'],)).fetchone()
             # Dispatch sends directly from the server; it never depends on a foreground browser.
-            with patch('pywebpush.webpush') as fake_sender:
+            with patch.dict(os.environ,{'AT_VAPID_SUBJECT':'mailto:ci@example.invalid'}), patch('pywebpush.webpush') as fake_sender:
                 result=asyncio.run(_send_push(row,{
                     'id':'test-sent-from-nas','title':'Test NAS','message':'PWA fermée'}))
                 self.assertTrue(result['sent'],result)
