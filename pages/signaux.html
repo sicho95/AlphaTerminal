@@ -8,20 +8,42 @@
     <button id="printReport" class="ghost-btn" type="button"><span class="material-symbols-outlined">print</span>Rapport</button>
   </div>
 
-  <div id="signalsList" class="page-stack"></div>
+  <div id="signalsTabset" class="section-tabset">
+    <nav class="section-tabbar" role="tablist" aria-label="Sections des signaux">
+      <button id="signals-tab-technique" type="button" role="tab" data-tab="technique" aria-selected="true">Technique</button>
+      <button id="signals-tab-macro" type="button" role="tab" data-tab="macro" aria-selected="false">Macro / géopolitique</button>
+    </nav>
+    <div class="section-tabframe">
+      <section id="signals-panel-technique" class="section-tabpane" data-tab-panel="technique" role="tabpanel" aria-labelledby="signals-tab-technique">
+        <div id="signalsTechnique"></div>
+      </section>
+      <section id="signals-panel-macro" class="section-tabpane hidden" data-tab-panel="macro" role="tabpanel" aria-labelledby="signals-tab-macro">
+        <div id="signalsMacro"></div>
+      </section>
+    </div>
+  </div>
+  <div id="signalsEmpty" class="empty-state hidden">
+    <span class="material-symbols-outlined">bolt</span>
+    <h2>Aucun signal</h2>
+    <p>Importe ou crée des positions pour lancer l'analyse.</p>
+  </div>
 </section>
 
 <script type="module">
   import { flattenPositions, getVisiblePortfolios, getSettings, money, decimal, pct } from './js/store.js';
   import { fetchMacroFeeds, stopMetrics } from './js/data.js';
+  import { initSectionTabs } from './js/page-tabs.js';
 
   async function initSignaux() {
     document.getElementById('printReport').onclick = () => window.print();
     const positions = flattenPositions(getVisiblePortfolios());
-    document.getElementById('signalsList').innerHTML = positions.length
-      ? renderTechniqueShell(positions) + renderMacroShell()
-      : `<div class="empty-state md:col-span-12"><span class="material-symbols-outlined">bolt</span><h2>Aucun signal</h2><p>Importe ou cree des positions pour lancer l'analyse.</p></div>`;
-    if (positions.length) await renderMacro();
+    document.getElementById('signalsTabset').classList.toggle('hidden',!positions.length);
+    document.getElementById('signalsEmpty').classList.toggle('hidden',Boolean(positions.length));
+    if (!positions.length) return;
+    document.getElementById('signalsTechnique').innerHTML=renderTechniqueShell(positions);
+    document.getElementById('signalsMacro').innerHTML=renderMacroShell();
+    initSectionTabs(document.getElementById('signalsTabset'),'signaux');
+    await renderMacro();
   }
 
   function renderSignal(position) {
