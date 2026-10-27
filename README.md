@@ -1,3 +1,11 @@
+## AlphaTerminal 1.2.1 — suivi local ou autonome NAS
+
+La PWA et le NAS utilisent le même contrat versionné `shared/monitor-rules.json`. Les portefeuilles et profils investisseurs restent synchronisés : arrêts explicites, ATR, multiplicateurs par profil, performance PRU, RSI et alertes d'actualités reposent sur les mêmes critères. L'adaptateur `js/monitor-service.js` privilégie les calculs locaux sans NAS et les résultats de l'API NAS dès que le suivi dynamique est activé.
+
+Les notifications Web Push doivent être autorisées par iOS, puis l'abonnement au NAS devient automatique. Le bouton de test programme un envoi par le worker 15 secondes plus tard pour vérifier la réception avec la PWA fermée. Aucun réglage PWA de 2 min ne peut forcer le NAS à dépasser la limite minimale de 5 min.
+
+Guide : [Surveillance et Web Push 1.2.1](docs/monitoring-1.2.1.md).
+
 ## Nouveautés AlphaTerminal 1.2.0
 
 - **Mode local libre :** aucun compte ou NAS requis pour créer ses portefeuilles.
