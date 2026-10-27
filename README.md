@@ -1,3 +1,14 @@
+## Nouveautés AlphaTerminal 1.2.0
+
+- **Mode local libre :** aucun compte ou NAS requis pour créer ses portefeuilles.
+- **Synchronisation familiale autonome :** chaque utilisateur peut créer son propre profil sur le NAS sans code administrateur.
+- **Un seul export chiffré :** paramètres, positions, alertes et secret de récupération NAS inclus. Mot de passe choisi une fois ; clé AES-256-GCM non exportable mémorisée dans IndexedDB pour les prochains exports/restaurations.
+- **Récupération sur un autre appareil :** déchiffrement avec mot de passe, reconnexion au **profil NAS existant**, nouveau jeton d'appareil, aucune copie de l'identité de l'ancien téléphone.
+- **Paramètres :** cinq onglets (général, alertes, synchronisation, investisseurs, sauvegardes).
+- **Administration du NAS :** /alphaterm/admin protégée par le secret administrateur de l'opérateur.
+
+Consulter [le guide de sauvegarde et récupération](docs/backup-recovery-v1.2.md). Les utilisateurs ordinaires n'ont jamais besoin du code `AT_BOOTSTRAP_CODE`.
+
 > **Attention :** le dépôt officiel en production reste en v1.0.0 tant que la v1.1.0 n'a pas été déployée et testée sur NAS + iPhone. Les sources de ce lot sont une version candidate, pas une publication validée.
 
 # AlphaTerminal v1.1.0 — code de développement (production actuelle 1.0.0)
