@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AlphaTerminal — Administration NAS</title>
+<meta name="referrer" content="no-referrer">
+<style>
+:root{color-scheme:dark;font:16px system-ui,sans-serif;background:#081525;color:#e2e8f0}
+body{max-width:1000px;margin:0 auto;padding:24px}
+h1{font-size:1.4rem}p{line-height:1.5;color:#cbd5e1}
+label{display:block;margin:16px 0 6px}
+input,button{font:inherit;border-radius:8px;padding:12px;border:1px solid #64748b}
+input{width:min(100%,480px);box-sizing:border-box;background:#0f172a;color:white}
+button{background:#1e293b;color:white;cursor:pointer;margin:4px}
+button:focus-visible{outline:2px solid #86efac}
+button.danger{border-color:#ef4444}
+article{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  background:#122238;border:1px solid #34445c;border-radius:10px;margin:10px 0;padding:14px}
+small{display:block;color:#94a3b8;margin-top:5px}
+#status{white-space:pre-wrap}
+@media(max-width:600px){body{padding:12px}article{display:block}}
+</style>
+</head>
+<body>
+<h1>AlphaTerminal — Administration du worker NAS</h1>
+<p>Cette page est réservée à l'administrateur du NAS. Le secret administrateur reste uniquement en mémoire le temps de la consultation. Il n'est ni enregistré dans la PWA, ni transmis aux utilisateurs.</p>
+<label for="secret">Code administrateur du worker</label>
+<input id="secret" type="password" autocomplete="off" spellcheck="false">
+<button id="load" type="button">Afficher les profils</button>
+<button id="forget" type="button">Effacer le code saisi</button>
+<p id="status" role="status"></p>
+<section id="profiles" aria-label="Profils utilisateurs"></section>
+<script>
+(()=>{'use strict';
+const $=id=>document.getElementById(id),root=location.pathname.replace(/\/admin\/?$/,'');
+const send=async(method,path,body)=>{
+ const response=await fetch(root+'/api/v1/admin/'+path,{
+  method,cache:'no-store',headers:{'X-Admin-Key':$('secret').value,'Content-Type':'application/json'},
+  ...(body?{body:JSON.stringify(body)}:{})
+ });
+ if(!response.ok)throw Error('HTTP '+response.status+': '+(await response.text()).slice(0,180));
+ return response.json();
+};
+const status=s=>{$('status').textContent=s;};
+const addButton=(label,click,danger=false)=>{
+ const button=document.createElement('button');button.type='button';button.textContent=label;
+ if(danger)button.className='danger';button.onclick=click;return button;
+};
+async function refresh(){
+ $('profiles').replaceChildren();
+ try{
+  const result=await send('GET','profiles');
+  status(result.profiles.length+' profils sur le NAS.');
+  for(const p of result.profiles){
+   const card=document.createElement('article'),info=document.createElement('div'),title=document.createElement('strong');
+   title.textContent=p.name;info.append(title);
+   const meta=document.createElement('small');
+   meta.textContent='ID '+p.id+' · '+p.active_devices+' appareil(s) · '+(p.disabled?'SUSPENDU':'ACTIF')+' · créé '+p.created_at;
+   info.append(meta);card.append(info);
+   const actions=document.createElement('div');
+   actions.append(addButton(p.disabled?'Réactiver':'Suspendre',async()=>{
+    if(!confirm((p.disabled?'Réactiver':'Suspendre')+' le profil '+p.name+' ?'))return;
+    try{await send('POST','profiles/'+encodeURIComponent(p.id)+'/status',{disabled:!p.disabled});await refresh();}
+    catch(e){status(e.message);}
+   }));
+   actions.append(addButton('Supprimer définitivement',async()=>{
+    const typed=prompt('Suppression définitive du profil et des données NAS. Saisir EXACTEMENT son nom :');
+    if(typed!==p.name)return;
+    if(!confirm('Confirmer la suppression irréversible de '+p.name+' ?'))return;
+    try{await send('DELETE','profiles/'+encodeURIComponent(p.id),{confirm_name:typed});await refresh();}
+    catch(e){status(e.message);}
+   },true));
+   card.append(actions);$('profiles').append(card);
+  }
+ }catch(e){status(e.message);}
+}
+$('load').onclick=refresh;
+$('forget').onclick=()=>{$('secret').value='';$('profiles').replaceChildren();status('Secret effacé de cette page.');};
+})();
+</script>
+</body>
+</html>
