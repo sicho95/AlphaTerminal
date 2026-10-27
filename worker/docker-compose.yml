@@ -9,8 +9,6 @@ services:
       AT_DATA_DIR: /data
       AT_BOOTSTRAP_CODE: ${AT_BOOTSTRAP_CODE:?Ajouter un code secret dans .env}
       AT_CORS_ORIGIN: https://sicho95.github.io
-      AT_QUOTES_INTERVAL: 600
-      AT_NEWS_INTERVAL: 1800
       AT_NEWS_ENABLED: "true"
       AT_VAPID_SUBJECT: ${AT_VAPID_SUBJECT:?Ajouter mailto:adresse contact dans .env}
       AT_QUOTES_ENABLED: "true"
