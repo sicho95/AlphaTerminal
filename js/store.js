@@ -116,6 +116,8 @@ function normalizePortfolio(portfolio) {
       lastQuoteSymbol: position.lastQuoteSymbol || '',
       lastQuoteStatus: position.lastQuoteStatus || '',
       lastQuoteError: position.lastQuoteError || '',
+      atr14: position.atr14 ?? null,
+      suggestedStop: position.suggestedStop ?? null,
       history: position.history || null
     })) : []
   };
