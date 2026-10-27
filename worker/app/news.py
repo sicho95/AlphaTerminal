@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 from xml.etree import ElementTree as ET
 import httpx
 from .db import read_db,transaction,now,new_id,compact
+from .market import RULES
 
 LAST_RUN={}
 NEWS_MIN_MINUTES=15
@@ -21,19 +22,12 @@ FEEDS = {
     'AMF':'https://www.amf-france.org/fr/flux-rss/display/29',
     'BCE':'https://www.ecb.europa.eu/rss/press.html',
 }
-TOPICS = {
-    'taux':['bce','fed','banque centrale','taux directeur','taux directeurs','interest rate','fomc'],
-    'inflation':['inflation','cpi','pce','prix a la consommation'],
-    'energie':['petrole','brent','gaz','gas','oil','opep','opec'],
-    'geopolitique':['sanctions','tarifs douaniers','tariffs','guerre commerciale','export controls','embargo'],
-    'tech':['semi conducteur','semiconductor','intelligence artificielle','data center','gpu','cloud'],
-    'credit':['defaut','default','downgrade','liquidite','liquidity']
-}
-HIGH=['suspension de cotation','profit warning','avertissement sur resultats','offre publique','opa','faillite','bankruptcy','sanctions','retrait de previsions','guidance cut','guidance lowered']
-MEDIUM=['resultats','earnings','previsions','guidance','acquisition','merger','taux directeur','taux directeurs','inflation','tariffs','embargo']
-SECTOR_MAP={'technology':['tech'],'ia':['tech'],'tech':['tech'],'energy':['energie'],'energie':['energie'],
-    'world':['taux','inflation','geopolitique'],'europe':['taux','inflation','energie'],
-    'emerging':['geopolitique','inflation'],'technology':['tech'],'semi-conducteurs':['tech'],'finance':['taux','credit'],'obligations':['taux','inflation']}
+# Lexique central: une modification du manifeste s'applique au NAS et à la PWA.
+NEWS=RULES['news_lexicon']
+TOPICS=NEWS['topics']
+HIGH=NEWS['high']
+MEDIUM=NEWS['medium']
+SECTOR_MAP=NEWS['sector_map']
 
 def norm(value):
     value=unicodedata.normalize('NFKD',str(value or '').lower())
