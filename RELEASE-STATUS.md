@@ -1,3 +1,11 @@
+## Version 1.2.0 — état de publication (27/10/2026)
+
+La version v1.2 apporte les comptes NAS libres, la sauvegarde intégrale chiffrée et la récupération de la session existante ; détails : [docs/backup-recovery-v1.2.md](docs/backup-recovery-v1.2.md).
+
+**Recette automatisée :** GitHub Actions (syntaxe JS, tests Node et tests FastAPI/Python) exécutée sur PR #3. **Recette matérielle :** synchronisation réelle iPhone/iMac, PWA iOS, Web Push Apple, miroir Forgejo et redéploiement Portainer restent à confirmer sur le NAS ; l'absence de validation terrain ne vaut pas validation.
+
+La sauvegarde du volume SQLite/VAPID/coffre de récupération est obligatoire avant redéploiement réel.
+
 # Statut de publication
 
 - **Production GitHub vérifiée avant ces travaux : v1.0.0**.
