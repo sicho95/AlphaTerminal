@@ -10,8 +10,8 @@
 
   <div id="signalsTabset" class="section-tabset">
     <nav class="section-tabbar" role="tablist" aria-label="Sections des signaux">
-      <button id="signals-tab-technique" type="button" role="tab" data-tab="technique" aria-selected="true">Technique</button>
-      <button id="signals-tab-macro" type="button" role="tab" data-tab="macro" aria-selected="false">Macro / géopolitique</button>
+      <button id="signals-tab-technique" type="button" role="tab" data-tab="technique" aria-selected="true"><span class="material-symbols-outlined" aria-hidden="true">monitoring</span>Technique</button>
+      <button id="signals-tab-macro" type="button" role="tab" data-tab="macro" aria-selected="false"><span class="material-symbols-outlined" aria-hidden="true">public</span>Macro / géopolitique</button>
     </nav>
     <div class="section-tabframe">
       <section id="signals-panel-technique" class="section-tabpane" data-tab-panel="technique" role="tabpanel" aria-labelledby="signals-tab-technique">
@@ -68,17 +68,11 @@
   }
 
   function renderTechniqueShell(positions) {
-    return `<article class="glass-panel">
-      <div class="section-title"><span class="material-symbols-outlined">monitoring</span>Technique</div>
-      <div class="signals-grid">${positions.map(renderSignal).join('')}</div>
-    </article>`;
+    return `<div class="signals-grid">${positions.map(renderSignal).join('')}</div>`;
   }
 
   function renderMacroShell() {
-    return `<article class="glass-panel">
-      <div class="section-title"><span class="material-symbols-outlined">public</span>Macro / geopolitique</div>
-      <div id="macroNews" class="list-stack"><div class="text-muted">Chargement du contexte macro...</div></div>
-    </article>`;
+    return `<div id="macroNews" class="list-stack"><div class="text-muted">Chargement du contexte macro...</div></div>`;
   }
 
   async function renderMacro() {
