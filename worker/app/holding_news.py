@@ -68,6 +68,9 @@ def _date(value):
         try:return datetime.fromtimestamp(value,tz=timezone.utc)
         except (ValueError,OSError,OverflowError):return None
     if not value:return None
+    if isinstance(value,str) and re.fullmatch(r'\d{8}T\d{6}Z?',value):
+        try:return datetime.strptime(value.rstrip('Z'),'%Y%m%dT%H%M%S').replace(tzinfo=timezone.utc)
+        except ValueError:return None
     try:
         dt=parsedate_to_datetime(str(value))
         return dt.astimezone(timezone.utc) if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
@@ -149,11 +152,15 @@ async def query_one(client,position,days,sem):
     all_articles=sorted(unique.values(),key=lambda x:x['published_at'],reverse=True)
     return all_articles[:16],errors
 
-async def holdings_news(profile_id,days=7,position_id='',offset=0):
+async def holdings_news(profile_id,days=7,position_id='',offset=0,portfolio_ids=()):
     with read_db() as db:
         row=db.execute('SELECT data_json FROM profiles WHERE id=? AND disabled=0',(profile_id,)).fetchone()
         if not row:raise ValueError('Profil inexistant')
-        positions=eligible_positions(json.loads(row['data_json']))
+        data=json.loads(row['data_json'])
+        if portfolio_ids:
+            allow=set(portfolio_ids)
+            data['portfolios']=[p for p in data.get('portfolios',[]) if p.get('id') in allow]
+        positions=eligible_positions(data)
     if position_id:
         positions=[p for p in positions if p['id']==position_id]
     total=len(positions)
