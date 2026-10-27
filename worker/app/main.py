@@ -284,6 +284,13 @@ def sync_changes(body:Changes, authorization:str|None=Header(None)):
         raise HTTPException(422,'Changement requis')
     if payload.get('settings_patch') is not None:
         validate_json(payload['settings_patch'],100000)
+        if 'autoRefreshMinutes' in payload['settings_patch']:
+            try:
+                value=int(float(payload['settings_patch']['autoRefreshMinutes']))
+                if value < 5 or value > 120:
+                    raise ValueError('outside limits')
+            except (TypeError,ValueError,OverflowError):
+                raise HTTPException(422,'Actualisation autorisée : de 5 à 120 minutes')
         banned={'marketauxApiKey','finnhubApiKey','twelveDataApiKey','token','deviceToken','workerToken','workerUrl'}
         if any(k in banned or k.startswith('_') for k in payload['settings_patch']):
             raise HTTPException(422,'Clé de configuration interdite')
@@ -430,18 +437,27 @@ async def _send_push(row,event):
             if status in (404,410):db.execute('UPDATE devices SET push_json=NULL WHERE id=?',(row['id'],))
         return {'sent':False,'reason':detail}
 
+BACKGROUND_PUSH_TESTS=set()
+
 @app.post('/api/v1/push/test')
 async def push_test(request:Request,authorization:str|None=Header(None)):
+    """Schedules a 15s worker-generated Web Push to test iOS with app closed."""
     ratelimit(request,'push-test',n=4,window=300)
     with read_db() as db:
         device=authorize(db,authorization)
         row=db.execute('SELECT id,push_json FROM devices WHERE id=?',(device['id'],)).fetchone()
     if not row['push_json']:raise HTTPException(409,'Cet appareil n’est pas abonné aux Web Push')
     event={'id':new_id('push-test'),'title':'AlphaTerminal · test NAS',
-           'message':'Cette notification a été envoyée par le worker NAS, et non par la PWA.',
+           'message':'Cette notification est envoyée par le worker NAS, même si la PWA est fermée.',
            'type':'push-test','severity':'info','timestamp':now()}
-    result=await _send_push(row,event)
-    return result
+    async def later():
+        await asyncio.sleep(15)
+        await _send_push(row,event)
+    task=asyncio.create_task(later())
+    BACKGROUND_PUSH_TESTS.add(task)
+    task.add_done_callback(BACKGROUND_PUSH_TESTS.discard)
+    return {'scheduled':True,'delay_seconds':15}
+
 
 async def dispatch(profile_id,event):
     with read_db() as db:
