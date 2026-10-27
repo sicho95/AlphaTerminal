@@ -83,7 +83,7 @@ def parse_rss(raw,provider):
     items=[]
     for item in root.findall('.//item')[:25]:
         title=item.findtext('title',''); link=item.findtext('link','')
-        if link.startswith('https://') and title:items.append({'title':title,'url':link,'source':provider,'summary':item.findtext('description','')[:500]})
+        if link.startswith('https://') and title:items.append({'title':title,'url':link,'source':provider,'provider':'rss','summary':item.findtext('description','')[:500]})
     return items
 
 async def collect_news(search_terms=()):
@@ -98,7 +98,7 @@ async def collect_news(search_terms=()):
                 if isinstance(section,list):
                     for a in section[:25]:
                         if isinstance(a,dict) and a.get('title') and str(a.get('link','')).startswith('https://'):
-                            out.append({'title':a['title'],'url':a['link'],'source':a.get('source','OKSURF'),'summary':''})
+                            out.append({'title':a['title'],'url':a['link'],'source':a.get('source','OKSURF'),'provider':'oksurf','summary':''})
         except (httpx.HTTPError,ValueError,TypeError):pass
         # Portefeuille ciblé : les sociétés de taille modeste ne figurent pas toujours
         # dans les grands flux macro. Limiter les requêtes Yahoo (API non officielle).
@@ -110,7 +110,7 @@ async def collect_news(search_terms=()):
                 for a in r.json().get('news',[]):
                     link=a.get('link','')
                     if link.startswith('https://') and a.get('title'):
-                        out.append({'title':a['title'],'url':link,'source':a.get('publisher','Yahoo Finance'),'summary':''})
+                        out.append({'title':a['title'],'url':link,'source':a.get('publisher','Yahoo Finance'),'provider':'yahoo','summary':''})
             except (httpx.HTTPError,ValueError,TypeError):pass
         for label,url in FEEDS.items():
             try:
@@ -124,7 +124,7 @@ async def collect_news(search_terms=()):
             r.raise_for_status()
             for a in r.json().get('articles',[]):
                 if str(a.get('url','')).startswith('https://'):
-                    out.append({'title':a.get('title',''),'url':a['url'],'source':'GDELT','summary':''})
+                    out.append({'title':a.get('title',''),'url':a['url'],'source':'GDELT','provider':'gdelt','summary':''})
         except (httpx.HTTPError,ValueError,TypeError):pass
     unique={}
     for a in out:
@@ -168,13 +168,14 @@ async def check_news(dispatch):
             url=article.get('url','')
             if not url.startswith('https://'):continue
             key=hashlib.sha256(url.split('#')[0].encode()).hexdigest()
-            db.execute('''INSERT INTO news_feed(url_hash,title,url,source,summary,updated_at)
-                VALUES(?,?,?,?,?,?)
+            db.execute('''INSERT INTO news_feed(url_hash,title,url,source,provider,summary,updated_at)
+                VALUES(?,?,?,?,?,?,?)
                 ON CONFLICT(url_hash) DO UPDATE SET
                 title=excluded.title,source=excluded.source,
-                summary=excluded.summary,updated_at=excluded.updated_at''',
+                provider=excluded.provider,summary=excluded.summary,updated_at=excluded.updated_at''',
                 (key,str(article.get('title',''))[:240],url,
-                 str(article.get('source',''))[:80],str(article.get('summary',''))[:500],now()))
+                 str(article.get('source',''))[:80],str(article.get('provider','unknown'))[:16],
+                 str(article.get('summary',''))[:500],now()))
         db.execute('''DELETE FROM news_feed WHERE url_hash NOT IN
             (SELECT url_hash FROM news_feed ORDER BY updated_at DESC LIMIT 250)''')
     for p in profiles:
@@ -183,7 +184,9 @@ async def check_news(dispatch):
         initialize=not p['news_initialized']
         data=json.loads(p['data_json'])
         positions=[pos for portfolio in data.get('portfolios',[]) for pos in portfolio.get('positions',[])]
-        for a in articles:
+        provider=settings.get('macroProvider','multi')
+        available=[a for a in articles if provider=='multi' or a.get('provider')==provider]
+        for a in available:
             evaluation=score_article(a,positions)
             if evaluation['level']=='info':continue
             news_id=hashlib.sha256(a['url'].split('#')[0].encode()).hexdigest()
