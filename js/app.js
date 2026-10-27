@@ -3,6 +3,7 @@ import { initStore, state, subscribe, getOwners, getPortfolios, setSelectedScope
 import { NotifService } from './notifications.js';
 import { evaluateMarketAlerts } from './market-alerts.js';
 import { syncPendingPushAlerts } from './push-sync.js';
+import { SyncClient } from './sync-client.js';
 
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
@@ -11,6 +12,7 @@ const routes = new Set(['dashboard', 'analyse', 'signaux', 'inventaire', 'parame
 const App = {
   async init() {
     initStore(DEFAULT_DATA);
+    SyncClient.init();
     this.applyTheme(getSettings().darkMode);
     this.bindShell();
     this.renderScopeSelect();
@@ -260,6 +262,7 @@ const App = {
           </div>
           <span class="status-pill ${alert.severity === 'error' ? 'danger' : 'neutral'}">${new Date(alert.timestamp).toLocaleDateString('fr-FR')}</span>
         </div>
+        ${alert.url && /^https:\/\//.test(alert.url) ? `<p class="mt-2 text-sm"><a href="${escapeHtml(alert.url)}" target="_blank" rel="noopener noreferrer">Lire la source</a></p>` : ''}
       </article>
     `).join('');
   },

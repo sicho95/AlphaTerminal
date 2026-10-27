@@ -17,14 +17,14 @@
         <div class="field"><label>Proxy CORS</label><input name="corsProxy" placeholder="https://proxy.example/?url= ou .../{url}"></div>
         <div class="field"><label>Plafond PEA</label><input name="peaLimit" inputmode="decimal"></div>
         <div class="field"><label>Profil par défaut</label><select name="investorProfile"><option value="prudent">Prudent</option><option value="equilibre">Equilibre</option><option value="dynamique">Dynamique</option><option value="offensif">Offensif</option><option value="dca">DCA</option></select></div>
-        <div class="field"><label>Source macro/news</label><select name="macroProvider"><option value="yahoo">Yahoo Finance</option><option value="oksurf">OKSURF sans cle</option><option value="marketaux">Marketaux finance</option><option value="finnhub">Finnhub finance</option><option value="multi">Multi-sources auto</option></select></div>
+        <div class="field"><label>Source macro/news</label><select name="macroProvider"><option value="yahoo">Yahoo Finance</option><option value="oksurf">OKSURF sans cle</option><option value="multi">Multi-sources auto</option></select></div>
         <div class="field"><label>Requête macro</label><input name="macroQuery" placeholder="inflation OR energy OR geopolitics"></div>
-        <div class="field"><label>Clé Marketaux</label><input name="marketauxApiKey" type="password" autocomplete="off"></div>
-        <div class="field"><label>Clé Finnhub</label><input name="finnhubApiKey" type="password" autocomplete="off"></div>
         <div class="field"><label><input type="checkbox" name="alertStopsEnabled"> Alerter si stop franchi</label></div>
         <div class="field"><label><input type="checkbox" name="alertStopNearEnabled"> Alerter si stop à moins de 3 %</label></div>
         <div class="field"><label><input type="checkbox" name="alertPerformanceEnabled"> Alerter si performance atteint +12 %</label></div>
         <div class="field"><label><input type="checkbox" name="alertRsiEnabled"> Alerter si RSI extrême</label></div>
+        <div class="field"><label><input type="checkbox" name="dynamicEnabled"> Surveillance autonome sur NAS</label></div>
+        <div class="field"><label><input type="checkbox" name="alertNewsEnabled"> Alertes d'actualités significatives</label></div>
         <button class="primary-btn" type="submit"><span class="material-symbols-outlined">save</span>Sauver config</button>
       </form>
     </article>
@@ -34,7 +34,35 @@
       <p class="text-muted">Le centre de notifications interne fonctionne indépendamment. Sur iPhone, installe la PWA à l'écran d'accueil et active les notifications ici.</p>
       <button id="enableSystemNotifications" type="button" class="primary-btn mt-4">Activer les notifications iOS</button>
       <p id="systemNotificationStatus" class="text-muted mt-3" role="status"></p>
-      <p class="text-muted mt-3">Web Push distant : réception préparée, en attente du futur backend SichoRuntime sur NAS.</p>
+      <p class="text-muted mt-3">Web Push autonome : disponible après appairage avec AlphaTerminal Worker, sur le NAS.</p>
+    </article>
+
+
+    <article class="glass-panel md:col-span-12">
+      <div class="section-title"><span class="material-symbols-outlined">sync</span>Profil NAS et synchronisation multi-appareils</div>
+      <p class="text-muted">Facultatif : sans appairage, tout reste local. Un profil rassemble les paramètres et les portefeuilles sur tes appareils autorisés.</p>
+      <div class="form-grid three mt-4">
+        <div class="field"><label>URL HTTPS du worker</label><input id="syncServer" placeholder="https://alphaterminal.exemple.fr"></div>
+        <div class="field"><label>Nom du profil (création)</label><input id="syncName" placeholder="Damien"></div>
+        <div class="field"><label>Nom de l'appareil</label><input id="syncDevice" placeholder="iPhone Damien"></div>
+        <div class="field"><label>Code administrateur (création seulement)</label><input id="syncAdminCode" type="password" autocomplete="off"></div>
+        <div class="field"><label>Code d'appairage affiché sur nouvel appareil</label><input id="syncPairCode" inputmode="numeric" maxlength="6" placeholder="000000"></div>
+      </div>
+      <div class="action-row mt-4" style="flex-wrap:wrap;gap:8px">
+        <button class="primary-btn" id="syncCreate" type="button">Créer un profil</button>
+        <button class="secondary-btn" id="syncPairStart" type="button">Nouvel appareil : demander un code</button>
+        <button class="secondary-btn" id="syncPairApprove" type="button">Ancien appareil : autoriser le code</button>
+        <button class="secondary-btn" id="syncPairClaim" type="button">Nouvel appareil : terminer</button>
+        <button class="secondary-btn" id="syncNow" type="button">Synchroniser maintenant</button>
+        <button class="secondary-btn" id="syncPush" type="button">Activer Web Push NAS</button>
+        <button class="secondary-btn" id="syncExport" type="button">Exporter une sauvegarde JSON</button>
+      </div>
+      <div class="action-row mt-3" style="flex-wrap:wrap;gap:8px">
+        <button class="secondary-btn" id="syncServerWins" type="button">Conflit : choisir NAS</button>
+        <button class="secondary-btn" id="syncLocalWins" type="button">Conflit : choisir cet appareil</button>
+      </div>
+      <p id="syncStatus" class="text-muted mt-3" role="status">Mode local</p>
+      <p class="text-muted mt-2">Important : exporte tes données avant une première restauration. Les changements hors connexion seront envoyés au retour du réseau ; un conflit doit être résolu explicitement.</p>
     </article>
 
     <article class="glass-panel md:col-span-12">
@@ -48,6 +76,7 @@
 <script type="module">
   import { APP_VERSION, getSettings, saveSettings, parseLocaleNumber } from './js/store.js';
   import { NotifService } from './js/notifications.js';
+  import { initSyncUI } from './js/sync-ui.js';
 
   function initParametres() {
     document.getElementById('appVersion').textContent = `Version ${APP_VERSION}`;
@@ -64,12 +93,12 @@
         yahooFallback: true,
         macroProvider: data.macroProvider,
         macroQuery: data.macroQuery,
-        marketauxApiKey: data.marketauxApiKey,
-        finnhubApiKey: data.finnhubApiKey,
         alertStopsEnabled: event.target.elements.alertStopsEnabled.checked,
         alertStopNearEnabled: event.target.elements.alertStopNearEnabled.checked,
         alertPerformanceEnabled: event.target.elements.alertPerformanceEnabled.checked,
-        alertRsiEnabled: event.target.elements.alertRsiEnabled.checked
+        alertRsiEnabled: event.target.elements.alertRsiEnabled.checked,
+        dynamicEnabled: event.target.elements.dynamicEnabled.checked,
+        alertNewsEnabled: event.target.elements.alertNewsEnabled.checked
       });
       renderSettings();
     };
@@ -81,6 +110,7 @@
     };
     document.getElementById('saveProfiles').onclick = saveProfilesFromEditor;
     renderSettings();
+    initSyncUI();
   }
 
   function renderSettings() {
@@ -92,9 +122,7 @@
     form.investorProfile.value = settings.investorProfile || 'equilibre';
     form.macroProvider.value = settings.macroProvider || 'multi';
     form.macroQuery.value = settings.macroQuery || '';
-    form.marketauxApiKey.value = settings.marketauxApiKey || '';
-    form.finnhubApiKey.value = settings.finnhubApiKey || '';
-    for (const name of ['alertStopsEnabled', 'alertStopNearEnabled', 'alertPerformanceEnabled', 'alertRsiEnabled']) {
+    for (const name of ['alertStopsEnabled', 'alertStopNearEnabled', 'alertPerformanceEnabled', 'alertRsiEnabled','dynamicEnabled','alertNewsEnabled']) {
       form.elements[name].checked = Boolean(settings[name]);
     }
     const permission = 'Notification' in globalThis ? Notification.permission : 'non disponible';

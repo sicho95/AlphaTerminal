@@ -25,7 +25,7 @@ test('existing portfolio and settings survive init and migration',()=>{
  assert.equal(store.getPortfolios()[0].id,'pea-1');
  assert.equal(store.getSettings().corsProxy,'https://proxy.sicho.workers.dev/?url=');
  assert.equal(store.getSettings().autoRefreshMinutes,10);
- assert.equal(store.APP_VERSION,'1.0.0');
+ assert.equal(store.APP_VERSION,'1.1.0');
  assert.equal(map.has('alphaTerm_data'),true);
 });
 test('stop alerts are deduplicated, rearmed only on safe transition',()=>{

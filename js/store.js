@@ -1,6 +1,6 @@
 export const SCHEMA_VERSION = 2;
 export const PROFILE_DEFAULTS_VERSION = 3;
-export const APP_VERSION = '1.0.0';
+export const APP_VERSION = '1.1.0';
 
 export const KEYS = {
   data: 'alphaTerm_data',
@@ -39,10 +39,10 @@ const defaultSettings = {
   autoRefreshMinutes: 10,
   lastQuotesRefreshAt: '',
   macroProvider: 'multi',
-  marketauxApiKey: '',
-  finnhubApiKey: '',
   macroQuery: 'central banks OR inflation OR energy OR geopolitics OR markets',
   macroLanguage: 'fr,en',
+  dynamicEnabled: false,
+  alertNewsEnabled: true,
   stopAtrMultipliers: {
     prudent: 2,
     equilibre: 2.5,
@@ -184,7 +184,9 @@ function normalizeProfiles(profiles = {}) {
 }
 
 function normalizeSettings(settings = {}) {
-  const merged = { ...defaultSettings, ...settings };
+  const {marketauxApiKey, finnhubApiKey, twelveDataApiKey, ...safeSettings} = settings;
+  const merged = { ...defaultSettings, ...safeSettings };
+  if(!['multi','yahoo','oksurf'].includes(merged.macroProvider))merged.macroProvider='multi';
   if (settings.profileDefaultsVersion !== PROFILE_DEFAULTS_VERSION) {
     const customProfiles = Object.fromEntries(Object.entries(settings.investorProfiles || {}).filter(([id]) => !DEFAULT_INVESTOR_PROFILES[id]));
     merged.investorProfiles = { ...DEFAULT_INVESTOR_PROFILES, ...customProfiles };
@@ -259,6 +261,7 @@ export function getData() {
 export function saveData(data) {
   state.data = normalizeData(data);
   persistData();
+  globalThis.document?.dispatchEvent(new CustomEvent('alphaterminal:storechange',{detail:{kind:'data'}}));
   emit();
 }
 
@@ -271,8 +274,11 @@ export function getPortfolios() {
 }
 
 export function saveSettings(settings) {
+  const before=state.settings;
   state.settings = normalizeSettings({ ...state.settings, ...settings });
   writeJSON(KEYS.settings, state.settings);
+  const patch=Object.fromEntries(Object.entries(state.settings).filter(([k,v])=>JSON.stringify(v)!==JSON.stringify(before[k])));
+  if(Object.keys(patch).length)globalThis.document?.dispatchEvent(new CustomEvent('alphaterminal:storechange',{detail:{kind:'settings',patch}}));
   emit();
 }
 

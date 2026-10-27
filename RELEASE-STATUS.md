@@ -1,3 +1,11 @@
+# Statut de publication
+
+- **Production GitHub vérifiée avant ces travaux : v1.0.0**.
+- **Ce ZIP : candidat 1.1.0** développé en environnement local isolé.
+- Tests automatisés localement : à consulter dans `tests/` et `worker/tests/`.
+- Aucun `git push`, aucune release GitHub 1.1.0, aucun NAS configuré depuis cette session.
+- Avant déploiement : sauvegarde des données de la PWA (export JSON), sauvegarde des clés VAPID et SQLite, tests Safari iOS et HTTPS.
+
 # État réel de livraison
 
 Livraison : sources v1.0.0 **prêtes à tester et publier**, mais pas encore publiées.
