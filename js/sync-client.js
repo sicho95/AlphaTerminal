@@ -180,8 +180,10 @@ export const SyncClient={
       this.report('Profil NAS existant restauré · suivi autonome conservé');
       return remote;
     }catch(error){
-      // En cas de problème réseau, ne pas effacer la session d'origine.
-      if(!this.session?.token){this.session=previous;putJson(SESSION,previous);}
+      // Rétablir la connexion précédente si le NAS de la sauvegarde n'a pas pu être rejoint.
+      this.session=previous;
+      if(previous)putJson(SESSION,previous);
+      else localStorage.removeItem(SESSION);
       throw error;
     }
   },
