@@ -55,6 +55,7 @@
         </div>
         <p id="holdingNewsStatus" class="text-muted holding-news-status" role="status">Recherche des actualités liées aux positions détenues…</p>
         <div id="positionNews" class="holding-news-list"></div>
+        <button id="holdingNewsMore" class="secondary-btn holding-news-more hidden" type="button">Rechercher parmi les autres titres détenus</button>
       </section>
     </div>
   </div>
@@ -62,7 +63,8 @@
 
 <script type="module">
   import { getVisiblePortfolios, totals, getSettings, money, pct, decimal } from './js/store.js';
-  import { suggestedStop, fetchPositionNews } from './js/data.js';
+  import { suggestedStop } from './js/data.js';
+  import { holdingNews, eligibleHoldings } from './js/holding-news.js';
   import { initSectionTabs } from './js/page-tabs.js';
 
   function initAnalyse() {
@@ -90,7 +92,7 @@
     renderRebalance(allocation.risk, weighted.target, total.value, profile.etf);
     renderStops(total.positions);
     renderHoldings(total.positions);
-    renderPositionNews(total.positions);
+    initHoldingNews(total.positions,portfolios);
   }
 
   function currentAllocation(positions, value, cash = 0) {
@@ -172,21 +174,75 @@
     ` : `<p class="text-muted">Aucune ligne detenue sur ce perimetre.</p>`;
   }
 
-  async function renderPositionNews(positions) {
-    const target = document.getElementById('positionNews');
-    const candidates = positions.filter(position => Number(position.qty) > 0).slice(0, 6);
-    try {
-      const groups = await Promise.all(candidates.map(fetchPositionNews));
-      const news = groups.flat().slice(0, 8);
-      target.innerHTML = news.length ? news.map(event => `
-        <a class="mini-card md:col-span-3 macro-card ${sentimentClass(event.sentiment)}" href="${event.url}" target="_blank" rel="noreferrer">
-          <div class="macro-copy"><strong>${event.title}</strong><span>${event.summary || event.source || ''}</span><em>${event.analysisLabel || 'Yahoo Finance'}</em></div>
-          <span class="signal-badge ${sentimentClass(event.sentiment)}">${event.sentiment || 'Neutre'}</span>
-        </a>
-      `).join('') : `<p class="text-muted md:col-span-12">Aucune actualite Yahoo Finance recente pour ces lignes.</p>`;
-    } catch {
-      target.innerHTML = `<p class="text-muted md:col-span-12">News titres indisponibles.</p>`;
-    }
+  const escapeNews=value=>String(value??'').replace(/[&<>"']/g, c=>({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+  let newsRequestId=0;
+  function initHoldingNews(positions,portfolios) {
+    const holdings=eligibleHoldings(positions);
+    const select=document.getElementById('holdingNewsPosition');
+    const tab=document.getElementById('analyse-tab-news');
+    const period=document.getElementById('holdingNewsPeriod');
+    const more=document.getElementById('holdingNewsMore');
+    const status=document.getElementById('holdingNewsStatus');
+    const target=document.getElementById('positionNews');
+    select.innerHTML='<option value="all">Tous les titres détenus</option>'+
+      holdings.map(p=>`<option value="${escapeNews(p.id||p.isin||p.ticker)}">${escapeNews(p.name||p.ticker)}</option>`).join('');
+    let items=[],nextOffset=0,scanned=0,total=holdings.length,loaded=false,busy=false,errors=[];
+    const render=()=>{
+      const unique=new Map(items.map(a=>[a.url?.split('#')[0],a]));
+      const rows=[...unique.values()].sort((a,b)=>String(b.published_at).localeCompare(String(a.published_at)));
+      target.innerHTML=rows.length?rows.map(a=>{
+        const published=new Date(a.published_at);
+        const date=Number.isFinite(published.getTime())?
+          new Intl.DateTimeFormat('fr-FR',{day:'numeric',month:'short',year:'numeric'}).format(published):'';
+        const url=/^https:\/\//i.test(a.url||'')?a.url:'';
+        return `<a class="holding-news-card" href="${escapeNews(url||'#')}" target="_blank" rel="noopener noreferrer">
+          <strong class="holding-news-title">${escapeNews(a.title)}</strong>
+          <span class="holding-news-company">${escapeNews(a.holding_name||a.ticker)} · ${escapeNews(a.ticker||'')}</span>
+          <span class="holding-news-meta">${escapeNews(a.source||a.provider||'Actualités')} · ${escapeNews(date)}</span>
+        </a>`;
+      }).join(''):(!busy?'<p class="text-muted">Aucune actualité vérifiée pour ces titres et cette période.</p>':'');
+      more.classList.toggle('hidden',nextOffset===null||busy||select.value!=='all');
+      more.textContent='Rechercher aussi parmi les autres titres ('+scanned+'/'+total+' vérifiés)';
+      status.textContent=busy?'Recherche des actualités des sociétés et ETF détenus…':
+        (scanned+'/'+total+' titres vérifiés · '+rows.length+' articles sur '+period.value+' jours · Google Actualités, Yahoo Finance et GDELT')+
+        (errors.length?' · Certaines sources ne répondent pas.':'');
+      if(!busy&&!rows.length&&errors.length){
+        target.innerHTML='<p class="text-muted">Aucun article obtenu. Certaines sources sont temporairement indisponibles : ce résultat ne signifie pas qu’il n’existe aucune actualité.</p>';
+      }
+    };
+    const load=async(reset=false)=>{
+      if(busy)return;
+      if(reset){items=[];nextOffset=0;scanned=0;errors=[];loaded=true;}
+      if(nextOffset===null)return;
+      const token=++newsRequestId;
+      busy=true;render();
+      try{
+        const result=await holdingNews(positions,portfolios,{
+          days:Number(period.value),
+          positionId:select.value==='all'?'':select.value,offset:nextOffset
+        });
+        if(token!==newsRequestId)return;
+        items.push(...(result.articles||[]));
+        scanned+=(result.checked_positions||0);
+        total=result.total_positions??total;
+        nextOffset=result.next_offset??null;
+        errors.push(...(result.source_errors||[]));
+      }catch(error){
+        nextOffset=null;
+        errors.push(error.message||'Sources indisponibles');
+      }finally{busy=false;render();}
+    };
+    select.addEventListener('change',()=>load(true));
+    period.addEventListener('change',()=>load(true));
+    document.getElementById('holdingNewsRefresh').addEventListener('click',()=>load(true));
+    more.addEventListener('click',()=>load(false));
+    const tabset=document.getElementById('analyseContent');
+    tabset.addEventListener('alphaterminal:tabchange',event=>{
+      if(event.detail.tab==='news'&&!loaded)load(true);
+    });
+    if(tab.getAttribute('aria-selected')==='true')load(true);
   }
 
   function sentimentClass(sentiment) {
