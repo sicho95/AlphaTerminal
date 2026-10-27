@@ -5,7 +5,7 @@ import unittest
 from fastapi.testclient import TestClient
 
 from app.db import init,transaction,apply_changes,Conflict,profile_state,connect
-from app.market import transition,watchlist
+from app.market import transition,watchlist,conditions,calculate_rsi14,calculate_atr,suggested_stop,RULES,minutes
 from app.news import score_article
 
 class WorkerTests(unittest.TestCase):
@@ -97,6 +97,74 @@ class WorkerTests(unittest.TestCase):
             self.assertEqual(client.request('DELETE',path,headers=admin,
                 json={'confirm_name':'Profil-a-supprimer'}).status_code,200)
             self.assertEqual(client.get('/api/v1/sync/state',headers=bearer).status_code,401)
+
+    def test_monitor_rules_and_per_investor_atr(self):
+        import json
+        from pathlib import Path
+        manifest=json.loads((Path(__file__).resolve().parents[2]/'shared'/'monitor-rules.json').read_text())
+        self.assertEqual(RULES,manifest)
+        self.assertEqual(minutes(2),5)
+        self.assertEqual(minutes(200),120)
+        closes=[float(90+i) for i in range(35)]
+        highs=[x+1 for x in closes]
+        lows=[x-1 for x in closes]
+        quote={'price':130.,'closes':closes,'highs':highs,'lows':lows}
+        position={'stop':125,'pru':110,'profile_id':'offensif','atr_multiplier_override':None}
+        settings={'alertStopsEnabled':True,'alertStopNearEnabled':True,
+                  'alertPerformanceEnabled':True,'alertRsiEnabled':True,
+                  'investorProfiles':{'offensif':{'atrMultiplier':4}}}
+        indicators=suggested_stop(position,quote,settings)
+        self.assertEqual(indicators['atr_multiplier'],4.)
+        self.assertAlmostEqual(indicators['suggested_stop'],130-indicators['atr14']*4)
+        position['atr_multiplier_override']=2.5
+        self.assertEqual(suggested_stop(position,quote,settings)['atr_multiplier'],2.5)
+        conditions_result=conditions(position,quote,settings)
+        self.assertFalse(conditions_result['stop'])
+        self.assertFalse(conditions_result['stop-near'])
+        self.assertTrue(conditions_result['performance'])
+        self.assertIsNotNone(calculate_rsi14(closes))
+        self.assertIsNotNone(calculate_atr(highs,lows,closes))
+        self.assertEqual(set(conditions_result),{'stop','stop-near','performance','rsi-low','rsi-high'})
+
+    def test_simple_pairing_and_monitoring_contract(self):
+        from app.main import app
+        with TestClient(app) as client:
+            created=client.post('/api/v1/profiles/create',
+                json={'profile_name':'Paired-test','device_name':'iPhone'})
+            self.assertEqual(created.status_code,200,created.text)
+            first=created.json()
+            headers={'Authorization':'Bearer '+first['token']}
+            saved=client.post('/api/v1/sync/changes',headers=headers,json={
+                'settings_patch':{'dynamicEnabled':True,'autoRefreshMinutes':5},
+                'settings_base_rev':0,
+                'data':{'owners':[],'portfolios':[]},'data_base_rev':0})
+            self.assertEqual(saved.status_code,200,saved.text)
+            pair=client.post('/api/v1/pair/invite',headers=headers)
+            self.assertEqual(pair.status_code,200,pair.text)
+            code=pair.json()['code']
+            self.assertEqual(len(code),6)
+            join=client.post('/api/v1/pair/join',json={
+                'code':code,'device_name':'Mac'})
+            self.assertEqual(join.status_code,200,join.text)
+            self.assertEqual(join.json()['profile_id'],first['profile_id'])
+            self.assertNotEqual(join.json()['device_id'],first['device_id'])
+            self.assertEqual(client.post('/api/v1/pair/join',json={
+                'code':code,'device_name':'Fake'}).status_code,404)
+            with transaction() as db:
+                self.assertEqual(db.execute('SELECT COUNT(*) FROM profiles WHERE id=?',
+                    (first['profile_id'],)).fetchone()[0],1)
+            monitor=client.get('/api/v1/monitor/state',headers=headers)
+            self.assertEqual(monitor.status_code,200,monitor.text)
+            self.assertEqual(monitor.json()['contract_version'],2)
+            self.assertEqual(monitor.json()['rule_version'],RULES['rule_version'])
+            self.assertEqual(client.get('/api/v1/monitor/state').status_code,401)
+            status=client.get('/api/v1/push/status',headers=headers)
+            self.assertEqual(status.status_code,200,status.text)
+            self.assertEqual(status.json()['subscribed'],False)
+            self.assertEqual(status.json()['dynamic_enabled'],True)
+            invalid=client.post('/api/v1/sync/changes',headers=headers,json={
+                'settings_patch':{'autoRefreshMinutes':2},'settings_base_rev':1})
+            self.assertEqual(invalid.status_code,422)
 
     def test_stop_transition(self):
         payload={'title':'2CRSI','message':'cours','type':'stop','severity':'error'}
