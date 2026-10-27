@@ -17,6 +17,7 @@ const STATIC_ASSETS = [
   './js/push-sync.js',
   './js/sync-client.js',
   './js/monitor-rules.js',
+  './js/monitor-service.js',
   './shared/monitor-rules.json',
   './js/backup.js',
   './js/backup-ui.js',
