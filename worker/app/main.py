@@ -347,10 +347,17 @@ def monitor_state(authorization:str|None=Header(None)):
         pid=device['profile_id']
         rows=db.execute('''SELECT position_key,symbol,price,as_of,closes_json,highs_json,lows_json,updated_at
                            FROM market_quotes WHERE profile_id=? ORDER BY updated_at DESC LIMIT 300''',(pid,)).fetchall()
-        news_rows=db.execute('''SELECT title,url,source,summary,updated_at
-                                FROM news_feed ORDER BY updated_at DESC LIMIT 100''').fetchall()
         settings=db.execute('SELECT settings_json FROM profiles WHERE id=?',(pid,)).fetchone()
         config=json.loads(settings['settings_json'])
+        selected=config.get('macroProvider','multi')
+        if selected not in {'multi','yahoo','oksurf','rss','gdelt'}:selected='multi'
+        if selected=='multi':
+            news_rows=db.execute('''SELECT title,url,source,provider,summary,updated_at
+                                    FROM news_feed ORDER BY updated_at DESC LIMIT 100''').fetchall()
+        else:
+            news_rows=db.execute('''SELECT title,url,source,provider,summary,updated_at
+                                    FROM news_feed WHERE provider=? ORDER BY updated_at DESC LIMIT 100''',
+                                 (selected,)).fetchall()
         alerts=db.execute('''SELECT payload_json FROM alerts WHERE profile_id=?
                              ORDER BY created_at DESC LIMIT 100''',(pid,)).fetchall()
         return {
