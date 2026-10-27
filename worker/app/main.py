@@ -96,7 +96,7 @@ async def lifespan(app):
         try:await task
         except asyncio.CancelledError:pass
 
-app=FastAPI(title='AlphaTerminal Worker',version='1.2.1',lifespan=lifespan,docs_url=None,redoc_url=None)
+app=FastAPI(title='AlphaTerminal Worker',version='1.2.2',lifespan=lifespan,docs_url=None,redoc_url=None)
 app.add_middleware(CORSMiddleware,allow_origins=[ALLOWED_ORIGIN],allow_methods=['GET','POST','DELETE'],
                    allow_headers=['authorization','content-type'],allow_credentials=False)
 
