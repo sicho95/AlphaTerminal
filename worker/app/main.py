@@ -342,14 +342,15 @@ def vapid_keys():
 
 @app.get('/api/v1/holdings/news')
 async def holdings_specific_news(request:Request,days:int=7,position_id:str='',offset:int=0,
-                                 authorization:str|None=Header(None)):
+                                 portfolio_ids:str='',authorization:str|None=Header(None)):
     """Only securities actually owned by the caller, never a macro/geopolitical feed."""
-    if days not in (7,30) or len(position_id)>150 or not 0<=offset<=500:
+    if days not in (7,30) or len(position_id)>150 or len(portfolio_ids)>2500 or not 0<=offset<=500:
         raise HTTPException(422,'Période 7/30 jours et pagination valides requises')
     with read_db() as db:
         device=authorize(db,authorization)
     ratelimit(request,'holding-news-'+device['profile_id'],n=25,window=60)
-    return await holdings_news(device['profile_id'],days,position_id,offset)
+    return await holdings_news(device['profile_id'],days,position_id,offset,
+                               tuple(filter(None,portfolio_ids.split(',')))[:80])
 
 @app.get('/api/v1/monitor/state')
 def monitor_state(authorization:str|None=Header(None)):
