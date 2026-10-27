@@ -84,6 +84,39 @@ def init():
             id TEXT PRIMARY KEY, ip_hash TEXT NOT NULL, created_at TEXT NOT NULL
         )''')
         c.execute('CREATE INDEX IF NOT EXISTS signup_date_idx ON profile_signups(created_at)')
+        c.execute('''CREATE TABLE IF NOT EXISTS news_feed(
+            url_hash TEXT PRIMARY KEY, title TEXT NOT NULL, url TEXT NOT NULL,
+            source TEXT NOT NULL, summary TEXT NOT NULL, updated_at TEXT NOT NULL
+        )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS market_quotes(
+            profile_id TEXT NOT NULL REFERENCES profiles(id),
+            position_key TEXT NOT NULL, symbol TEXT NOT NULL,
+            price REAL NOT NULL, as_of INTEGER NOT NULL,
+            closes_json TEXT NOT NULL, updated_at TEXT NOT NULL,
+            PRIMARY KEY(profile_id,position_key)
+        )''')
+        news_columns={r['name'] for r in c.execute('PRAGMA table_info(news_feed)')}
+        if 'provider' not in news_columns:
+            c.execute("ALTER TABLE news_feed ADD COLUMN provider TEXT NOT NULL DEFAULT 'unknown'")
+        market_columns={r['name'] for r in c.execute('PRAGMA table_info(market_quotes)')}
+        for column in ('atr14','atr_multiplier','suggested_stop'):
+            if column not in market_columns:
+                c.execute(f'ALTER TABLE market_quotes ADD COLUMN {column} REAL')
+        for column in ('highs_json','lows_json'):
+            if column not in market_columns:
+                c.execute(f"ALTER TABLE market_quotes ADD COLUMN {column} TEXT NOT NULL DEFAULT '[]'")
+
+
+        c.execute('''CREATE TABLE IF NOT EXISTS pair_invites(
+            id TEXT PRIMARY KEY, profile_id TEXT NOT NULL REFERENCES profiles(id),
+            code_hash TEXT NOT NULL UNIQUE, expires_at REAL NOT NULL,
+            used INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL
+        )''')
+        columns={r['name'] for r in c.execute('PRAGMA table_info(devices)')}
+        for column in ('push_last_attempt','push_last_success','push_last_error'):
+            if column not in columns:
+                c.execute(f'ALTER TABLE devices ADD COLUMN {column} TEXT')
+
 
 def new_id(prefix):
     return f'{prefix}_{secrets.token_urlsafe(12)}'

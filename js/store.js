@@ -1,6 +1,6 @@
 export const SCHEMA_VERSION = 2;
 export const PROFILE_DEFAULTS_VERSION = 3;
-export const APP_VERSION = '1.2.0';
+export const APP_VERSION = '1.2.1';
 
 export const KEYS = {
   data: 'alphaTerm_data',
@@ -116,6 +116,8 @@ function normalizePortfolio(portfolio) {
       lastQuoteSymbol: position.lastQuoteSymbol || '',
       lastQuoteStatus: position.lastQuoteStatus || '',
       lastQuoteError: position.lastQuoteError || '',
+      atr14: position.atr14 ?? null,
+      suggestedStop: position.suggestedStop ?? null,
       history: position.history || null
     })) : []
   };
@@ -186,7 +188,9 @@ function normalizeProfiles(profiles = {}) {
 function normalizeSettings(settings = {}) {
   const {marketauxApiKey, finnhubApiKey, twelveDataApiKey, ...safeSettings} = settings;
   const merged = { ...defaultSettings, ...safeSettings };
-  if(!['multi','yahoo','oksurf'].includes(merged.macroProvider))merged.macroProvider='multi';
+  if(!['multi','yahoo','oksurf','rss','gdelt'].includes(merged.macroProvider))merged.macroProvider='multi';
+  merged.autoRefreshMinutes=Math.max(5,Math.min(120,
+    Number.isFinite(Number(merged.autoRefreshMinutes))?Number(merged.autoRefreshMinutes):10));
   if (settings.profileDefaultsVersion !== PROFILE_DEFAULTS_VERSION) {
     const customProfiles = Object.fromEntries(Object.entries(settings.investorProfiles || {}).filter(([id]) => !DEFAULT_INVESTOR_PROFILES[id]));
     merged.investorProfiles = { ...DEFAULT_INVESTOR_PROFILES, ...customProfiles };

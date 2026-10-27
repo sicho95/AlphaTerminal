@@ -1,3 +1,12 @@
+## 1.2.1 — 27 octobre 2026
+- Architecture unifiée `MonitorService` : moteur local lorsque la PWA n'a pas de suivi NAS, API `monitor/state` du worker pour cours, OHLC, alertes et actualités en mode NAS.
+- Règles d'alertes stop, proximité, performance, RSI et importance des actualités utilisant `shared/monitor-rules.json` côté worker et PWA. ATR calculé sur les données NAS avec le multiplicateur du profil investisseur/portefeuille ou surcharge individuelle.
+- Rafraîchissement synchronisé de 5 à 120 min pour les cours ; actualités au minimum toutes les 15 min.
+- Web Push automatique après autorisation iOS, diagnostics d'abonnement et dernier échec/succès, test réel envoyé par le NAS 15 s après la demande.
+- Appairage simplifié : code temporaire affiché sur l'appareil déjà associé et saisi une fois sur le nouvel appareil. Conflits affichés uniquement lorsque nécessaires.
+- À l'import du JSON chiffré : comparaison des révisions avec le NAS, dialogue seulement si le NAS est plus récent, sans menu de choix systématique.
+- Migration SQLite additive pour les derniers cours/ATR, sources d'actualités, appairages et diagnostic des Web Push. CI Python/Node/Docker et tests multi-profils.
+
 ## 1.2.0 — 27 octobre 2026
 - Création libre de profils NAS, sans code administrateur ni invitation familiale.
 - Récupération du **même profil NAS** à partir du secret contenu dans une sauvegarde chiffrée ; jetons d'appareil indépendants.

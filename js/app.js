@@ -1,9 +1,10 @@
-import { DEFAULT_DATA, refreshQuotes } from './data.js';
+import { DEFAULT_DATA } from './data.js';
 import { initStore, state, subscribe, getOwners, getPortfolios, setSelectedScope, getScopeLabel, getSettings, saveSettings, markAlertsRead, clearAlerts } from './store.js';
 import { NotifService } from './notifications.js';
-import { evaluateMarketAlerts } from './market-alerts.js';
+import { MonitorService } from './monitor-service.js';
 import { syncPendingPushAlerts } from './push-sync.js';
 import { SyncClient } from './sync-client.js';
+import { loadMonitorRules,getMonitorRules } from './monitor-rules.js';
 
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
@@ -12,6 +13,7 @@ const routes = new Set(['dashboard', 'analyse', 'signaux', 'inventaire', 'parame
 const App = {
   async init() {
     initStore(DEFAULT_DATA);
+    await loadMonitorRules();
     SyncClient.init();
     this.applyTheme(getSettings().darkMode);
     this.bindShell();
@@ -127,18 +129,22 @@ const App = {
     button?.classList.add('is-loading');
     if (button) button.disabled = true;
     try {
-      const result = await refreshQuotes();
+      const result=await MonitorService.refresh();
+      const onNas=result.source==='nas';
       const stats = result.refreshStats || { updated: 0, failed: 0, total: 0, failures: [] };
-      if (stats.updated) evaluateMarketAlerts();
-      if (stats.failed) {
+      if (stats.failed&&!onNas) {
         const failedTickers = stats.failures.slice(0, 4).map(item => item.ticker).join(', ');
         NotifService.sendError('Actualisation partielle', `${stats.updated}/${stats.total} lignes mises a jour. Echecs: ${failedTickers || stats.failed}.`);
-      } else if (userTriggered) {
+      } else if (userTriggered&&!onNas) {
         NotifService.push('Cours mis a jour', `${stats.updated}/${stats.total} lignes actualisees avec Yahoo Finance.`);
       }
       this.router();
-    } catch {
-      NotifService.sendError('Actualisation impossible', 'Yahoo Finance ou le proxy de cours est indisponible.');
+    } catch (error) {
+      if(MonitorService.mode==='nas'){
+        SyncClient.report('Suivi NAS momentanément indisponible : '+error.message);
+      }else{
+        NotifService.sendError('Actualisation impossible', 'Yahoo Finance ou le proxy de cours est indisponible.');
+      }
     } finally {
       this.refreshingQuotes = false;
       button?.classList.remove('is-loading');
@@ -149,7 +155,8 @@ const App = {
   scheduleAutoRefresh() {
     const run = () => {
       const settings = getSettings();
-      const minutes = Number(settings.autoRefreshMinutes || 10);
+      const rules=getMonitorRules();
+      const minutes = Math.max(rules.quotes_min_minutes,Math.min(rules.quotes_max_minutes,Number(settings.autoRefreshMinutes || 10)));
       if (!minutes || minutes < 1) return;
       const last = settings.lastQuotesRefreshAt ? new Date(settings.lastQuotesRefreshAt).getTime() : 0;
       if (!last || Date.now() - last > minutes * 60 * 1000) this.refreshAllQuotes(null, false);

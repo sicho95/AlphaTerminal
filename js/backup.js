@@ -70,7 +70,11 @@ export const BackupVault={
   async export(){
     const record=await vault();
     if(!record?.key)throw Error('Définir d’abord un mot de passe de sauvegarde');
-    const payload={...exportBackup(),backupVersion:1,nas:await SyncClient.ensureRecovery()};
+    const payload={...exportBackup(),backupVersion:1,nas:await SyncClient.ensureRecovery(),
+      nasSync:SyncClient.session?.token?{
+        revisions:{...SyncClient.revs},
+        hadPendingChanges:Object.keys(SyncClient.pending||{}).length>0
+      }:null};
     // Aucun token d'appareil dans les sauvegardes : nouveau terminal, nouvelle autorisation.
     const iv=random(12);
     const bytes=enc.encode(JSON.stringify(payload));
@@ -79,7 +83,7 @@ export const BackupVault={
       iterations:record.iterations,salt:record.salt},cipher:{name:'AES-256-GCM',iv:b64(iv)},
       ciphertext:b64(new Uint8Array(encrypted))});
   },
-  async restore(file,password='',source='server'){
+  async restore(file,password=''){
     if(file.size>25*1024*1024)throw Error('Fichier supérieur à 25 Mo');
     let json;
     try{json=JSON.parse(await file.text());}catch{throw Error('Fichier JSON invalide');}
@@ -123,9 +127,6 @@ export const BackupVault={
         return 'cancelled';
     }
     if(!confirm('Restaurer les données et paramètres de ce fichier sur cet appareil ?'))return 'cancelled';
-    if(payload.nas&&source==='backup'&&!confirm(
-      'Cette option peut écraser des données plus récentes sur le NAS. Confirmer le remplacement du NAS par ce fichier ?'
-    ))return 'cancelled';
     // Dès le déchiffrement accepté, garder localement la clé correcte même si le NAS est hors ligne.
     if(derived&&usedDerived){
       await vault({id:'primary',salt:json.kdf.salt,iterations:json.kdf.iterations,key:derived});
@@ -136,7 +137,7 @@ export const BackupVault={
     try{importBackup(payload,'replace');}finally{SyncClient.applying=wasApplying;}
     if(payload.nas?.recovery_secret){
       try{
-        await SyncClient.restoreConnection(payload.nas,deviceName(),source);
+        await SyncClient.restoreConnection(payload.nas,deviceName(),'auto',payload.nasSync);
         return 'restored-with-nas';
       }catch(error){
         console.warn('La sauvegarde locale est restaurée, mais le NAS est injoignable ou refuse la récupération',error.status);

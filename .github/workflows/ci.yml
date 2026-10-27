@@ -51,8 +51,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Validate Portainer GitOps Compose paths and environment
+        shell: bash
+        run: |
+          AT_BOOTSTRAP_CODE=ci-secret-123456789012345678901234 \
+          AT_VAPID_SUBJECT=mailto:ci@example.invalid \
+          AT_HOST_DATA_DIR=/tmp/alphaterminal-ci \
+            docker compose -f worker/docker-compose.yml config --quiet
       - name: Build production worker image
-        run: docker build -t alphaterminal-worker-ci ./worker
+        run: docker build -f worker/Dockerfile -t alphaterminal-worker-ci .
       - name: Start and verify container with persistent writable data
         shell: bash
         run: |

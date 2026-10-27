@@ -42,7 +42,7 @@ export async function initBackupUI(){
     if(!file){show('Sélectionner d’abord un fichier JSON.');return;}
     const password=el('backupRestorePassword').value;
     try{
-      const result=await BackupVault.restore(file,password,el('backupRestorePolicy').value);
+      const result=await BackupVault.restore(file,password);
       if(result==='cancelled'){show('Restauration annulée.');return;}
       el('backupRestorePassword').value='';
       await refresh();

@@ -1,3 +1,5 @@
+import { SyncClient } from './sync-client.js';
+import { getMonitorRules } from './monitor-rules.js';
 import { getPortfolios, saveData, getData, totals, getSettings, saveSettings, DEFAULT_INVESTOR_PROFILES, readJSON, writeJSON, parseLocaleNumber, round3 } from './store.js';
 
 export const DEFAULT_DATA = {
@@ -111,7 +113,7 @@ function quoteSymbols(position) {
   return [...new Set(symbols)];
 }
 
-export function calculateATR(highs = [], lows = [], closes = [], period = 14) {
+export function calculateATR(highs = [], lows = [], closes = [], period = getMonitorRules().atr_period) {
   if (highs.length < period + 1 || lows.length < period + 1 || closes.length < period + 1) return null;
   const trueRanges = [];
   for (let i = 1; i < highs.length; i += 1) {
@@ -129,7 +131,7 @@ export function suggestedStop(position, profileKey = position.profileId || getSe
   const settings = getSettings();
   const atr = calculateATR(position.history?.highs, position.history?.lows, position.history?.closes);
   const profile = settings.investorProfiles?.[profileKey];
-  const multiplier = Number(position.atrMultiplier || profile?.atrMultiplier || settings.stopAtrMultipliers?.[profileKey] || 3);
+  const multiplier = Number(position.atrMultiplier || profile?.atrMultiplier || settings.stopAtrMultipliers?.[profileKey] || getMonitorRules().atr_default_multiplier);
   if (!atr || !position.currentPrice) return { atr: null, multiplier, stop: position.stopLevel || 0 };
   return { atr, multiplier, stop: Math.max(0, position.currentPrice - atr * multiplier) };
 }
@@ -144,6 +146,10 @@ export function stopMetrics(position, profileKey = position.profileId || getSett
 
 export async function fetchMacroNews() {
   const settings = getSettings();
+  if(SyncClient.isNasActive()){
+    const feeds=await fetchMacroFeeds(settings.macroQuery,settings);
+    return feeds.flatMap(feed=>feed.events);
+  }
   const provider = settings.macroProvider || 'multi';
   const query = settings.macroQuery || 'markets OR inflation OR geopolitics';
   if (provider === 'multi') {
@@ -161,6 +167,8 @@ export async function fetchMacroNews() {
     let events = [];
     if (provider === 'oksurf') events = await fetchOkSurfNews();
     if (provider === 'yahoo') events = await fetchYahooFinanceNews(query);
+    if (provider === 'rss') events = await fetchRssNews();
+    if (provider === 'gdelt') events = await fetchGdeltNews();
     if (events.length) {
       writeMacroCache(cacheKey, events);
       return events;
@@ -174,11 +182,21 @@ export async function fetchMacroNews() {
 }
 
 export async function fetchMacroFeeds(query = '', settings = getSettings()) {
+  if(SyncClient.isNasActive()){
+    const remote=await SyncClient.monitorState();
+    const events=(remote.news||[]).filter(a=>a.url?.startsWith('https://')).map(a=>enrichMacroEvent({
+      title:a.title,summary:a.summary||a.source,source:a.source,url:a.url,
+      provider:a.source,tags:['Macro'],sentiment:'Neutre',impact:{}
+    },a.source));
+    return [{id:'nas',label:'Sources du NAS · OKSURF, Yahoo, RSS, GDELT',events}];
+  }
   const mode = settings.macroProvider || 'multi';
   const use = source => mode === 'multi' || mode === source;
   const tasks = [
     { id: 'yahoo', label: 'Yahoo Finance', enabled: use('yahoo'), run: () => fetchYahooFinanceNews(query || settings.macroQuery) },
-    { id: 'oksurf', label: 'OKSURF', enabled: use('oksurf'), run: () => fetchOkSurfNews() }
+    { id: 'oksurf', label: 'OKSURF', enabled: use('oksurf'), run: () => fetchOkSurfNews() },
+    { id: 'rss', label: 'RSS AMF / BCE / Café de la Bourse', enabled: use('rss'), run: () => fetchRssNews() },
+    { id: 'gdelt', label: 'GDELT', enabled: use('gdelt'), run: () => fetchGdeltNews() }
   ].filter(task => task.enabled);
 
   const results = await Promise.all(tasks.map(async task => {
@@ -191,6 +209,43 @@ export async function fetchMacroFeeds(query = '', settings = getSettings()) {
   }));
 
   return results.filter(result => result.events.length);
+}
+
+const EXTRA_RSS_FEEDS=[
+  ['AMF','https://www.amf-france.org/fr/flux-rss/display/29'],
+  ['BCE','https://www.ecb.europa.eu/rss/press.html'],
+  ['Café de la Bourse','https://www.cafedelabourse.com/feed']
+];
+
+export async function fetchRssNews(){
+  const results=await Promise.allSettled(EXTRA_RSS_FEEDS.map(async ([source,url])=>{
+    const response=await fetch(proxied(url));
+    if(!response.ok)throw Error('RSS '+source+' indisponible');
+    const raw=await response.text();
+    const xml=new DOMParser().parseFromString(raw,'application/xml');
+    if(xml.querySelector('parsererror'))throw Error('RSS invalide');
+    return [...xml.querySelectorAll('item')].slice(0,10).map(item=>{
+      const title=item.querySelector('title')?.textContent||'';
+      const link=item.querySelector('link')?.textContent||'';
+      if(!title||!link.startsWith('https://'))return null;
+      return enrichMacroEvent({title,url:link,source,summary:source,
+        provider:source,tags:['Macro'],sentiment:'Neutre',impact:{}},source);
+    }).filter(Boolean);
+  }));
+  return results.flatMap(r=>r.status==='fulfilled'?r.value:[]).slice(0,30);
+}
+
+export async function fetchGdeltNews(){
+  const url=new URL('https://api.gdeltproject.org/api/v2/doc/doc');
+  url.search=new URLSearchParams({query:'("stock market" OR inflation OR "central bank" OR earnings)',
+    mode:'artlist',format:'json',maxrecords:'30',timespan:'1d'}).toString();
+  const response=await fetch(proxied(url.href));
+  if(!response.ok)throw Error('GDELT indisponible');
+  const json=await response.json();
+  return (json.articles||[]).filter(a=>String(a.url||'').startsWith('https://'))
+    .slice(0,30).map(a=>enrichMacroEvent({title:a.title||'Actualité marchés',
+      summary:'GDELT',source:'GDELT',url:a.url,provider:'GDELT',
+      tags:['Macro'],sentiment:'Neutre',impact:{}},'gdelt'));
 }
 
 function readMacroCache(cacheKey) {
