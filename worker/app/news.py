@@ -5,12 +5,16 @@ import asyncio
 import hashlib
 import json
 import re
+import time
 import unicodedata
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 from xml.etree import ElementTree as ET
 import httpx
 from .db import read_db,transaction,now,new_id,compact
+
+LAST_RUN={}
+NEWS_MIN_MINUTES=15
 
 FEEDS = {
     'Café de la Bourse':'https://www.cafedelabourse.com/feed',
@@ -131,6 +135,19 @@ async def collect_news(search_terms=()):
 async def check_news(dispatch):
     with read_db() as c:
         profiles=c.execute('SELECT id,settings_json,data_json,news_initialized FROM profiles WHERE disabled=0').fetchall()
+    now_epoch=time.monotonic()
+    due=[]
+    for p in profiles:
+        settings=json.loads(p['settings_json'])
+        if not settings.get('dynamicEnabled') or not settings.get('alertNewsEnabled',True):continue
+        try:interval=int(float(settings.get('autoRefreshMinutes',10)))
+        except (ValueError,TypeError,OverflowError):interval=10
+        interval=max(NEWS_MIN_MINUTES,min(120,interval))*60
+        if now_epoch-LAST_RUN.get(p['id'],-1e10)>=interval:
+            LAST_RUN[p['id']]=now_epoch
+            due.append(p)
+    profiles=due
+    if not profiles:return
     terms=[]
     for p in profiles:
         settings=json.loads(p['settings_json'])
@@ -145,6 +162,21 @@ async def check_news(dispatch):
         offset=(int(datetime.now(timezone.utc).timestamp())//1800*8)%len(terms)
         terms=(terms+terms)[offset:offset+8]
     articles=await collect_news(terms)
+    with transaction() as db:
+        # Cache borné commun aux interfaces NAS et au worker. Contenus publics uniquement.
+        for article in articles:
+            url=article.get('url','')
+            if not url.startswith('https://'):continue
+            key=hashlib.sha256(url.split('#')[0].encode()).hexdigest()
+            db.execute('''INSERT INTO news_feed(url_hash,title,url,source,summary,updated_at)
+                VALUES(?,?,?,?,?,?)
+                ON CONFLICT(url_hash) DO UPDATE SET
+                title=excluded.title,source=excluded.source,
+                summary=excluded.summary,updated_at=excluded.updated_at''',
+                (key,str(article.get('title',''))[:240],url,
+                 str(article.get('source',''))[:80],str(article.get('summary',''))[:500],now()))
+        db.execute('''DELETE FROM news_feed WHERE url_hash NOT IN
+            (SELECT url_hash FROM news_feed ORDER BY updated_at DESC LIMIT 250)''')
     for p in profiles:
         settings=json.loads(p['settings_json'])
         if not settings.get('dynamicEnabled') or not settings.get('alertNewsEnabled',True):continue
