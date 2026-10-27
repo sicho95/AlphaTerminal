@@ -38,7 +38,7 @@ export const SyncClient={
     this.lastStable=stableData(getData());
     this.ready=true;
     document.addEventListener('alphaterminal:storechange',event=>this.onLocalChange(event.detail));
-    if(this.session?.token){this.report('Profil NAS associé · synchronisation en cours');this.schedule(300);}
+    if(this.session?.token){this.report('Profil NAS associé · synchronisation en cours');this.schedule(300);this.enrollPushIfGranted().catch(e=>this.report('Web Push à vérifier : '+e.message));}
     window.addEventListener('online',()=>this.schedule(400));
     window.addEventListener('focus',()=>this.schedule(400));
     document.addEventListener('visibilitychange',()=>{if(!document.hidden)this.schedule(400);});
@@ -130,7 +130,7 @@ export const SyncClient={
     localStorage.setItem('alphaTerm_deviceName',deviceName);
     this.revs={settings_rev:0,data_rev:0};putJson(REVS,this.revs);
     this.pending={settings_patch:cleanSettings(getSettings()),data:stableData(getData())};putJson(PENDING,this.pending);
-    await this.flush();return creds;
+    await this.flush();this.enrollPushIfGranted().catch(()=>{});return creds;
     } finally {this.enrolling=false;}
   },
   async ensureRecovery(){
@@ -177,6 +177,7 @@ export const SyncClient={
         await this.flush();
       }
       this.lastStable=stableData(getData());
+      this.enrollPushIfGranted().catch(()=>{});
       this.report('Profil NAS existant restauré · suivi autonome conservé');
       return remote;
     }catch(error){
@@ -186,6 +187,45 @@ export const SyncClient={
       else localStorage.removeItem(SESSION);
       throw error;
     }
+  },
+  async createPairCode(){
+    if(!this.session?.token)throw Error('Cet appareil doit déjà être relié au profil NAS');
+    return this.request('pair/invite',{method:'POST'});
+  },
+  async joinPair(url,code,deviceName){
+    if(this.session?.token)throw Error('Cet appareil possède déjà une connexion NAS');
+    const current=this.session;
+    this.setUrl(url);
+    let creds;
+    try{
+      creds=await this.request('pair/join',{method:'POST',publicRequest:true,
+        body:{code,device_name:deviceName}});
+    }catch(error){this.session=current;throw error;}
+    this.session={...this.session,...creds};
+    putJson(SESSION,this.session);
+    localStorage.setItem('alphaTerm_deviceName',deviceName);
+    this.revs={settings_rev:0,data_rev:0};this.pending={};
+    putJson(REVS,this.revs);putJson(PENDING,this.pending);
+    const remote=await this.request('sync/state');
+    await this.applyRemote(remote);
+    await this.syncAlerts();
+    this.enrollPushIfGranted().catch(()=>{});
+    return creds;
+  },
+  async pushStatus(){
+    if(!this.session?.token)return null;
+    return this.request('push/status');
+  },
+  async testPush(){
+    if(!this.session?.token)throw Error('Profil NAS non associé');
+    return this.request('push/test',{method:'POST'});
+  },
+  async enrollPushIfGranted(){
+    if(this.session?.token&&getSettings().dynamicEnabled&&
+       'Notification' in globalThis&&Notification.permission==='granted'){
+      return this.enablePush(false);
+    }
+    return null;
   },
   async startPair(url,deviceName){
     this.setUrl(url);
@@ -208,7 +248,7 @@ export const SyncClient={
     localStorage.setItem('alphaTerm_deviceName',pair.device_name||'Nouvel appareil');
     this.revs={settings_rev:0,data_rev:0};this.pending={};putJson(REVS,this.revs);putJson(PENDING,{});
     sessionStorage.removeItem('alphaTerm_pairPending');
-    await this.flush();return result;
+    await this.flush();this.enrollPushIfGranted().catch(()=>{});return result;
   },
   async resolve(useLocal){
     const server=await this.request('sync/state');
@@ -223,11 +263,14 @@ export const SyncClient={
       await this.applyRemote(server);
     }
   },
-  async enablePush(){
+  async enablePush(askPermission=false){
     if(!this.session?.token)throw Error('Associer le NAS avant les Web Push');
-    if(!('serviceWorker' in navigator)||!('PushManager' in window))throw Error('Web Push non disponible sur cet appareil');
+    if(!('serviceWorker' in navigator)||!('PushManager' in globalThis))throw Error('Web Push non disponible sur cet appareil');
+    if(!('Notification' in globalThis))throw Error('Notifications indisponibles');
     if(Notification.permission!=='granted'){
-      const perm=await Notification.requestPermission();if(perm!=='granted')throw Error('Notifications refusées');
+      if(!askPermission)return {status:'permission-required'};
+      const perm=await Notification.requestPermission();
+      if(perm!=='granted')throw Error('Notifications refusées dans les réglages iOS');
     }
     const {publicKey}=await this.request('push/key');
     const padded=publicKey+'='.repeat((4-publicKey.length%4)%4);
@@ -235,6 +278,7 @@ export const SyncClient={
     const registration=await navigator.serviceWorker.ready;
     let sub=await registration.pushManager.getSubscription();
     if(!sub)sub=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:binary});
-    return this.request('push/subscribe',{method:'POST',body:{subscription:sub.toJSON()}});
+    const result=await this.request('push/subscribe',{method:'POST',body:{subscription:sub.toJSON()}});
+    return result;
   }
 };
