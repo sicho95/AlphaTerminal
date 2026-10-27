@@ -5,6 +5,7 @@ import { SyncClient } from './sync-client.js';
 const DB='AlphaTerminalBackupKeysV1';
 const ITERATIONS=310000;
 const FORMAT='alphaterminal-encrypted-backup';
+export const BackupCrypto={deriveKey:(password,salt,iterations=ITERATIONS)=>derive(password,salt,iterations)};
 const enc=new TextEncoder(),dec=new TextDecoder();
 const b64=bytes=>{
   let result='';
