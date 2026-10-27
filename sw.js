@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'alphaterminal-v22';
+const CACHE_VERSION = 'alphaterminal-v23';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DATA_CACHE = `${CACHE_VERSION}-data`;
 
@@ -16,6 +16,8 @@ const STATIC_ASSETS = [
   './js/market-alerts.js',
   './js/push-sync.js',
   './js/sync-client.js',
+  './js/monitor-rules.js',
+  './shared/monitor-rules.json',
   './js/backup.js',
   './js/backup-ui.js',
   './js/sync-ui.js',
