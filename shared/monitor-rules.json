@@ -1,0 +1,23 @@
+{
+  "contract_version": 2,
+  "rule_version": "monitor-v2",
+  "near_stop_percent": 3,
+  "performance_percent": 12,
+  "rsi_period": 14,
+  "rsi_low": 25,
+  "rsi_high": 75,
+  "atr_period": 14,
+  "atr_default_multiplier": 3,
+  "quotes_min_minutes": 5,
+  "quotes_max_minutes": 120,
+  "news_min_minutes": 15,
+  "news_max_minutes": 120,
+  "source_names": [
+    "Yahoo Finance",
+    "OKSURF",
+    "AMF",
+    "BCE",
+    "Café de la Bourse",
+    "GDELT"
+  ]
+}
