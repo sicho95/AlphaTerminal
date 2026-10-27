@@ -345,7 +345,7 @@ def monitor_state(authorization:str|None=Header(None)):
     with read_db() as db:
         device=authorize(db,authorization)
         pid=device['profile_id']
-        rows=db.execute('''SELECT position_key,symbol,price,as_of,closes_json,updated_at
+        rows=db.execute('''SELECT position_key,symbol,price,as_of,closes_json,highs_json,lows_json,updated_at
                            FROM market_quotes WHERE profile_id=? ORDER BY updated_at DESC LIMIT 300''',(pid,)).fetchall()
         news_rows=db.execute('''SELECT title,url,source,summary,updated_at
                                 FROM news_feed ORDER BY updated_at DESC LIMIT 100''').fetchall()
@@ -356,7 +356,9 @@ def monitor_state(authorization:str|None=Header(None)):
         return {
             'mode':'nas','contract_version':1,'rule_version':'market-alerts-v1',
             'sources':{'quotes':['Yahoo Finance'],'news':['OKSURF','Yahoo Finance','RSS AMF/BCE/Café de la Bourse','GDELT']},
-            'quotes':[{**dict(row),'closes':json.loads(row['closes_json'])} for row in rows],
+            'quotes':[{**dict(row),'closes':json.loads(row['closes_json']),
+                       'highs':json.loads(row['highs_json']),
+                       'lows':json.loads(row['lows_json'])} for row in rows],
             'news':[dict(row) for row in news_rows],
             'alerts':[json.loads(row['payload_json']) for row in alerts],
             'limits':{'quotes_min_minutes':5,'news_min_minutes':15},
