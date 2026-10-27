@@ -232,7 +232,7 @@ export const SyncClient={
     if(!this.isNasActive())return null;
     if(!force&&this.monitorCache&&Date.now()-this.monitorAt<45000)return this.monitorCache;
     const remote=await this.request('monitor/state');
-    if(remote.contract_version!==1)throw Error('Contrat de surveillance NAS non compatible');
+    if(remote.contract_version!==2)throw Error('Contrat de surveillance NAS non compatible');
     this.monitorCache=remote;this.monitorAt=Date.now();
     return remote;
   },
@@ -252,6 +252,7 @@ export const SyncClient={
       if(next<=old&&pos.currentPrice===quote.price)return pos;
       updated++;
       return {...pos,currentPrice:quote.price,
+        atr14:quote.atr14,suggestedStop:quote.suggested_stop,
         history:{...(pos.history||{}),closes:quote.closes||[],highs:quote.highs||[],lows:quote.lows||[]},
         lastUpdate:quote.updated_at,lastQuoteSource:'Yahoo Finance · NAS',
         lastQuoteSymbol:quote.symbol,lastQuoteStatus:'ok',lastQuoteError:''};
