@@ -1,7 +1,7 @@
-import { DEFAULT_DATA, refreshQuotes } from './data.js';
+import { DEFAULT_DATA } from './data.js';
 import { initStore, state, subscribe, getOwners, getPortfolios, setSelectedScope, getScopeLabel, getSettings, saveSettings, markAlertsRead, clearAlerts } from './store.js';
 import { NotifService } from './notifications.js';
-import { evaluateMarketAlerts } from './market-alerts.js';
+import { MonitorService } from './monitor-service.js';
 import { syncPendingPushAlerts } from './push-sync.js';
 import { SyncClient } from './sync-client.js';
 import { loadMonitorRules,getMonitorRules } from './monitor-rules.js';
@@ -129,11 +129,9 @@ const App = {
     button?.classList.add('is-loading');
     if (button) button.disabled = true;
     try {
-      const onNas=SyncClient.isNasActive();
-      const result = onNas?await SyncClient.refreshMonitor():await refreshQuotes();
-      if(onNas)saveSettings({lastQuotesRefreshAt:new Date().toISOString()});
+      const result=await MonitorService.refresh();
+      const onNas=result.source==='nas';
       const stats = result.refreshStats || { updated: 0, failed: 0, total: 0, failures: [] };
-      if (stats.updated&&!onNas) evaluateMarketAlerts();
       if (stats.failed&&!onNas) {
         const failedTickers = stats.failures.slice(0, 4).map(item => item.ticker).join(', ');
         NotifService.sendError('Actualisation partielle', `${stats.updated}/${stats.total} lignes mises a jour. Echecs: ${failedTickers || stats.failed}.`);
