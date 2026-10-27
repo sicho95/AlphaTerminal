@@ -3,6 +3,7 @@ import { getSettings,saveSettings,getData } from './store.js';
 import { refreshQuotes,fetchMacroFeeds } from './data.js';
 import { evaluateMarketAlerts } from './market-alerts.js';
 import { SyncClient } from './sync-client.js';
+import { evaluateLocalNews } from './news-alerts.js';
 import { getMonitorRules } from './monitor-rules.js';
 
 export const MonitorService={
@@ -16,6 +17,7 @@ export const MonitorService={
     }
     const result=await refreshQuotes();
     if(result.refreshStats?.updated)evaluateMarketAlerts();
+    evaluateLocalNews().catch(error=>console.warn('Local news check deferred',error));
     return {...result,source:'local'};
   },
   async news(){
