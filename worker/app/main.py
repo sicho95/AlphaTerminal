@@ -178,7 +178,7 @@ def admin_delete(profile_id:str,body:AdminRemove,request:Request,x_admin_key:str
         profile=db.execute('SELECT name FROM profiles WHERE id=?',(profile_id,)).fetchone()
         if not profile:raise HTTPException(404,'Profil inconnu')
         if body.confirm_name!=profile['name']:raise HTTPException(409,'Confirmer exactement le nom du profil')
-        for table in ('seen_news','alert_states','alerts','setting_edits','pairs','devices'):
+        for table in ('seen_news','alert_states','alerts','setting_edits','pairs','pair_invites','market_quotes','devices'):
             db.execute(f'DELETE FROM {table} WHERE profile_id=?',(profile_id,))
         db.execute('DELETE FROM profiles WHERE id=?',(profile_id,))
     return {'deleted':profile_id}
