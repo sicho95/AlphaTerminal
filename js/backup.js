@@ -82,7 +82,7 @@ export const BackupVault={
     if(file.size>25*1024*1024)throw Error('Fichier supérieur à 25 Mo');
     let json;
     try{json=JSON.parse(await file.text());}catch{throw Error('Fichier JSON invalide');}
-    let payload,derived=null;
+    let payload,derived=null,usedDerived=false;
     if(json.format===FORMAT){
       if(json.version!==1||json.kdf?.name!=='PBKDF2'||json.kdf?.hash!=='SHA-256'||json.cipher?.name!=='AES-256-GCM')
         throw Error('Format de sauvegarde non pris en charge');
@@ -98,8 +98,11 @@ export const BackupVault={
       if(!tryKeys.length)throw Error('PASSWORD_REQUIRED');
       let clear=null;
       for(const key of tryKeys){
-        try{clear=await crypto.subtle.decrypt({name:'AES-GCM',iv},key,un64(json.ciphertext));break;}
-        catch{ /* cle incompatible : utiliser le mot de passe */ }
+        try{
+          clear=await crypto.subtle.decrypt({name:'AES-GCM',iv},key,un64(json.ciphertext));
+          usedDerived=Boolean(derived&&key===derived);
+          break;
+        }catch{ /* cle incompatible : utiliser le mot de passe */ }
       }
       if(!clear)throw Error('PASSWORD_REQUIRED');
       try{payload=JSON.parse(dec.decode(clear));}catch{throw Error('Sauvegarde déchiffrée non valide');}
@@ -128,7 +131,7 @@ export const BackupVault={
     }else if(payload.nas){
       throw Error('Données locales restaurées, mais cette ancienne sauvegarde ne contient pas de preuve NAS');
     }
-    if(derived){
+    if(derived&&usedDerived){
       await vault({id:'primary',salt:json.kdf.salt,iterations:json.kdf.iterations,key:derived});
     }
     return payload.nas?'restored-with-nas':'restored-local';
