@@ -198,16 +198,20 @@ async def check_market(dispatch):
             quote=quotes.get(pos['symbol'])
             if quote is None:continue
             quote=adjusted_quote(quote,pos['pru'])
+            indicators=suggested_stop(pos,quote,settings)
             with transaction() as db:
-                db.execute('''INSERT INTO market_quotes(profile_id,position_key,symbol,price,as_of,closes_json,highs_json,lows_json,updated_at)
-                    VALUES(?,?,?,?,?,?,?,?,?)
+                db.execute('''INSERT INTO market_quotes(profile_id,position_key,symbol,price,as_of,closes_json,highs_json,lows_json,atr14,atr_multiplier,suggested_stop,updated_at)
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
                     ON CONFLICT(profile_id,position_key) DO UPDATE SET
                     symbol=excluded.symbol,price=excluded.price,as_of=excluded.as_of,
                     closes_json=excluded.closes_json,highs_json=excluded.highs_json,
-                    lows_json=excluded.lows_json,updated_at=excluded.updated_at''',
+                    lows_json=excluded.lows_json,atr14=excluded.atr14,
+                    atr_multiplier=excluded.atr_multiplier,
+                    suggested_stop=excluded.suggested_stop,updated_at=excluded.updated_at''',
                     (profile,pos['key'],pos['symbol'],quote['price'],quote['as_of'],
                      compact(quote.get('closes',[])),compact(quote.get('highs',[])),
-                     compact(quote.get('lows',[])),now()))
+                     compact(quote.get('lows',[])),indicators['atr14'],
+                     indicators['atr_multiplier'],indicators['suggested_stop'],now()))
             for kind,active in conditions(pos,quote,settings).items():
                 event=transition(profile,pos['key'],kind,active,event_payload(pos,quote,kind) if active else {})
                 if event:await dispatch(profile,event)
