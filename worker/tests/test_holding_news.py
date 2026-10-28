@@ -21,7 +21,7 @@ class HoldingNewsTests(unittest.TestCase):
           {'id':'d','name':'Un autre titre','ticker':'OTHR.PA','qty':2,'currentPrice':8}
         ]}]}
         result=eligible_positions(data)
-        self.assertEqual([x['id'] for x in result],['a','d'])
+        self.assertEqual([x['id'] for x in result],['symbol:EXMP.PA','symbol:OTHR.PA'])
         self.assertTrue('EXMP' in search_terms(result[0])[1] or 'Entreprise Exemple' in search_terms(result[0])[1])
 
     def test_google_rss_and_gdelt_dates_filter(self):
