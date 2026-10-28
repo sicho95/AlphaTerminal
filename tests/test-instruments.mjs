@@ -53,3 +53,29 @@ test('Yahoo suggestions sanitize duplicates and unsupported results',()=>{
   ]);
   assert.deepEqual(result.map(x=>x.symbol),['SAN.PA','CW8.PA']);
 });
+
+test('account positions remain independent while same-account duplicate ISIN is updated',async()=>{
+  const local=new Map();
+  globalThis.localStorage={
+    getItem:k=>local.get(k)??null,
+    setItem:(k,v)=>local.set(k,String(v)),
+    removeItem:k=>local.delete(k)
+  };
+  globalThis.window={dispatchEvent(){}};
+  const store=await import('../js/store.js');
+  store.initStore({owners:[{id:'test',name:'Test'}],portfolios:[
+    {id:'pea',ownerId:'test',name:'PEA',positions:[]},
+    {id:'cto',ownerId:'test',name:'CTO',positions:[]}
+  ]});
+  store.upsertPosition('pea',{ticker:'SAN.PA',isin:'FR0000120578',name:'Sanofi',qty:5,pru:70,currentPrice:95});
+  store.upsertPosition('pea',{ticker:'SAN.PA',isin:'FR0000120578',name:'Sanofi SA',qty:8,pru:75,currentPrice:95});
+  store.upsertPosition('cto',{ticker:'SAN.PA',isin:'FR0000120578',name:'Sanofi',qty:3,pru:80,currentPrice:95});
+  const data=store.getData();
+  assert.equal(data.portfolios[0].positions.length,1);
+  assert.equal(data.portfolios[0].positions[0].qty,8);
+  assert.equal(data.portfolios[1].positions.length,1);
+  assert.equal(data.portfolios[1].positions[0].qty,3);
+  const first=data.portfolios[0].positions[0];
+  store.upsertPosition('pea',{...first,name:'Sanofi Édité',qty:7});
+  assert.equal(store.getData().portfolios[0].positions.length,1);
+});
