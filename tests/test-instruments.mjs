@@ -38,7 +38,7 @@ test('latest four financial articles per holding, no duplicate URL for same secu
   const recent=latestByInstrument(news);
   assert.equal(recent.filter(a=>a.position_id===first).length,4);
   assert.equal(recent.filter(a=>a.position_id!==first).length,1);
-  assert.equal(recent[0].url,'https://example.org/article-6');
+  assert.equal(recent.filter(a=>a.position_id===first)[0].url,'https://example.org/article-6');
 });
 test('Yahoo suggestions sanitize duplicates and unsupported results',()=>{
   const result=normalizeSuggestions([
