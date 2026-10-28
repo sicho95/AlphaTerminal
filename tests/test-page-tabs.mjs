@@ -9,7 +9,7 @@ test('all four routes contain matched accessible notebook tabs',()=>{
   const routes={
     'pages/signaux.html':['technique','macro'],
     'pages/analyse.html':['summary','atr','holdings','news'],
-    'pages/inventaire.html':['positions','structure'],
+    'pages/inventaire.html':['structure','positions'],
     'pages/parametres.html':['general','alerts','nas','investors','backup']
   };
   for(const [filename,expected] of Object.entries(routes)){

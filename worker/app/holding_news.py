@@ -21,32 +21,69 @@ SYMBOL=re.compile(r'^[A-Za-z0-9.\-^=]{2,32}$')
 ISIN=re.compile(r'^[A-Z]{2}[A-Z0-9]{9}[0-9]$')
 CACHE_SECONDS=20*60
 MAX_POSITIONS_PER_PAGE=6
+MAX_NEWS_PER_INSTRUMENT=4
+
+def aliases(position):
+    isin=str(position.get('isin') or '').strip().upper()
+    symbol=str(position.get('yahooTicker') or '').strip().upper()
+    ticker=str(position.get('ticker') or '').strip().upper()
+    result=[]
+    if ISIN.fullmatch(isin):result.append('isin:'+isin)
+    if symbol:result.append('symbol:'+symbol)
+    if ticker and ticker!=symbol:result.append('symbol:'+ticker)
+    return result
 
 def position_key(position):
-    return str(position.get('id') or position.get('isin') or position.get('ticker') or '')
+    """Canonical instrument ID, NOT a portfolio position ID."""
+    values=aliases(position)
+    return next((k for k in values if k.startswith('isin:')),None) or (
+        next((k for k in values if k.startswith('symbol:')),None) or
+        'position:'+str(position.get('id') or position.get('name') or '').upper())
 
 def eligible_positions(data):
-    result=[]
-    seen=set()
+    groups=[]
     for portfolio in data.get('portfolios',[]):
         for position in portfolio.get('positions',[]):
             try:quantity=float(position.get('qty') or 0)
             except (ValueError,TypeError):continue
             if quantity<=0:continue
             kind=str(position.get('assetClass','')).lower()
-            if 'liquid' in kind or 'cash' in kind or 'crypto' in kind:continue
-            identifier=position_key(position)
-            if not identifier or identifier in seen:continue
-            seen.add(identifier)
+            if any(word in kind for word in ('liquid','cash','crypto')):continue
             symbol=str(position.get('yahooTicker') or position.get('ticker') or '').strip()
             name=str(position.get('name') or '').strip()
             isin=str(position.get('isin') or '').upper().strip()
-            if not SYMBOL.fullmatch(symbol) and not (name and len(name)>=5) and not ISIN.fullmatch(isin):
-                continue
+            if not SYMBOL.fullmatch(symbol) and not (name and len(name)>=5) and not ISIN.fullmatch(isin):continue
+            aka=set(aliases(position))
+            isin_alias=next((a for a in aka if a.startswith('isin:')),None)
+            def compatible(group):
+                known=next((a for a in group['aliases'] if a.startswith('isin:')),None)
+                return not(isin_alias and known and isin_alias!=known) and bool(group['aliases'] & aka)
+            matched=[g for g in groups if compatible(g)]
             try:value=quantity*float(position.get('currentPrice') or 0)
-            except (ValueError,TypeError):value=0
-            result.append({'id':identifier,'ticker':symbol[:32],'name':name[:130],
-                           'isin':isin if ISIN.fullmatch(isin) else '','value':value})
+            except (ValueError,TypeError):value=0.
+            member={'id':str(position.get('id') or ''),'ticker':symbol[:32],
+                    'name':name[:130],'isin':isin if ISIN.fullmatch(isin) else '',
+                    'value':value,'qty':quantity,'aliases':aka}
+            if not matched:
+                groups.append({'aliases':set(aka),'members':[member]})
+                continue
+            primary=matched[0]
+            primary['aliases'].update(aka)
+            primary['members'].append(member)
+            for extra in matched[1:]:
+                primary['aliases'].update(extra['aliases'])
+                primary['members'].extend(extra['members'])
+                groups.remove(extra)
+    result=[]
+    for group in groups:
+        members=group['members']
+        representative=next((p for p in members if p['isin']),members[0])
+        key=next((k for k in group['aliases'] if k.startswith('isin:')),None)
+        if not key:key=next((k for k in group['aliases'] if k.startswith('symbol:')),None)
+        if not key:key=position_key(representative)
+        result.append({**representative,'id':key,'value':sum(p['value'] for p in members),
+                       'account_count':len(members),
+                       'legacy_ids':[p['id'] for p in members if p['id']]})
     return sorted(result,key=lambda item:-item['value'])
 
 def search_terms(position):
@@ -150,7 +187,7 @@ async def query_one(client,position,days,sem):
         key=hashlib.sha256(a['url'].split('#')[0].encode()).hexdigest()
         unique[key]=a
     all_articles=sorted(unique.values(),key=lambda x:x['published_at'],reverse=True)
-    return all_articles[:16],errors
+    return all_articles[:MAX_NEWS_PER_INSTRUMENT],errors
 
 async def holdings_news(profile_id,days=7,position_id='',offset=0,portfolio_ids=()):
     with read_db() as db:
@@ -162,7 +199,7 @@ async def holdings_news(profile_id,days=7,position_id='',offset=0,portfolio_ids=
             data['portfolios']=[p for p in data.get('portfolios',[]) if p.get('id') in allow]
         positions=eligible_positions(data)
     if position_id:
-        positions=[p for p in positions if p['id']==position_id]
+        positions=[p for p in positions if p['id']==position_id or position_id in p.get('legacy_ids',[])]
     total=len(positions)
     selection=positions[max(0,offset):max(0,offset)+MAX_POSITIONS_PER_PAGE]
     if not selection:return {'articles':[],'total_positions':total,'checked_positions':0,
@@ -195,7 +232,7 @@ async def holdings_news(profile_id,days=7,position_id='',offset=0,portfolio_ids=
             all_news.extend(items);errors.extend(problems)
     unique={}
     for article in all_news:
-        key=article['url'].split('#')[0]
+        key=(article['position_id'],article['url'].split('#')[0])
         if key not in unique:unique[key]=article
     result=sorted(unique.values(),key=lambda x:x['published_at'],reverse=True)
     next_offset=offset+len(selection) if offset+len(selection)<total else None

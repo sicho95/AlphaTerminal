@@ -1,3 +1,12 @@
+## AlphaTerminal 1.2.3 — titres uniques et recherche assistée
+
+- **Structure** précède désormais **Positions** dans Inventaire. En mobile, les notifications sont plus denses, sans casser leur défilement ni la navigation vers une alerte précise.
+- Un instrument identifié par **ISIN ou ticker Yahoo** n'est recherché qu'une fois pour les actualités, même s'il figure dans plusieurs comptes ; ses **positions comptables restent distinctes** (quantités, PRU, stops et risques individuels). Analyse → Lignes détenues montre une synthèse par titre, avec les comptes dépliables.
+- Analyse → **News titres** : actualités des seuls titres détenus, via Google Actualités, Yahoo Finance et GDELT, au maximum **quatre articles récents par titre** (30 jours par défaut, filtrage à 7 jours possible). Ce flux reste séparé de la macro/géopolitique.
+- Ajout d'une position : recherche assistée par **nom, ticker ou ISIN** dans Yahoo Finance ; suggestions facultatives et saisie manuelle conservée. Un même instrument ne peut pas être ajouté deux fois dans le même portefeuille.
+- Appels Yahoo identiques mutualisés en mode local ; mode NAS conserve ses traitements serveur.
+- [Détails techniques, précautions et recette](docs/unique-instruments-ux-1.2.3.md).
+
 ## AlphaTerminal 1.2.2 — intercalaires et actualités des titres
 L'interface de Signaux, Analyse, Inventaire et Paramètres utilise des intercalaires continus avec leur panneau ; le centre de notifications est compact et possède son propre défilement. Analyse → **News titres** recherche la presse des positions réellement détenues, séparément de la veille Macro/géopolitique : fenêtre 7/30 jours, source et date, Google Actualités/Yahoo Finance/GDELT, parcours par titre ou par pages de six titres.
 

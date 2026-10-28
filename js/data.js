@@ -490,6 +490,9 @@ function clamp(value, min, max) {
 export async function refreshQuotes(onProgress = () => {}) {
   const current = getData();
   const nextPortfolios = [];
+  // Only one Yahoo request for a given listing, however many PEA/CTO accounts hold it.
+  // Each account still retains its own PRU, quantity, profile and stop thresholds.
+  const chartCache=new Map();
   const stats = { total: 0, updated: 0, failed: 0, failures: [] };
   for (const portfolio of getPortfolios()) {
     const positions = [];
@@ -497,7 +500,9 @@ export async function refreshQuotes(onProgress = () => {}) {
       stats.total += 1;
       try {
         if (!position.yahooTicker && !position.ticker) throw new Error('Ticker absent');
-        const chart = normalizeChartScale(await fetchMarketChart(position), position);
+        const quoteKey=quoteSymbols(position).join('|')+'@'+(position.currency||'EUR');
+        if(!chartCache.has(quoteKey))chartCache.set(quoteKey,fetchMarketChart(position));
+        const chart = normalizeChartScale(await chartCache.get(quoteKey), position);
         const nextPosition = {
           ...position,
           yahooTicker: chart.symbol || position.yahooTicker || position.ticker,

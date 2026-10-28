@@ -12,25 +12,25 @@
 
   <div id="inventoryGrid" class="section-tabset">
     <nav class="section-tabbar" role="tablist" aria-label="Sections de l'inventaire">
-      <button id="inventory-tab-positions" type="button" role="tab" data-tab="positions"><span class="material-symbols-outlined" aria-hidden="true">inventory_2</span>Positions</button>
       <button id="inventory-tab-structure" type="button" role="tab" data-tab="structure"><span class="material-symbols-outlined" aria-hidden="true">account_tree</span>Structure</button>
+      <button id="inventory-tab-positions" type="button" role="tab" data-tab="positions"><span class="material-symbols-outlined" aria-hidden="true">inventory_2</span>Positions</button>
     </nav>
     <div class="section-tabframe">
-      <section id="inventory-panel-positions" class="section-tabpane" role="tabpanel" data-tab-panel="positions" aria-labelledby="inventory-tab-positions">
+      <section id="inventory-panel-structure" class="section-tabpane" role="tabpanel" data-tab-panel="structure" aria-labelledby="inventory-tab-structure">
+        <p id="importStatus" class="structure-counts text-muted hidden" role="status"></p>
+        <div class="action-row">
+          <button id="addOwner" class="ghost-btn" type="button"><span class="material-symbols-outlined">person_add</span>Propriétaire</button>
+          <button id="addPortfolio" class="ghost-btn" type="button"><span class="material-symbols-outlined">add_business</span>Portefeuille</button>
+        </div>
+        <div id="portfolioList" class="list-stack mt-4"></div>
+      </section>
+      <section id="inventory-panel-positions" class="section-tabpane hidden" role="tabpanel" data-tab-panel="positions" aria-labelledby="inventory-tab-positions">
         <div class="form-grid three">
           <div class="field"><label>Recherche</label><input id="searchInput" placeholder="Ticker, nom, ISIN"></div>
           <div class="field"><label>Classe</label><select id="assetFilter"><option value="all">Toutes</option><option>Actions</option><option>ETF</option><option>Obligations</option><option>Liquidités</option><option>Crypto</option></select></div>
           <div class="field"><label>Tri</label><select id="sortFilter"><option value="value">Valeur</option><option value="perf">Performance</option><option value="name">Nom</option><option value="portfolio">Portefeuille</option></select></div>
         </div>
         <div id="positionsList" class="table-list mt-4"></div>
-      </section>
-      <section id="inventory-panel-structure" class="section-tabpane hidden" role="tabpanel" data-tab-panel="structure" aria-labelledby="inventory-tab-structure">
-        <div id="importStatus" class="mini-card hidden"></div>
-        <div class="action-row">
-          <button id="addOwner" class="ghost-btn" type="button"><span class="material-symbols-outlined">person_add</span>Propriétaire</button>
-          <button id="addPortfolio" class="ghost-btn" type="button"><span class="material-symbols-outlined">add_business</span>Portefeuille</button>
-        </div>
-        <div id="portfolioList" class="list-stack mt-4"></div>
       </section>
     </div>
   </div>
@@ -44,6 +44,12 @@
     </div>
     <input type="hidden" name="id">
     <div class="modal-scroll">
+      <div class="instrument-lookup field">
+        <label for="instrumentLookup">Rechercher un titre (Yahoo Finance)</label>
+        <input id="instrumentLookup" type="search" autocomplete="off" placeholder="Nom, ticker ou ISIN, par ex. Sanofi ou FR0000120578" aria-controls="instrumentSuggestions" aria-autocomplete="list">
+        <div id="instrumentSuggestions" class="instrument-suggestions hidden" role="listbox" aria-label="Titres proposés"></div>
+        <p id="instrumentLookupStatus" class="text-muted instrument-lookup-status" aria-live="polite">Sélectionne une proposition pour compléter les champs, ou saisis-les manuellement.</p>
+      </div>
       <div class="form-grid two">
       <div class="field"><label>Portefeuille</label><select name="portfolioId" required></select></div>
       <div class="field"><label>Ticker affiché</label><input name="ticker" required></div>
@@ -115,11 +121,13 @@
 
 <script type="module">
   import { initSectionTabs } from './js/page-tabs.js';
+  import { searchYahooInstruments } from './js/instrument-search.js';
   import { getOwners, getPortfolios, getVisiblePortfolios, flattenPositions, money, pct, decimal, round3, parseLocaleNumber, addOwner, upsertPortfolio, deletePortfolio, upsertPosition, deletePosition, getSettings, state } from './js/store.js';
   import { suggestedStop } from './js/data.js';
 
   function initInventaire() {
     bindOnce();
+    initInstrumentLookup();
     initSectionTabs(document.getElementById('inventoryGrid'),'inventaire');
     renderAll();
   }
@@ -194,6 +202,73 @@
       closePosition();
       renderAll();
     };
+  }
+
+  function initInstrumentLookup() {
+    const search=document.getElementById('instrumentLookup');
+    const suggestions=document.getElementById('instrumentSuggestions');
+    const status=document.getElementById('instrumentLookupStatus');
+    const form=document.getElementById('positionForm');
+    let timer=null,controller=null,sequence=0,options=[];
+    const hide=()=>{suggestions.classList.add('hidden');suggestions.replaceChildren();options=[];};
+    search.addEventListener('input',()=>{
+      if(timer)clearTimeout(timer);
+      controller?.abort();
+      const query=search.value.trim(),current=++sequence;
+      if(query.length<2){hide();status.textContent='Saisir au moins deux caractères.';return;}
+      status.textContent='Recherche des titres…';
+      timer=setTimeout(async()=>{
+        controller=new AbortController();
+        try{
+          const found=await searchYahooInstruments(query,{signal:controller.signal});
+          if(current!==sequence)return;
+          hide();options=found;
+          if(!found.length){status.textContent='Aucune proposition disponible. La saisie manuelle reste possible.';return;}
+          status.textContent=found.length+' proposition(s) · sélectionne le bon marché et la bonne part du titre.';
+          for(const item of found){
+            const button=document.createElement('button');
+            button.type='button';
+            button.className='instrument-suggestion';
+            button.setAttribute('role','option');
+            const name=document.createElement('strong');
+            name.textContent=item.name;
+            const meta=document.createElement('small');
+            meta.textContent=[item.symbol,item.exchange,item.kind].filter(Boolean).join(' · ');
+            button.append(name,meta);
+            button.addEventListener('click',()=>{
+              form.elements.namedItem('ticker').value=item.symbol;
+              form.elements.namedItem('yahooTicker').value=item.symbol;
+              form.elements.namedItem('name').value=item.name;
+              if(item.isin)form.elements.namedItem('isin').value=item.isin;
+              if(item.kind==='ETF')form.elements.namedItem('assetClass').value='ETF';
+              search.value=item.name+' · '+item.symbol;
+              status.textContent='Titre reconnu. Vérifier ISIN, quantité, PRU et cours avant enregistrement.';
+              hide();
+            });
+            suggestions.append(button);
+          }
+          suggestions.classList.remove('hidden');
+        }catch(error){
+          if(error.name!=='AbortError'&&current===sequence){
+            hide();status.textContent='Recherche indisponible. Saisie manuelle possible.';
+          }
+        }
+      },350);
+    });
+    search.addEventListener('keydown',event=>{
+      if(event.key==='Escape'){hide();search.blur();}
+      if(event.key==='ArrowDown'&&!suggestions.classList.contains('hidden')){
+        event.preventDefault();suggestions.querySelector('button')?.focus();
+      }
+    });
+    form.addEventListener('click',event=>{
+      if(!event.target.closest('.instrument-lookup'))hide();
+    });
+    form.addEventListener('reset',()=>{
+      if(timer)clearTimeout(timer);controller?.abort();++sequence;hide();
+      search.value='';
+      status.textContent='Recherche Yahoo Finance facultative, saisie manuelle toujours disponible.';
+    });
   }
 
   function renderAll() {
@@ -340,7 +415,7 @@
       return;
     }
     box.classList.remove('hidden');
-    box.innerHTML = `<div><strong>Données Chargées</strong><span>${owners} proprietaires · ${portfolios} portefeuilles · ${positions} lignes detenues</span></div>`;
+    box.textContent = `${owners} propriétaire(s) · ${portfolios} portefeuille(s) · ${positions} positions détenues`;
   }
 
   function openPosition(portfolioId, positionId) {

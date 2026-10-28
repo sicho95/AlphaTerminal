@@ -732,3 +732,120 @@ body.notifications-open { overflow: hidden; }
   .holding-news-list { grid-template-columns: 1fr; gap: 8px; }
   .holding-news-card { padding: 11px 12px; }
 }
+
+
+/* v1.2.3 : pochettes sans carte inutile et liste de notifications dense. */
+.structure-counts {
+  margin: 0 0 12px;
+  padding: 2px 1px;
+  font-size: .8rem;
+  font-weight: 650;
+}
+#notification-list .notification-card {
+  padding: 8px 10px;
+  border-radius: 9px;
+}
+#notification-list .notification-card + .notification-card { margin-top: 4px; }
+#notification-list .notification-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+#notification-list .notification-title {
+  display: block;
+  min-width: 0;
+  flex: 1 1 auto;
+  font-size: .84rem;
+  line-height: 1.23;
+  letter-spacing: 0;
+  overflow-wrap: break-word;
+}
+#notification-list .notification-date {
+  display: block;
+  flex: 0 0 auto;
+  font-size: .67rem;
+  white-space: nowrap;
+  letter-spacing: 0;
+  opacity: .78;
+}
+#notification-list .notification-message {
+  font-size: .8rem;
+  line-height: 1.29;
+  margin: 3px 0 0;
+  overflow-wrap: break-word;
+}
+#notification-list .notification-footer {
+  margin: 3px 0 0;
+  padding: 0;
+  justify-content: flex-start;
+}
+#notification-list .notification-footer a { font-size: .72rem; }
+#notification-panel .notification-head { margin-bottom: 5px; }
+
+/* Liste des titres : une valeur consolidée, comptes séparés dépliables. */
+.holding-unique-summary { margin: 0 0 9px; font-size: .8rem; }
+.instrument-holding { border-bottom: 1px solid rgba(148,163,184,.24); }
+.instrument-holding > summary { display: block; cursor: pointer; list-style: none; }
+.instrument-holding > summary::-webkit-details-marker { display: none; }
+.instrument-holding .holding-row { border: 0; }
+.instrument-holding .holding-detail-hint {
+  display: block;
+  text-align: right;
+  margin: -5px 9px 8px;
+  color: #3b6934;
+  font-size: .74rem;
+  font-weight: 700;
+}
+.dark .instrument-holding .holding-detail-hint { color: #a9e5a2; }
+.holding-account-detail { margin: 0 8px 10px; padding: 8px; border-left: 3px solid #3b6934; background: rgba(59,105,52,.065); border-radius: 7px; }
+.holding-account-detail .holding-row + .holding-row { border-top: 1px dashed rgba(148,163,184,.35); }
+
+/* Actualités : source fiable et date affichées sous la société, quatre articles max. */
+.holding-news-group + .holding-news-group { margin-top: 15px; border-top: 1px solid rgba(148,163,184,.25); padding-top: 12px; }
+.holding-news-group-title { display: flex; align-items: baseline; justify-content: space-between; gap: 9px; flex-wrap: wrap; margin-bottom: 9px; }
+.holding-news-group-title strong { font-size: .93rem; overflow-wrap: anywhere; }
+.holding-news-group-title span { font-size: .75rem; color: #667085; }
+.dark .holding-news-group-title span { color: #b4c4d6; }
+
+/* Yahoo autocomplete : sans popover intrusif, accessible en plein écran PWA iPhone. */
+.instrument-lookup { position: relative; margin-bottom: 11px; }
+.instrument-lookup input { width: 100%; }
+.instrument-lookup-status { margin-top: 5px; font-size: .76rem; line-height: 1.35; }
+.instrument-suggestions {
+  display: grid;
+  gap: 3px;
+  margin-top: 7px;
+  padding: 5px;
+  background: var(--tab-surface, #fff);
+  border: 1px solid var(--tab-border, #c4c6cd);
+  border-radius: 10px;
+  max-height: min(38dvh,280px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.instrument-suggestion {
+  appearance: none;
+  padding: 9px 11px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 0;
+  border-radius: 7px;
+  background: rgba(148,163,184,.08);
+  color: inherit;
+  cursor: pointer;
+}
+.instrument-suggestion strong { font-size: .85rem; line-height: 1.25; }
+.instrument-suggestion small { font-size: .74rem; opacity: .85; }
+.instrument-suggestion:hover, .instrument-suggestion:focus-visible {
+  background: rgba(59,105,52,.18);
+  outline: 2px solid rgba(59,105,52,.65);
+}
+@media(max-width:420px) {
+  #notification-list .notification-date { font-size: .63rem; }
+  #notification-list .notification-title { font-size: .82rem; }
+  #notification-list .notification-card { padding: 8px 9px; }
+}

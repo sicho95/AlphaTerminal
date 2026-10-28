@@ -49,7 +49,7 @@
             <select id="holdingNewsPosition"><option value="all">Tous les titres détenus</option></select>
           </div>
           <div class="field"><label for="holdingNewsPeriod">Période</label>
-            <select id="holdingNewsPeriod"><option value="7">7 derniers jours</option><option value="30">30 derniers jours</option></select>
+            <select id="holdingNewsPeriod"><option value="30" selected>30 derniers jours</option><option value="7">7 derniers jours</option></select>
           </div>
           <button class="secondary-btn" id="holdingNewsRefresh" type="button">Rechercher les actualités</button>
         </div>
@@ -64,8 +64,9 @@
 <script type="module">
   import { getVisiblePortfolios, totals, getSettings, money, pct, decimal } from './js/store.js';
   import { suggestedStop } from './js/data.js';
-  import { holdingNews, eligibleHoldings } from './js/holding-news.js';
+  import { holdingNews, eligibleHoldings,latestByInstrument } from './js/holding-news.js';
   import { initSectionTabs } from './js/page-tabs.js';
+  import { groupInstruments } from './js/instruments.js';
 
   function initAnalyse() {
     const portfolios = getVisiblePortfolios();
@@ -153,25 +154,48 @@
   }
 
   function renderHoldings(positions) {
-    const rows = positions.filter(position => Number(position.qty) > 0).sort((a, b) => a.accountName.localeCompare(b.accountName) || (b.qty * b.currentPrice) - (a.qty * a.currentPrice));
-    document.getElementById('holdingsList').innerHTML = rows.length ? `
-      <div class="holding-row holding-head"><span>Portefeuille / ligne</span><span>Qté</span><span>PRU</span><span>Cours</span><span>Valeur</span><span>+/-</span><span>Perf</span></div>
-      ${rows.map(position => {
-        const invested = position.qty * position.pru;
-        const value = position.qty * position.currentPrice;
-        const gain = value - invested;
-        const perf = invested ? gain / invested * 100 : 0;
-        return `<div class="holding-row">
-          <div class="holding-main"><strong>${position.name}</strong><em>${position.ticker} · ${position.accountName}</em></div>
-          <span data-label="Qté">${decimal(position.qty)}</span>
-          <span data-label="PRU">${decimal(position.pru)}</span>
-          <span data-label="Cours">${decimal(position.currentPrice)}</span>
-          <span data-label="Valeur">${money(value)}</span>
-          <span data-label="+/-" class="${gain < 0 ? 'text-error' : 'text-secondary'}">${money(gain)}</span>
-          <span data-label="Perf" class="${perf < 0 ? 'text-error' : 'text-secondary'}">${pct(perf)}</span>
-        </div>`;
-      }).join('')}
-    ` : `<p class="text-muted">Aucune ligne detenue sur ce perimetre.</p>`;
+    const groups=groupInstruments(positions.filter(position=>Number(position.qty)>0));
+    const grid=(values,header=false)=>`<div class="holding-row ${header?'holding-head':''}">
+      <span>${header?'Titre unique / comptes':''}</span><span>Qté</span><span>PRU</span><span>Cours</span><span>Valeur</span><span>+/-</span><span>Perf</span>
+    </div>`;
+    const row=(position,label,accounts='')=>{
+      const invested=position.qty*position.pru;
+      const value=position.qty*position.currentPrice;
+      const gain=value-invested;
+      const perf=invested?gain/invested*100:0;
+      return `<div class="holding-row">
+        <div class="holding-main"><strong>${escapeNews(label)}</strong><em>${escapeNews(accounts||position.ticker||'')}</em></div>
+        <span data-label="Qté">${decimal(position.qty)}</span>
+        <span data-label="PRU">${decimal(position.pru)}</span>
+        <span data-label="Cours">${decimal(position.currentPrice)}</span>
+        <span data-label="Valeur">${money(value)}</span>
+        <span data-label="+/-" class="${gain<0?'text-error':'text-secondary'}">${money(gain)}</span>
+        <span data-label="Perf" class="${perf<0?'text-error':'text-secondary'}">${pct(perf)}</span>
+      </div>`;
+    };
+    const rendered=groups.map(g=>{
+      const positions=g.positions;
+      const qty=g.totalQty;
+      const invested=positions.reduce((n,p)=>n+p.qty*p.pru,0);
+      const value=positions.reduce((n,p)=>n+p.qty*p.currentPrice,0);
+      const rep=g.representative;
+      const aggregate={...rep,qty,pru:qty?invested/qty:0,
+        currentPrice:qty?value/qty:0};
+      const accounts=[...new Set(positions.map(p=>p.accountName))];
+      const main=row(aggregate,rep.name,rep.ticker+' · '+accounts.length+' compte(s)');
+      if(positions.length===1)return `<div class="instrument-holding">${main}</div>`;
+      const breakdown=positions.map(p=>row(p,p.accountName,p.ticker+' · position du portefeuille')).join('');
+      return `<details class="instrument-holding holding-accounts">
+        <summary aria-label="Afficher les ${positions.length} positions de ${escapeNews(rep.name)}">
+          ${main}
+          <span class="holding-detail-hint">Voir le détail des ${positions.length} positions / comptes</span>
+        </summary>
+        <div class="holding-account-detail">${breakdown}</div>
+      </details>`;
+    }).join('');
+    document.getElementById('holdingsList').innerHTML=groups.length?
+      '<p class="text-muted holding-unique-summary">'+groups.length+' titres distincts · '+positions.filter(p=>p.qty>0).length+' positions comptables (PEA/CTO conservés séparément).</p>'+
+      grid([],true)+rendered:'<p class="text-muted">Aucune ligne détenue sur ce périmètre.</p>';
   }
 
   const escapeNews=value=>String(value??'').replace(/[&<>"']/g, c=>({
@@ -187,30 +211,43 @@
     const status=document.getElementById('holdingNewsStatus');
     const target=document.getElementById('positionNews');
     select.innerHTML='<option value="all">Tous les titres détenus</option>'+
-      holdings.map(p=>`<option value="${escapeNews(p.id||p.isin||p.ticker)}">${escapeNews(p.name||p.ticker)}</option>`).join('');
+      holdings.map(p=>`<option value="${escapeNews(p.instrumentKey)}">${escapeNews(p.name||p.ticker)}${p.accountCount>1?' · '+p.accountCount+' portefeuilles':''}</option>`).join('');
     let items=[],nextOffset=0,scanned=0,total=holdings.length,loaded=false,busy=false,errors=[];
     const render=()=>{
-      const unique=new Map(items.map(a=>[a.url?.split('#')[0],a]));
-      const rows=[...unique.values()].sort((a,b)=>String(b.published_at).localeCompare(String(a.published_at)));
-      target.innerHTML=rows.length?rows.map(a=>{
-        const published=new Date(a.published_at);
-        const date=Number.isFinite(published.getTime())?
-          new Intl.DateTimeFormat('fr-FR',{day:'numeric',month:'short',year:'numeric'}).format(published):'';
-        const url=/^https:\/\//i.test(a.url||'')?a.url:'';
-        return `<a class="holding-news-card" href="${escapeNews(url||'#')}" target="_blank" rel="noopener noreferrer">
-          <strong class="holding-news-title">${escapeNews(a.title)}</strong>
-          <span class="holding-news-company">${escapeNews(a.holding_name||a.ticker)} · ${escapeNews(a.ticker||'')}</span>
-          <span class="holding-news-meta">${escapeNews(a.source||a.provider||'Actualités')} · ${escapeNews(date)}</span>
-        </a>`;
-      }).join(''):(!busy?'<p class="text-muted">Aucune actualité trouvée parmi les titres déjà interrogés pour cette période.</p>':'');
+      const rows=latestByInstrument(items,4);
+      const bySecurity=new Map();
+      for(const item of rows){
+        const key=item.position_id||item.ticker;
+        if(!bySecurity.has(key))bySecurity.set(key,[]);
+        bySecurity.get(key).push(item);
+      }
+      const sections=[...bySecurity].map(([key,articles])=>{
+        const company=holdings.find(p=>p.instrumentKey===key);
+        const name=company?.name||articles[0]?.holding_name||articles[0]?.ticker||'Titre détenu';
+        const shortLabel=company?.ticker||articles[0]?.ticker||'';
+        const cards=articles.map(a=>{
+          const published=new Date(a.published_at);
+          const date=Number.isFinite(published.getTime())?
+            new Intl.DateTimeFormat('fr-FR',{day:'numeric',month:'short',year:'numeric'}).format(published):'';
+          const url=/^https:\/\//i.test(a.url||'')?a.url:'';
+          return `<a class="holding-news-card" href="${escapeNews(url||'#')}" target="_blank" rel="noopener noreferrer">
+            <strong class="holding-news-title">${escapeNews(a.title)}</strong>
+            <span class="holding-news-meta">${escapeNews(a.source||a.provider||'Actualités')} · ${escapeNews(date)}</span>
+          </a>`;
+        }).join('');
+        return `<section class="holding-news-group" aria-label="Actualités de ${escapeNews(name)}">
+          <div class="holding-news-group-title"><strong>${escapeNews(name)}</strong><span>${escapeNews(shortLabel)} · ${articles.length} actualité${articles.length>1?'s':''}</span></div>
+          <div class="holding-news-list">${cards}</div>
+        </section>`;
+      });
+      target.innerHTML=sections.length?sections.join(''):(!busy?'<p class="text-muted">Aucune actualité récente trouvée pour les titres interrogés.</p>':'');
       more.classList.toggle('hidden',nextOffset===null||busy||select.value!=='all');
       more.textContent='Rechercher aussi parmi les autres titres ('+scanned+'/'+total+' vérifiés)';
-      status.textContent=busy?'Recherche des actualités des sociétés et ETF détenus…':
-        (scanned+'/'+total+' titres vérifiés · '+rows.length+' articles sur '+period.value+' jours · Google Actualités, Yahoo Finance et GDELT · cache NAS 20 min')+
+      status.textContent=busy?'Recherche des dernières actualités propres aux sociétés et ETF détenus…':
+        (scanned+'/'+total+' titres uniques vérifiés · '+rows.length+' articles (4 maximum par titre) sur '+period.value+' jours · Google Actualités, Yahoo Finance, GDELT')+
         (errors.length?' · Certaines sources ne répondent pas.':'');
-      if(!busy&&!rows.length&&errors.length){
-        target.innerHTML='<p class="text-muted">Aucun article obtenu. Certaines sources sont temporairement indisponibles : ce résultat ne signifie pas qu’il n’existe aucune actualité.</p>';
-      }
+      if(!busy&&!rows.length&&errors.length)
+        target.innerHTML='<p class="text-muted">Aucun article obtenu. Certaines sources sont indisponibles : cela ne signifie pas qu’il n’existe aucune actualité.</p>';
     };
     const load=async(reset=false)=>{
       if(busy&&!reset)return;
