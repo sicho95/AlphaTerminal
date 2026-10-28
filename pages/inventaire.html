@@ -17,7 +17,7 @@
     </nav>
     <div class="section-tabframe">
       <section id="inventory-panel-structure" class="section-tabpane" role="tabpanel" data-tab-panel="structure" aria-labelledby="inventory-tab-structure">
-        <div id="importStatus" class="mini-card hidden"></div>
+        <p id="importStatus" class="structure-counts text-muted hidden" role="status"></p>
         <div class="action-row">
           <button id="addOwner" class="ghost-btn" type="button"><span class="material-symbols-outlined">person_add</span>Propriétaire</button>
           <button id="addPortfolio" class="ghost-btn" type="button"><span class="material-symbols-outlined">add_business</span>Portefeuille</button>
@@ -415,7 +415,7 @@
       return;
     }
     box.classList.remove('hidden');
-    box.innerHTML = `<div><strong>Données Chargées</strong><span>${owners} proprietaires · ${portfolios} portefeuilles · ${positions} lignes detenues</span></div>`;
+    box.textContent = `${owners} propriétaire(s) · ${portfolios} portefeuille(s) · ${positions} positions détenues`;
   }
 
   function openPosition(portfolioId, positionId) {
