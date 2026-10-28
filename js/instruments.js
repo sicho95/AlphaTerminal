@@ -25,7 +25,12 @@ export function groupInstruments(positions){
   // Merge accounts through shared ISIN or exchange-qualified Yahoo symbol.
   for(const pos of positions){
     const aliases=instrumentAliases(pos);
-    const matches=groups.filter(g=>aliases.some(a=>g.aliases.has(a)));
+    const explicitIsin=aliases.find(a=>a.startsWith('isin:'));
+    const matches=groups.filter(g=>{
+      const existingIsin=[...g.aliases].find(a=>a.startsWith('isin:'));
+      if(explicitIsin&&existingIsin&&explicitIsin!==existingIsin)return false;
+      return aliases.some(a=>g.aliases.has(a));
+    });
     if(!matches.length){
       groups.push({positions:[pos],aliases:new Set(aliases)});
     }else{
