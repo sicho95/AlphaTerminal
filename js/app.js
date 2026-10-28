@@ -296,12 +296,12 @@ const App = {
         : '';
       const selected=this.highlightedAlertId === alert.id;
       return `<article role="listitem" class="mini-card notification-card ${alert.read ? 'opacity-70' : ''} ${selected ? 'notification-selected' : ''}" data-alert-id="${escapeHtml(alert.id)}">
-        <p class="notification-title">${escapeHtml(alert.title || alert.type || 'Alerte')}</p>
-        <p class="notification-message">${escapeHtml(alert.message || '')}</p>
-        <div class="notification-footer">
+        <div class="notification-row">
+          <strong class="notification-title">${escapeHtml(alert.title || alert.type || 'Alerte')}</strong>
           <time class="notification-date" datetime="${Number.isFinite(date.getTime()) ? date.toISOString() : ''}">${escapeHtml(stamp)}</time>
-          ${alert.url && /^https:\/\//.test(alert.url) ? `<a href="${escapeHtml(alert.url)}" target="_blank" rel="noopener noreferrer">Lire la source</a>` : ''}
         </div>
+        <p class="notification-message">${escapeHtml(alert.message || '')}</p>
+        ${alert.url && /^https:\/\//.test(alert.url) ? `<div class="notification-footer"><a href="${escapeHtml(alert.url)}" target="_blank" rel="noopener noreferrer">Lire la source</a></div>` : ''}
       </article>`;
     }).join('');
     list.scrollTop=previousScroll;
