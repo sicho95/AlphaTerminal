@@ -232,7 +232,7 @@ async def holdings_news(profile_id,days=7,position_id='',offset=0,portfolio_ids=
             all_news.extend(items);errors.extend(problems)
     unique={}
     for article in all_news:
-        key=article['url'].split('#')[0]
+        key=(article['position_id'],article['url'].split('#')[0])
         if key not in unique:unique[key]=article
     result=sorted(unique.values(),key=lambda x:x['published_at'],reverse=True)
     next_offset=offset+len(selection) if offset+len(selection)<total else None
