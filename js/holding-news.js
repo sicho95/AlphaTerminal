@@ -125,7 +125,7 @@ export async function holdingNews(positions,portfolios,{days=7,positionId='',off
     }));
     for(const data of batch){results.push(...data.articles);errors.push(...data.errors);}
   }
-  const unique=new Map(results.map(a=>[a.url.split('#')[0],a]));
+  const unique=new Map(results.map(a=>[a.position_id+'|'+a.url.split('#')[0],a]));
   return {articles:latestByInstrument([...unique.values()]),
     total_positions:filtered.length,checked_positions:current.length,offset,
     next_offset:offset+current.length<filtered.length?offset+current.length:null,
