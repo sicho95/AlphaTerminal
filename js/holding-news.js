@@ -95,6 +95,18 @@ async function singleLocal(holding,days){
   const byUrl=new Map(results.flat().map(item=>[item.url.split('#')[0],item]));
   return {articles:[...byUrl.values()].sort((a,b)=>b.published_at.localeCompare(a.published_at)).slice(0,4),errors};
 }
+export function latestByInstrument(articles,maximum=4){
+  const byInstrument=new Map();
+  for(const item of [...(articles||[])].sort((a,b)=>String(b.published_at).localeCompare(String(a.published_at)))){
+    const id=String(item.position_id||item.ticker||'');
+    const url=String(item.url||'').split('#')[0];
+    if(!id||!url.startsWith('https://'))continue;
+    if(!byInstrument.has(id))byInstrument.set(id,[]);
+    const list=byInstrument.get(id);
+    if(list.length<maximum&&!list.some(previous=>previous.url.split('#')[0]===url))list.push(item);
+  }
+  return [...byInstrument.values()].flat();
+}
 export async function holdingNews(positions,portfolios,{days=7,positionId='',offset=0}={}){
   if(![7,30].includes(Number(days)))throw Error('Période non prise en charge');
   const eligible=eligibleHoldings(positions);
@@ -114,7 +126,7 @@ export async function holdingNews(positions,portfolios,{days=7,positionId='',off
     for(const data of batch){results.push(...data.articles);errors.push(...data.errors);}
   }
   const unique=new Map(results.map(a=>[a.url.split('#')[0],a]));
-  return {articles:[...unique.values()].sort((a,b)=>b.published_at.localeCompare(a.published_at)).slice(0,40),
+  return {articles:latestByInstrument([...unique.values()]),
     total_positions:filtered.length,checked_positions:current.length,offset,
     next_offset:offset+current.length<filtered.length?offset+current.length:null,
     source_errors:[...new Set(errors)],sources:['Google Actualités','Yahoo Finance','GDELT']};
