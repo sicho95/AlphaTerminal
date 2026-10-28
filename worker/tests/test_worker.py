@@ -23,6 +23,33 @@ class WorkerTests(unittest.TestCase):
         # Les cas d'essai partagent localhost, mais doivent conserver des quotas isolés.
         from app.main import ATTEMPTS
         ATTEMPTS.clear()
+    def test_holding_security_identity_across_accounts(self):
+        from app.holding_news import eligible_positions,position_key,MAX_NEWS_PER_INSTRUMENT
+        saved={'portfolios':[
+            {'id':'pea','positions':[
+                {'id':'line-1','ticker':'SAN.PA','yahooTicker':'SAN.PA','isin':'FR0000120578',
+                 'name':'Sanofi','assetClass':'Actions','qty':5,'currentPrice':95},
+                {'id':'cash','name':'Espèces','ticker':'CASH','assetClass':'Liquidités','qty':1}]},
+            {'id':'cto','positions':[
+                {'id':'line-2','ticker':'SAN.PA','yahooTicker':'SAN.PA','isin':'FR0000120578',
+                 'name':'Sanofi SA','assetClass':'Actions','qty':3,'currentPrice':95},
+                {'id':'line-3','ticker':'SAN.PA','name':'Sanofi','assetClass':'Actions',
+                 'qty':2,'currentPrice':95},
+                {'id':'line-4','ticker':'ACA.PA','isin':'FR0000045072','name':'Credit Agricole',
+                 'assetClass':'Actions','qty':10,'currentPrice':16}
+            ]}
+        ]}
+        results=eligible_positions(saved)
+        self.assertEqual(len(results),2)
+        san=next(p for p in results if p['id']=='isin:FR0000120578')
+        self.assertEqual(san['value'],950)
+        self.assertEqual(len(san['legacy_ids']),3)
+        self.assertEqual(MAX_NEWS_PER_INSTRUMENT,4)
+        self.assertEqual(saved['portfolios'][0]['positions'][0]['qty'],5)
+        self.assertEqual(saved['portfolios'][1]['positions'][0]['qty'],3)
+        self.assertEqual(position_key(saved['portfolios'][0]['positions'][0]),
+                         position_key(saved['portfolios'][1]['positions'][0]))
+
     def test_profile_and_cas(self):
         with transaction() as db:
             db.execute("INSERT INTO profiles(id,name,created_at) VALUES('p','Test','now')")
