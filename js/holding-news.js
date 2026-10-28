@@ -3,20 +3,21 @@
  */
 import { SyncClient } from './sync-client.js';
 import { getSettings } from './store.js';
+import { groupInstruments,instrumentKey } from './instruments.js';
 
 const TTL=20*60*1000, PAGE=6, memory=new Map();
 const symbolOk=s=>/^[A-Za-z0-9.\-^=]{2,32}$/.test(s);
 const clean=s=>String(s||'').trim();
-const pKey=p=>String(p.id||p.isin||p.ticker||'');
+const pKey=instrumentKey;
 export function eligibleHoldings(positions) {
-  const seen=new Set();
-  return positions.filter(p=>{
-    const kind=clean(p.assetClass).toLowerCase();
-    const key=pKey(p);
-    if(Number(p.qty)<=0||!key||seen.has(key)||/liquid|cash|crypto/.test(kind))return false;
-    seen.add(key);return true;
-  }).sort((a,b)=>Number(b.qty)*Number(b.currentPrice)-Number(a.qty)*Number(a.currentPrice));
+  const allowed=(positions||[]).filter(p=>Number(p.qty)>0&&!/liquid|cash|crypto/i.test(clean(p.assetClass)));
+  return groupInstruments(allowed).map(g=>({
+    ...g.representative,
+    instrumentKey:g.key,accountCount:g.accountCount,
+    totalValue:g.totalValue,qty:g.totalQty
+  }));
 }
+
 function proxied(url){
   const proxy=getSettings().corsProxy||'https://api.allorigins.win/raw?url=';
   return proxy.includes('{url}')?proxy.replace('{url}',encodeURIComponent(url)):proxy+encodeURIComponent(url);
@@ -92,7 +93,7 @@ async function singleLocal(holding,days){
     }
   }));
   const byUrl=new Map(results.flat().map(item=>[item.url.split('#')[0],item]));
-  return {articles:[...byUrl.values()].sort((a,b)=>b.published_at.localeCompare(a.published_at)).slice(0,16),errors};
+  return {articles:[...byUrl.values()].sort((a,b)=>b.published_at.localeCompare(a.published_at)).slice(0,4),errors};
 }
 export async function holdingNews(positions,portfolios,{days=7,positionId='',offset=0}={}){
   if(![7,30].includes(Number(days)))throw Error('Période non prise en charge');
