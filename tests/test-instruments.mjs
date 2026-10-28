@@ -27,6 +27,10 @@ test('same ISIN/ticker across PEA/CTO is one instrument but three accounting pos
 test('market instruments with distinct tickers remain separate',()=>{
   assert.equal(groupInstruments([positions[0],positions[3]]).length,2);
 });
+test('conflicting verified ISIN values never merge through a common ticker',()=>{
+  const incompatible={...positions[0],id:'another-security',isin:'FR0000133308',portfolioId:'different'};
+  assert.equal(groupInstruments([positions[0],incompatible]).length,2);
+});
 test('latest four financial articles per holding, no duplicate URL for same security',()=>{
   const first='isin:FR0000120578';
   const news=Array.from({length:7},(_,n)=>({
