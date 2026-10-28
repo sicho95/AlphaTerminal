@@ -261,7 +261,7 @@
         event.preventDefault();suggestions.querySelector('button')?.focus();
       }
     });
-    document.addEventListener('click',event=>{
+    form.addEventListener('click',event=>{
       if(!event.target.closest('.instrument-lookup'))hide();
     });
     form.addEventListener('reset',()=>{
