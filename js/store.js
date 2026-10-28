@@ -1,6 +1,6 @@
 export const SCHEMA_VERSION = 2;
 export const PROFILE_DEFAULTS_VERSION = 3;
-export const APP_VERSION = '1.2.2';
+export const APP_VERSION = '1.2.3';
 
 export const KEYS = {
   data: 'alphaTerm_data',
@@ -395,6 +395,10 @@ export function upsertPosition(portfolioId, position) {
     return next.id;
   }
   const identity = positionIdentity(next);
+  const account=state.data.portfolios.find(portfolio=>portfolio.id===portfolioId);
+  if(!account)throw new Error('Portefeuille introuvable');
+  if(position.id&&account.positions.some(item=>item.id!==position.id&&positionIdentity(item)===identity))
+    throw new Error('Ce titre existe déjà dans ce portefeuille : modifier la ligne existante.');
   saveData({
     ...state.data,
     portfolios: state.data.portfolios.map(portfolio => portfolio.id !== portfolioId ? portfolio : {
@@ -493,5 +497,10 @@ export const money2 = value => new Intl.NumberFormat('fr-FR', { style: 'currency
 export const pct = value => `${(value || 0).toLocaleString('fr-FR', { maximumFractionDigits: 1, minimumFractionDigits: 1 })}%`;
 
 function positionIdentity(position) {
-  return [position.isin || '', position.ticker || '', position.name || ''].join('|').toLowerCase();
+  // Unique within one account, regardless of display-name spelling.
+  const isin=String(position.isin||'').trim().toUpperCase();
+  if(/^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(isin))return 'isin:'+isin;
+  const symbol=String(position.yahooTicker||position.ticker||'').trim().toUpperCase();
+  if(symbol)return 'symbol:'+symbol;
+  return 'name:'+String(position.name||'').trim().toLowerCase();
 }
