@@ -54,7 +54,11 @@ def eligible_positions(data):
             isin=str(position.get('isin') or '').upper().strip()
             if not SYMBOL.fullmatch(symbol) and not (name and len(name)>=5) and not ISIN.fullmatch(isin):continue
             aka=set(aliases(position))
-            matched=[g for g in groups if g['aliases'] & aka]
+            isin_alias=next((a for a in aka if a.startswith('isin:')),None)
+            def compatible(group):
+                known=next((a for a in group['aliases'] if a.startswith('isin:')),None)
+                return not(isin_alias and known and isin_alias!=known) and bool(group['aliases'] & aka)
+            matched=[g for g in groups if compatible(g)]
             try:value=quantity*float(position.get('currentPrice') or 0)
             except (ValueError,TypeError):value=0.
             member={'id':str(position.get('id') or ''),'ticker':symbol[:32],
