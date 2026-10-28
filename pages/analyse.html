@@ -66,6 +66,7 @@
   import { suggestedStop } from './js/data.js';
   import { holdingNews, eligibleHoldings,latestByInstrument } from './js/holding-news.js';
   import { initSectionTabs } from './js/page-tabs.js';
+  import { groupInstruments } from './js/instruments.js';
 
   function initAnalyse() {
     const portfolios = getVisiblePortfolios();
@@ -153,25 +154,48 @@
   }
 
   function renderHoldings(positions) {
-    const rows = positions.filter(position => Number(position.qty) > 0).sort((a, b) => a.accountName.localeCompare(b.accountName) || (b.qty * b.currentPrice) - (a.qty * a.currentPrice));
-    document.getElementById('holdingsList').innerHTML = rows.length ? `
-      <div class="holding-row holding-head"><span>Portefeuille / ligne</span><span>Qté</span><span>PRU</span><span>Cours</span><span>Valeur</span><span>+/-</span><span>Perf</span></div>
-      ${rows.map(position => {
-        const invested = position.qty * position.pru;
-        const value = position.qty * position.currentPrice;
-        const gain = value - invested;
-        const perf = invested ? gain / invested * 100 : 0;
-        return `<div class="holding-row">
-          <div class="holding-main"><strong>${position.name}</strong><em>${position.ticker} · ${position.accountName}</em></div>
-          <span data-label="Qté">${decimal(position.qty)}</span>
-          <span data-label="PRU">${decimal(position.pru)}</span>
-          <span data-label="Cours">${decimal(position.currentPrice)}</span>
-          <span data-label="Valeur">${money(value)}</span>
-          <span data-label="+/-" class="${gain < 0 ? 'text-error' : 'text-secondary'}">${money(gain)}</span>
-          <span data-label="Perf" class="${perf < 0 ? 'text-error' : 'text-secondary'}">${pct(perf)}</span>
-        </div>`;
-      }).join('')}
-    ` : `<p class="text-muted">Aucune ligne detenue sur ce perimetre.</p>`;
+    const groups=groupInstruments(positions.filter(position=>Number(position.qty)>0));
+    const grid=(values,header=false)=>`<div class="holding-row ${header?'holding-head':''}">
+      <span>${header?'Titre unique / comptes':''}</span><span>Qté</span><span>PRU</span><span>Cours</span><span>Valeur</span><span>+/-</span><span>Perf</span>
+    </div>`;
+    const row=(position,label,accounts='')=>{
+      const invested=position.qty*position.pru;
+      const value=position.qty*position.currentPrice;
+      const gain=value-invested;
+      const perf=invested?gain/invested*100:0;
+      return `<div class="holding-row">
+        <div class="holding-main"><strong>${escapeNews(label)}</strong><em>${escapeNews(accounts||position.ticker||'')}</em></div>
+        <span data-label="Qté">${decimal(position.qty)}</span>
+        <span data-label="PRU">${decimal(position.pru)}</span>
+        <span data-label="Cours">${decimal(position.currentPrice)}</span>
+        <span data-label="Valeur">${money(value)}</span>
+        <span data-label="+/-" class="${gain<0?'text-error':'text-secondary'}">${money(gain)}</span>
+        <span data-label="Perf" class="${perf<0?'text-error':'text-secondary'}">${pct(perf)}</span>
+      </div>`;
+    };
+    const rendered=groups.map(g=>{
+      const positions=g.positions;
+      const qty=g.totalQty;
+      const invested=positions.reduce((n,p)=>n+p.qty*p.pru,0);
+      const value=positions.reduce((n,p)=>n+p.qty*p.currentPrice,0);
+      const rep=g.representative;
+      const aggregate={...rep,qty,pru:qty?invested/qty:0,
+        currentPrice:qty?value/qty:0};
+      const accounts=[...new Set(positions.map(p=>p.accountName))];
+      const main=row(aggregate,rep.name,rep.ticker+' · '+accounts.length+' compte(s)');
+      if(positions.length===1)return `<div class="instrument-holding">${main}</div>`;
+      const breakdown=positions.map(p=>row(p,p.accountName,p.ticker+' · position du portefeuille')).join('');
+      return `<details class="instrument-holding holding-accounts">
+        <summary aria-label="Afficher les ${positions.length} positions de ${escapeNews(rep.name)}">
+          ${main}
+          <span class="holding-detail-hint">Voir le détail des ${positions.length} positions / comptes</span>
+        </summary>
+        <div class="holding-account-detail">${breakdown}</div>
+      </details>`;
+    }).join('');
+    document.getElementById('holdingsList').innerHTML=groups.length?
+      '<p class="text-muted holding-unique-summary">'+groups.length+' titres distincts · '+positions.filter(p=>p.qty>0).length+' positions comptables (PEA/CTO conservés séparément).</p>'+
+      grid([],true)+rendered:'<p class="text-muted">Aucune ligne détenue sur ce périmètre.</p>';
   }
 
   const escapeNews=value=>String(value??'').replace(/[&<>"']/g, c=>({
